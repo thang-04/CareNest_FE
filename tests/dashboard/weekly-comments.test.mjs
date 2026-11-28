@@ -89,6 +89,17 @@ test('Nội dung: gửi thì bắt buộc, tối đa 2000 ký tự; lưu nháp �
   assert.equal(contentError('Con học tốt.', { sending: true }), '');
 });
 
+test('Dòng lịch sử không làm tăng số cần gửi của lớp hiện tại', () => {
+  assert.deepEqual(
+    boardCounts([
+      { status: 'DRAFT', content: 'Nháp lớp cũ', historical: true },
+      { status: 'SENT', content: 'Đã gửi ở lớp cũ', historical: true },
+      { status: 'DRAFT', content: 'Trẻ đang học', historical: false },
+    ]),
+    { total: 1, sent: 0, ready: 1 },
+  );
+});
+
 test('Trạng thái và đếm: chỉ nháp có nội dung mới tính sẵn sàng gửi', () => {
   const rows = [
     { status: 'SENT', content: 'a' },

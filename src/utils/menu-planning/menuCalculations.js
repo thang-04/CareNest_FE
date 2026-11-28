@@ -411,6 +411,12 @@ export const priceOn = (prices, ageGroupId, date) =>
     .filter((p) => p.ageGroupId === ageGroupId && p.effectiveFrom <= date && (!p.effectiveTo || p.effectiveTo >= date))
     .sort((a, b) => (a.effectiveFrom < b.effectiveFrom ? 1 : -1))[0] || null;
 
+/** Ngân sách thực phẩm/trẻ/ngày = giá suất − phí dịch vụ (NUT-19); chưa có giá ⇒ null. */
+export const foodBudgetOn = (prices, ageGroupId, date) => {
+  const p = priceOn(prices, ageGroupId, date);
+  return p?.price == null ? null : Number(p.price) - (Number(p.serviceFee) || 0);
+};
+
 /**
  * Children concerned by allergens (GBR-MENU-03): only counts and class names, never child names.
  * classes/children come from the shared school structure.
@@ -419,7 +425,8 @@ export const allergyContext = (classes, children, ageGroupId) => {
   const classById = byId(classes);
   const rows = [];
   (children || [])
-    .filter((ch) => ch.status === 'ACTIVE' && (ch.allergies || []).length)
+    // NUT-07/CHD-13: trẻ không báo ăn không có suất ăn nên bếp không tính dị ứng
+    .filter((ch) => ch.status === 'ACTIVE' && ch.mealRegistered !== false && (ch.allergies || []).length)
     .forEach((ch) => {
       const cls = classById[ch.classId];
       if (!cls || (ageGroupId && cls.ageGroupId !== ageGroupId)) return;

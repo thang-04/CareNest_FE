@@ -26,7 +26,7 @@ export const BE_ERROR_FIELDS = {
   2004: 'name', // SCHOOL_YEAR_NAME_INVALID
   2005: 'endDate', // END_DATE_BEFORE_START
   2006: 'name', // SCHOOL_YEAR_EXISTS
-  2007: 'endDate', // SCHOOL_YEAR_DATES_OVERLAP
+  2007: '_form', // SCHOOL_YEAR_DATES_OVERLAP: lỗi của cả khoảng ngày, không gắn sai vào riêng ngày kết thúc
   2008: 'name', // SCHOOL_YEAR_NAME_LOCKED
   2009: 'name', // SCHOOL_YEAR_HAS_CLASSES
   2014: 'confirmName', // ACTIVATION_CONFIRM_MISMATCH
@@ -53,6 +53,7 @@ export const BE_ERROR_FIELDS = {
   2120: 'locationId', // ROOM_NOT_IN_CAMPUS
   2121: 'locationId', // ROOM_INACTIVE
   2122: 'locationId', // ROOM_TAKEN
+  2123: 'managerUserId', // ROOM_KITCHEN_MANAGER_INVALID
   2204: 'name', // AGE_GROUP_NAME_EXISTS
   2205: 'ageToMonths', // AGE_RANGE_INVALID
   2206: 'ageToMonths', // AGE_RANGE_OVERLAP

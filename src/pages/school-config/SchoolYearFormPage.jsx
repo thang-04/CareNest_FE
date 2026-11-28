@@ -18,7 +18,7 @@ import { YEAR_ACTION_LABELS, YEAR_STATUS } from '@/models/school-config/schoolCo
 import { canConfigureSchool, canEditYear } from '@/utils/school-config/schoolConfigPermissions';
 import { validateSchoolYear, hasErrors, errorsAfterChange } from '@/utils/school-config/schoolConfigValidation';
 import { yearCrumbs } from '@/utils/school-config/breadcrumbs';
-import { defaultPrepDate, suggestNextYear } from '@/utils/school-config/yearSetup';
+import { defaultPrepDate, suggestedDatesForSchoolYearName, suggestNextYear } from '@/utils/school-config/yearSetup';
 import { formatDate, formatDateTime, todayInput } from '@/utils/format';
 import '@/styles/modules/school-config.css';
 
@@ -37,6 +37,8 @@ function YearForm({ year, years, user }) {
   const prepLocked = !!year && year.status !== YEAR_STATUS.PLANNED;
   // Tạo năm mới, HT chưa tự chọn ngày mở chuẩn bị ⇒ ngày gợi ý đi theo ngày bắt đầu
   const [prepTouched, setPrepTouched] = useState(!!year);
+  // Đổi tên năm khi chưa sửa ngày: đổi luôn ngày gợi ý, tránh 2027-2028 nhưng vẫn mang ngày của năm 2026-2027.
+  const [datesTouched, setDatesTouched] = useState(!!year);
   const ruleOptions = { creating: !year, prepLocked, initialPrepDate: year?.prepDate || null, today };
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
@@ -51,13 +53,19 @@ function YearForm({ year, years, user }) {
 
   const set = (patch) => {
     const next = { ...patch };
-    if (patch.startDate !== undefined && !prepTouched) next.prepDate = defaultPrepDate(patch.startDate, others, today);
+    if (!year && patch.name !== undefined && !datesTouched) {
+      const suggested = suggestedDatesForSchoolYearName(patch.name);
+      if (suggested) Object.assign(next, suggested);
+    }
+    if (patch.startDate !== undefined || patch.endDate !== undefined) setDatesTouched(true);
+    if (next.startDate !== undefined && !prepTouched) next.prepDate = defaultPrepDate(next.startDate, others, today);
     setForm((f) => ({ ...f, ...next }));
     setErrors((e) => errorsAfterChange(e, next, { ...form, ...next }, {}));
   };
   const blurCheck = (field) => {
     const e = validateSchoolYear(form, others, ruleOptions);
     if (e[field]) setErrors((prev) => ({ ...prev, [field]: e[field] }));
+    if (e._form) setErrors((prev) => ({ ...prev, _form: e._form }));
     // Đổi ngày bắt đầu / kết thúc làm ngày mở chuẩn bị hết hợp lệ ⇒ báo ngay ở ô ngày mở chuẩn bị
     if (field !== 'prepDate' && e.prepDate && form.prepDate) setErrors((prev) => ({ ...prev, prepDate: e.prepDate }));
   };

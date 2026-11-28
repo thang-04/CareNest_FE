@@ -3,30 +3,32 @@ import { Link } from 'react-router-dom';
 import { ChevronDown, ChevronRight, Plus, Trash2, UtensilsCrossed } from '@/components/ui/icons';
 import { dishTypeClass } from '@/utils/dishTypeClass';
 import { DISH_TYPE_LABELS, MEAL_SESSION_LABELS, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
+import { Button } from '@/components';
 
 const num = (v) => (v == null ? '—' : Number(v).toLocaleString('vi-VN', { maximumFractionDigits: 2 }));
 
 /**
  * Một bữa của mẫu ngày: món theo loại, mở món xem thành phần cho 1 trẻ (số do BE tính — `dishIngredients` của menu-statistics).
  * Thành phần chỉ xem; gam/trẻ thuộc công thức món theo nhóm tuổi (NUT-18) nên sửa ở trang món.
+ * `dishesOnly`: chỉ liệt kê món (Kế hoạch tuần).
  */
-export function TemplateMealSection({ session, items, ingredients, loading, editable, canEditRecipe, onAdd, onRemove }) {
+export function TemplateMealSection({ session, items, ingredients, loading, editable, canEditRecipe, dishesOnly, onAdd, onRemove }) {
   // Món mở sẵn thành phần; người dùng thu gọn món nào thì nhớ món đó
   const [closed, setClosed] = useState(() => new Set());
   const toggle = (id) => setClosed((s) => (s.has(id) ? new Set([...s].filter((x) => x !== id)) : new Set([...s, id])));
   // ingredients: mảng; null = máy chủ không trả thành phần món; undefined = đang tải
   const lines = (dishId) => (ingredients || []).filter((l) => l.session === session && String(l.dishId) === String(dishId));
   const label = MEAL_SESSION_LABELS[session] || session;
-  const noLines = ingredients === null && !loading;
+  const noLines = dishesOnly || (ingredients === null && !loading);
 
   return (
     <section className={`card td-meal ${loading ? 'td-meal--busy' : ''}`} aria-label={label} aria-busy={!!loading}>
       <div className="card__header">
         <h2 className="card__title">{label}</h2>
         {editable && items.length > 0 && (
-          <button type="button" className="btn btn--sm" onClick={onAdd}>
+          <Button size="sm" onClick={onAdd}>
             <Plus size={16} /> Thêm món ăn
-          </button>
+          </Button>
         )}
       </div>
       {items.length === 0 ? (
@@ -37,9 +39,9 @@ export function TemplateMealSection({ session, items, ingredients, loading, edit
             <b>Chưa có món</b> · Chọn một hoặc nhiều món cho bữa này.
           </span>
           {editable && (
-            <button type="button" className="btn btn--primary btn--sm" onClick={onAdd}>
+            <Button variant="primary" size="sm" onClick={onAdd}>
               <Plus size={16} /> Thêm món ăn
-            </button>
+            </Button>
           )}
         </div>
       ) : (
@@ -68,15 +70,14 @@ export function TemplateMealSection({ session, items, ingredients, loading, edit
                       <td colSpan={7}>
                         <div className="td-meal__dish-in">
                           {!noLines && (
-                            <button
-                              type="button"
-                              className="icon-btn"
+                            <Button
+                              variant="icon"
                               aria-expanded={isOpen}
                               aria-label={`${isOpen ? 'Ẩn' : 'Xem'} thành phần ${item.dishName}`}
                               onClick={() => toggle(item.dishId)}
                             >
                               {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                            </button>
+                            </Button>
                           )}
                           <b>{item.dishName || 'Món đã xóa'}</b>
                           {item.dishType && <span className="chip">{DISH_TYPE_LABELS[item.dishType] || item.dishType}</span>}
@@ -88,14 +89,9 @@ export function TemplateMealSection({ session, items, ingredients, loading, edit
                             </Link>
                           )}
                           {editable && (
-                            <button
-                              type="button"
-                              className="icon-btn"
-                              aria-label={`Bỏ ${item.dishName}`}
-                              onClick={() => onRemove(item.dishId)}
-                            >
+                            <Button variant="icon" aria-label={`Bỏ ${item.dishName}`} onClick={() => onRemove(item.dishId)}>
                               <Trash2 size={16} />
-                            </button>
+                            </Button>
                           )}
                         </div>
                       </td>
@@ -130,7 +126,7 @@ export function TemplateMealSection({ session, items, ingredients, loading, edit
               })}
             </tbody>
           </table>
-          {noLines && (
+          {noLines && !dishesOnly && (
             // Máy chủ cũ không trả `dishIngredients`: báo một lần cho cả bữa thay vì lặp dưới từng món
             <p className="td-meal__note text-sm muted">
               Chưa xem được thành phần từng món (máy chủ chưa hỗ trợ). Dinh dưỡng của ngày vẫn tính đủ.

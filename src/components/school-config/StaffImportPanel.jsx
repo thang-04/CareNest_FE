@@ -39,7 +39,7 @@ function PreviewTable({ title, head, rows, bad = false }) {
 }
 
 /** Nhập tài khoản nhân sự từ Excel (Cần 31/10/2026): xem trước, tạo lần lượt dòng hợp lệ qua POST /accounts, dòng BE từ chối hiện đỏ. */
-export function StaffImportPanel({ open, campuses, teacherCampusRequired = false, onClose }) {
+export function StaffImportPanel({ open, campuses, onClose }) {
   const toast = useToast();
   const [fileName, setFileName] = useState('');
   const [result, setResult] = useState(null);
@@ -61,7 +61,7 @@ export function StaffImportPanel({ open, campuses, teacherCampusRequired = false
     try {
       const [sheets, accounts] = await Promise.all([readWorkbook(file, [STAFF_SHEET]), listAllStaffAccounts()]);
       const existing = accounts.map((a) => ({ phone: normalizePhone(a.username), email: a.email }));
-      setResult(matchStaffRows(sheets[STAFF_SHEET], { campuses, existing, teacherCampusRequired }));
+      setResult(matchStaffRows(sheets[STAFF_SHEET], { campuses, existing }));
     } catch {
       setResult({
         items: [],

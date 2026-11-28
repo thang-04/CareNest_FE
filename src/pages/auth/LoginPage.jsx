@@ -5,12 +5,20 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { AuthLayout } from '@/layouts/AuthLayout';
 import { Avatar, FormField, PasswordInput, Spinner } from '@/components';
-import { IS_DEMO_MODE, DEMO_LOGIN_PASSWORD, getDemoAccounts, getRememberedLogin, setRememberedLogin } from '@/services/authService';
+import {
+  IS_DEMO_MODE,
+  DEMO_LOGIN_PASSWORD,
+  getDemoAccounts,
+  getRememberedLogin,
+  setRememberedLogin,
+  SESSION_CONFLICT,
+} from '@/services/authService';
+import { TakeoverConfirmModal } from '@/components/auth/TakeoverConfirmModal';
 import { ROLE_LABELS } from '@/models/User';
 import { returnPath } from '@/routes/ProtectedRoute';
 
 import { setPasswordChallenge } from '@/services/authChallengeStore';
-import { loginErrorText } from '@/utils/auth/loginErrorText';
+import { loginErrorText, loginLockSeconds } from '@/utils/auth/loginErrorText';
 
 const validate = ({ email, password }) => {
   const e = {};
@@ -50,8 +58,24 @@ function DemoAccounts({ onPick }) {
   );
 }
 
+// Số giây còn lại tới mốc (ms), tự giảm mỗi giây; null ⇒ 0
+function useSecondsUntil(untilMs) {
+  const compute = () => (untilMs ? Math.max(0, Math.ceil((untilMs - Date.now()) / 1000)) : 0);
+  const [left, setLeft] = useState(compute);
+  useEffect(() => {
+    setLeft(compute());
+    if (!untilMs) return undefined;
+    const timer = setInterval(() => setLeft(compute()), 1000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [untilMs]);
+  return left;
+}
+
+const mmss = (seconds) => `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+
 export default function LoginPage() {
-  const { login, sessionMessage, sessionError, retrySession } = useAuth();
+  const { login, confirmTakeover, sessionMessage, sessionError, retrySession } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -62,6 +86,11 @@ export default function LoginPage() {
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [takeover, setTakeover] = useState(null);
+  // Khóa tạm (AUTH-03): mốc tính theo đồng hồ máy này từ số giây BE trả, tránh lệch giờ máy chủ
+  const [lockedUntil, setLockedUntil] = useState(null);
+  const lockLeft = useSecondsUntil(lockedUntil);
+  const locked = lockLeft > 0;
   // Shown after a password reset / first-login change (account module).
   const notice = location.state?.notice || '';
 
@@ -73,6 +102,14 @@ export default function LoginPage() {
       return next;
     });
     setServerError('');
+    // Khóa tạm gắn với tài khoản vừa thử; đổi SĐT/email thì bỏ đếm ngược
+    if ('email' in patch) setLockedUntil(null);
+  };
+
+  const welcome = (user) => {
+    setRememberedLogin(form.email.trim(), form.remember);
+    toast.success(`Xin chào ${user.fullName}`, 'Đăng nhập thành công');
+    navigate(returnPath(location.state?.from), { replace: true });
   };
 
   const submit = async (event) => {
@@ -82,11 +119,14 @@ export default function LoginPage() {
     if (Object.keys(e).length) return;
     setBusy(true);
     try {
-      const user = await login({ email: form.email.trim(), password: form.password, remember: form.remember }); // carenest:allow-secret – tên field, không phải giá trị bí mật
-      setRememberedLogin(form.email.trim(), form.remember);
-      toast.success(`Xin chào ${user.fullName}`, 'Đăng nhập thành công');
-      navigate(returnPath(location.state?.from), { replace: true });
+      welcome(await login({ email: form.email.trim(), password: form.password, remember: form.remember })); // carenest:allow-secret – tên field, không phải giá trị bí mật
     } catch (err) {
+      // AUTH-28: tài khoản đang dùng ở trình duyệt khác ⇒ hỏi dùng ở đâu, chưa đăng xuất bên kia
+      if (err.errorCode === SESSION_CONFLICT) {
+        setTakeover({ expiresAt: err.details?.takeover?.expiresAt, remember: form.remember });
+        setForm((f) => ({ ...f, password: '' }));
+        return;
+      }
       // Issued password (SRS 1.1 step 7): no session yet, the user must set a new password first.
       if (err.details?.passwordChangeRequired && err.details?.changeToken) {
         setPasswordChallenge({ token: err.details.changeToken, mode: 'first-login', email: form.email.trim() });
@@ -94,7 +134,9 @@ export default function LoginPage() {
         navigate('/reset-password', { state: { mode: 'first-login', email: form.email.trim() } });
         return;
       }
-      setServerError(loginErrorText(err));
+      const lockSeconds = loginLockSeconds(err);
+      setLockedUntil(lockSeconds ? Date.now() + lockSeconds * 1000 : null);
+      setServerError(lockSeconds ? '' : loginErrorText(err));
       setForm((f) => ({ ...f, password: '' }));
     } finally {
       setBusy(false);
@@ -137,6 +179,14 @@ export default function LoginPage() {
             <div>{sessionMessage}</div>
           </div>
         )}
+        {locked && (
+          <div className="alert alert--danger" role="alert">
+            <AlertCircle size={18} />
+            <div>
+              Tài khoản tạm bị khóa do nhập sai mật khẩu nhiều lần. Vui lòng thử lại sau <b aria-live="off">{mmss(lockLeft)}</b>.
+            </div>
+          </div>
+        )}
         {serverError && (
           <div className="alert alert--danger" role="alert">
             <AlertCircle size={18} />
@@ -177,10 +227,17 @@ export default function LoginPage() {
           </Link>
         </div>
 
-        <button type="submit" className="btn btn--primary btn--lg btn--block" disabled={busy}>
+        <button type="submit" className="btn btn--primary btn--lg btn--block" disabled={busy || locked}>
           {busy ? <Spinner small /> : <LogIn size={18} />} {busy ? 'Đang đăng nhập...' : 'Đăng nhập'}
         </button>
       </form>
+      {takeover && (
+        <TakeoverConfirmModal
+          expiresAt={takeover.expiresAt}
+          onConfirm={async () => welcome(await confirmTakeover({ remember: takeover.remember }))}
+          onClose={() => setTakeover(null)}
+        />
+      )}
     </AuthLayout>
   );
 }

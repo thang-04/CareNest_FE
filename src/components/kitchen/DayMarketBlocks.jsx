@@ -1,4 +1,6 @@
+import { Fragment } from 'react';
 import { fmtQty } from '@/components/kitchen/KitchenFilters';
+import { dayMarketSupplierGroups } from '@/utils/kitchen/dayMarketGroups';
 import { formatMoney } from '@/utils/format';
 
 /* Khối của màn Đi chợ theo ngày. Mọi số do service tính; ở đây chỉ hiển thị. */
@@ -9,8 +11,9 @@ const qty = (n) => (n ? fmtQty(n) : dash);
 const money = (n) => (n == null ? dash : formatMoney(n));
 export const groupCell = (row, ageGroupId) => row.groups.find((g) => g.ageGroupId === ageGroupId);
 
-/** Thực phẩm của ngày: đơn giá, lượng xuất kho hoặc mua chợ, thành tiền, rồi số lượng và tiền từng nhóm tuổi. */
+/** Thực phẩm của ngày gom theo NCC: đơn giá, lượng xuất kho hoặc mua chợ, thành tiền, rồi số lượng và tiền từng nhóm tuổi. */
 export function DayMarketTable({ data }) {
+  let stt = 0;
   return (
     <div className="table-wrap">
       <table className="table table--grid table--compact">
@@ -54,24 +57,33 @@ export function DayMarketTable({ data }) {
           </tr>
         </thead>
         <tbody>
-          {data.lines.map((line, i) => (
-            <tr key={line.foodId}>
-              <td className="num">{i + 1}</td>
-              <td>{line.name}</td>
-              <td className="center">{line.unit}</td>
-              <td className="num nowrap">{money(line.unitPrice)}</td>
-              <td className="num">{line.source === SOURCE_STOCK ? qty(line.quantity) : dash}</td>
-              <td className="num">{line.source === SOURCE_STOCK ? dash : qty(line.quantity)}</td>
-              <td className="num nowrap fw-600">{money(line.amount)}</td>
-              {line.groups.flatMap((g) => [
-                <td key={`${g.ageGroupId}-q`} className="num">
-                  {qty(g.quantity)}
-                </td>,
-                <td key={`${g.ageGroupId}-m`} className="num nowrap">
-                  {g.quantity ? money(g.amount) : dash}
-                </td>,
-              ])}
-            </tr>
+          {dayMarketSupplierGroups(data.lines).map((group) => (
+            <Fragment key={group.key}>
+              <tr className="kb-dm__group">
+                <th colSpan={7 + data.groups.length * 2} scope="colgroup">
+                  {group.label} <span className="muted">· {group.lines.length} thực phẩm</span>
+                </th>
+              </tr>
+              {group.lines.map((line) => (
+                <tr key={line.foodId}>
+                  <td className="num">{(stt += 1)}</td>
+                  <td>{line.name}</td>
+                  <td className="center">{line.unit}</td>
+                  <td className="num nowrap">{money(line.unitPrice)}</td>
+                  <td className="num">{line.source === SOURCE_STOCK ? qty(line.quantity) : dash}</td>
+                  <td className="num">{line.source === SOURCE_STOCK ? dash : qty(line.quantity)}</td>
+                  <td className="num nowrap fw-600">{money(line.amount)}</td>
+                  {line.groups.flatMap((g) => [
+                    <td key={`${g.ageGroupId}-q`} className="num">
+                      {qty(g.quantity)}
+                    </td>,
+                    <td key={`${g.ageGroupId}-m`} className="num nowrap">
+                      {g.quantity ? money(g.amount) : dash}
+                    </td>,
+                  ])}
+                </tr>
+              ))}
+            </Fragment>
           ))}
           <tr className="kb-fc__total">
             <td colSpan={6}>Tổng chi</td>
@@ -118,6 +130,18 @@ export function DayMarketMoney({ data }) {
             <td />
             <td className="num nowrap">{money(totals.revenue)}</td>
           </tr>
+          {totals.foodBudget != null && totals.revenue != null && (
+            <>
+              <tr>
+                <td colSpan={3}>Trừ phí dịch vụ</td>
+                <td className="num nowrap">{formatMoney(totals.revenue - totals.foodBudget)}</td>
+              </tr>
+              <tr className="kb-fc__total">
+                <td colSpan={3}>Ngân sách thực phẩm</td>
+                <td className="num nowrap">{formatMoney(totals.foodBudget)}</td>
+              </tr>
+            </>
+          )}
           <tr>
             <td colSpan={3}>Chi mua chợ</td>
             <td className="num nowrap">{formatMoney(totals.marketCost)}</td>

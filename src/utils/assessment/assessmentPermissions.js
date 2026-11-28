@@ -72,11 +72,13 @@ export const canReviewEvaluation = (ev, cls, user) =>
   ev.status !== EVAL_STATUS.CONFIRMED &&
   (cls?.canEdit ?? isClassTeacher(cls, user));
 
+// BE OBS-33 (Cần chốt 15/11/2026): chỉ GV chủ nhiệm xác nhận — cờ cls.canConfirm do BE trả
 export const canConfirmEvaluation = (ev, cls, user) =>
   hasBePermission(user, PERMISSIONS.ASSESSMENT_CONFIRM) &&
   !!ev &&
   ev.status !== EVAL_STATUS.CONFIRMED &&
-  (cls?.canEdit ?? isClassTeacher(cls, user));
+  (cls?.canEdit ?? isClassTeacher(cls, user)) &&
+  (cls?.canConfirm ?? true);
 
 export const canViewEvaluation = (ev, cls, user) =>
   !!ev && (isClassTeacher(cls, user) || (ev.status === EVAL_STATUS.CONFIRMED && inLeaderScope(ev.campusId, user)));

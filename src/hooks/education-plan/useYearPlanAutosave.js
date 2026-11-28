@@ -142,7 +142,8 @@ export function useYearPlanAutosave({ doc, setDoc, enabled, mayBackup, save, use
     };
     window.addEventListener('beforeunload', warn);
     window.addEventListener('pagehide', hide);
-    document.addEventListener('keydown', key);
+    // Pha capture: nút menu (RowMenu) chặn keydown lan lên, sau khi đóng hộp thoại focus quay về đó thì Ctrl+S vẫn lưu
+    document.addEventListener('keydown', key, true);
     return () => {
       backup();
       mounted.current = false;
@@ -150,7 +151,7 @@ export function useYearPlanAutosave({ doc, setDoc, enabled, mayBackup, save, use
       clearInterval(interval);
       window.removeEventListener('beforeunload', warn);
       window.removeEventListener('pagehide', hide);
-      document.removeEventListener('keydown', key);
+      document.removeEventListener('keydown', key, true);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, planKey]);

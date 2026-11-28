@@ -1,11 +1,11 @@
+import { SelectField } from '@/components/form/Field';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { Card, PageHead } from '@/components/education-plan/eduUi';
 import { GoalPicker } from '@/components/education-plan/GoalPicker';
-import { Tabs } from '@/components/ui/Tabs';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { useCurriculum } from '@/hooks/education-plan/useCurriculum';
-import { AGE_GROUPS } from '@/models/education-plan/educationPlanConstants';
+import { ageRangeOptions, rangeOptionId } from '@/models/education-plan/educationPlanConstants';
 import { curriculumPickTree, curriculumTree } from '@/models/education-plan/curriculum.mjs';
 
 const fmtIso = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
@@ -17,7 +17,7 @@ const fmtIso = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
 export default function CurriculumSourcesPage() {
   const [params, setParams] = useSearchParams();
   const { hash } = useLocation();
-  const ageGroupId = AGE_GROUPS.some((a) => a.id === params.get('ageGroup')) ? params.get('ageGroup') : 'ag-3';
+  const ageGroupId = rangeOptionId(params.get('ageGroup')) || ageRangeOptions()[0]?.id;
   const tab = params.get('tab') === 'contents' ? 'contents' : 'goals';
   const data = useCurriculum(ageGroupId);
   const tree = useMemo(() => curriculumTree(data.goals), [data.goals]);
@@ -42,13 +42,8 @@ export default function CurriculumSourcesPage() {
 
   return (
     <div className="page ga-page ga-cur-page">
-      {/* Khung chung các trang kế hoạch giáo dục: đầu trang → thẻ lọc → tab → thẻ nội dung (Tiền 14/11/2026) */}
       <div className="ga-sticky-head">
-        <PageHead
-          crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Nguồn chương trình của Bộ' }]}
-          title="Nguồn chương trình của Bộ"
-          desc="Đối chiếu mục tiêu và gợi ý nội dung trong Chương trình GDMN của Bộ theo nhóm tuổi. Chỉ xem."
-        />
+        <PageHead crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Nguồn chương trình của Bộ' }]} title="Nguồn chương trình của Bộ" />
         <div className="card mb-16">
           <div className="filter-bar">
             <div className="field">
@@ -65,12 +60,21 @@ export default function CurriculumSourcesPage() {
                   setSubFilter('');
                 }}
               >
-                {AGE_GROUPS.map((a) => (
+                {ageRangeOptions().map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name}
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="field">
+              <label className="field__label" htmlFor="src-catalog">
+                Danh mục
+              </label>
+              <SelectField id="src-catalog" value={tab} onChange={(e) => setParam('tab', e.target.value)}>
+                <option value="goals">Mục tiêu ({data.goals.length})</option>
+                <option value="contents">Gợi ý nội dung ({data.contents.length})</option>
+              </SelectField>
             </div>
             {source && (
               <div className="filter-bar__end ga-cur-meta">
@@ -86,17 +90,6 @@ export default function CurriculumSourcesPage() {
             )}
           </div>
         </div>
-        <div className="mb-16">
-          <Tabs
-            ariaLabel="Danh mục"
-            value={tab}
-            onChange={(key) => setParam('tab', key)}
-            items={[
-              { key: 'goals', label: 'Mục tiêu', count: data.goals.length || null },
-              { key: 'contents', label: 'Gợi ý nội dung', count: data.contents.length || null },
-            ]}
-          />
-        </div>
       </div>
       <Card bodyClass={null}>
         <div className="card__body stack">
@@ -108,7 +101,13 @@ export default function CurriculumSourcesPage() {
             !data.goals.length ? (
               <EmptyState title="Chưa có dữ liệu của Bộ cho nhóm tuổi này" />
             ) : (
-              <GoalPicker tree={pickTree} readOnly kindLabels={{ sub: 'Lĩnh vực con', group: 'Kết quả cần đạt' }} />
+              <GoalPicker
+                key={ageGroupId}
+                tree={pickTree}
+                readOnly
+                showSearch={false}
+                kindLabels={{ sub: 'Lĩnh vực con', group: 'Kết quả cần đạt' }}
+              />
             )
           ) : !data.contents.length ? (
             <EmptyState title="Chưa có gợi ý nội dung cho nhóm tuổi này" />

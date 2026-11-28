@@ -3,10 +3,23 @@
  * Each function returns { field: message }; `others` are the existing records used for duplicate checks.
  * Rules: Academic Year / Age Group / Class / Campus entities (SRS 3.2), UC 2.1–2.7, screens 4.1.2–4.1.5, GBR-CFG-02, MSG19/MSG20.
  */
-import { formatDate, isIsoDate, normalizeText } from '@/utils/format';
-import { MEAL_SESSION_OPTIONS, TEACHERS_PER_CLASS } from '@/models/school-config/schoolConfigConstants';
+import { formatDate, isIsoDate } from '@/utils/format';
+import { MAX_TEACHERS_PER_CLASS, MEAL_SESSION_OPTIONS, TEACHERS_PER_CLASS } from '@/models/school-config/schoolConfigConstants';
 
-const same = (a, b) => normalizeText((a || '').trim()) === normalizeText((b || '').trim());
+// So trùng tên như BE (Cần chốt 19/11/2026): bỏ khoảng trắng đầu/cuối, gộp khoảng trắng, dấu NFC, không phân biệt hoa thường
+export const nameKey = (text) =>
+  String(text || '')
+    .normalize('NFC')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+const same = (a, b) => nameKey(a) === nameKey(b);
+// Mã là định danh: bỏ toàn bộ khoảng trắng để CS-A, CS - A và cs-a không thể cùng tồn tại.
+export const normalizeCampusCode = (text) =>
+  String(text || '')
+    .normalize('NFC')
+    .replace(/\s+/g, '');
+const sameCampusCode = (a, b) => normalizeCampusCode(a).toLowerCase() === normalizeCampusCode(b).toLowerCase();
 const YEAR_NAME = /^(\d{4})-(\d{4})$/;
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 // Số điện thoại Việt Nam (như CampusRequest.phone của BE): di động 10 số 03/05/07/08/09, cố định 11 số 02x
@@ -85,7 +98,7 @@ export const validateSchoolYear = (
   if (!e.startDate && !e.endDate) {
     const overlap = others.find((y) => form.startDate <= y.endDate && y.startDate <= form.endDate);
     if (overlap)
-      e.endDate = `Khoảng thời gian trùng với năm học ${overlap.name} (${formatDate(overlap.startDate)} – ${formatDate(overlap.endDate)})`;
+      e._form = `Khoảng ngày ${formatDate(form.startDate)} – ${formatDate(form.endDate)} trùng với năm học ${overlap.name} (${formatDate(overlap.startDate)} – ${formatDate(overlap.endDate)}). Hãy điều chỉnh ngày bắt đầu hoặc ngày kết thúc.`;
   }
   // CFG-YR-03: năm mới nối tiếp năm mới nhất (tên = năm mới nhất + 1, bắt đầu sau ngày kết thúc năm đó)
   const latest = creating ? [...others].sort((a, b) => b.startDate.localeCompare(a.startDate))[0] : null;
@@ -184,14 +197,93 @@ export const classSizeLimit = (ageGroup, room) => {
   return { max, reason: `${by}: ${parts.join(', ')}` };
 };
 
-export const validateCutoff = (form, year) => {
+// Ô giờ của lịch sinh hoạt: [field, câu khi trống, nhãn dùng trong câu lỗi thứ tự]
+const SCHEDULE_FIELDS = [
+  ['dropoffOpenFrom', 'Nhập giờ mở đón trẻ', 'Mở đón trẻ'],
+  ['morningStart', 'Nhập giờ bắt đầu buổi sáng', 'Bắt đầu sáng'],
+  ['morningEnd', 'Nhập giờ kết thúc buổi sáng', 'Kết thúc sáng'],
+  ['afternoonStart', 'Nhập giờ bắt đầu buổi chiều', 'Bắt đầu chiều'],
+  ['fullDayPickupFrom', 'Nhập mốc tính đủ ngày', 'Mốc tính đủ ngày'],
+  ['pickupStart', 'Nhập giờ bắt đầu khung trả trẻ', 'Bắt đầu trả trẻ'],
+  ['pickupEnd', 'Nhập giờ kết thúc khung trả trẻ', 'Kết thúc trả trẻ'],
+  ['afternoonEnd', 'Nhập giờ kết thúc buổi chiều', 'Kết thúc chiều'],
+];
+const TIME_LABELS = {
+  time: 'Giờ chốt',
+  latestAfternoonArrival: 'Giờ đến muộn nhất buổi chiều',
+  ...Object.fromEntries(SCHEDULE_FIELDS.map(([key, , label]) => [key, label])),
+};
+// [ô báo lỗi, so sánh, ô mốc]: '>' phải sau, '>=' phải bằng hoặc sau, '<' phải trước
+const SCHEDULE_ORDER = [
+  ['morningStart', '>=', 'dropoffOpenFrom'],
+  ['morningEnd', '>', 'morningStart'],
+  ['afternoonStart', '>', 'morningEnd'],
+  ['fullDayPickupFrom', '>', 'afternoonStart'],
+  ['pickupStart', '>=', 'fullDayPickupFrom'],
+  ['pickupEnd', '>', 'pickupStart'],
+  ['afternoonEnd', '>=', 'pickupEnd'],
+  ['time', '>=', 'dropoffOpenFrom'],
+  ['time', '<', 'morningEnd'],
+  ['latestAfternoonArrival', '>', 'time'],
+  ['latestAfternoonArrival', '>=', 'morningEnd'],
+  ['latestAfternoonArrival', '>', 'afternoonStart'],
+  ['latestAfternoonArrival', '<', 'pickupStart'],
+];
+const ORDER_TEXT = { '>': 'phải sau', '>=': 'phải bằng hoặc sau', '<': 'phải trước' };
+
+/**
+ * Thứ tự giờ chốt và lịch sinh hoạt như BE DailyScheduleRules (PCK-04, ATT-06, ATT-13 — Cần chốt 25/11/2026, phương án
+ * A): mở đón ≤ bắt đầu sáng < kết thúc sáng < bắt đầu chiều < mốc tính đủ ngày ≤ bắt đầu trả < kết thúc trả ≤ kết thúc
+ * chiều; giờ chốt từ mở đón, trước kết thúc sáng; giờ đến muộn nhất nằm trong khung nhận trẻ chiều: sau giờ chốt,
+ * sau bắt đầu chiều và trước bắt đầu trả trẻ.
+ * Lỗi báo ở ô đứng sau trong chuỗi (ô đầu của mỗi cặp), mỗi ô một lỗi đầu tiên; cặp có ô trống / sai dạng thì bỏ qua.
+ */
+export const cutoffOrderErrors = (form) => {
+  const e = {};
+  SCHEDULE_ORDER.forEach(([field, op, other]) => {
+    const value = form[field];
+    const ref = form[other];
+    if (e[field] || !TIME.test(value || '') || !TIME.test(ref || '')) return;
+    const ok = op === '>' ? value > ref : op === '>=' ? value >= ref : value < ref;
+    if (!ok) e[field] = `${TIME_LABELS[field]} ${ORDER_TEXT[op]} ${TIME_LABELS[other]} (${ref})`;
+  });
+  return e;
+};
+
+/** Như BE CUTOFF_DATE_PAST: đã có giờ chốt thì lần đổi sau chỉ áp dụng từ hôm nay (today = yyyy-mm-dd). */
+export const cutoffPastDateError = (effectiveFrom, { hasSetting = false, today = '' } = {}) =>
+  hasSetting && effectiveFrom && today && effectiveFrom < today ? 'Giờ chốt mới chỉ áp dụng từ hôm nay trở đi' : undefined;
+
+/* Cùng luật và cùng câu với BE (ATT-04, ATT-06). Chỉ kiểm khi nơi gọi đưa đủ ngữ cảnh. */
+export const cutoffTimingError = (form, year, { hasSetting, today = '', nowTime = '', currentTime = '' } = {}) => {
+  if (hasSetting === false && year && form.effectiveFrom > year.startDate)
+    return `Giờ chốt đầu tiên của năm học phải áp dụng từ ngày bắt đầu năm học ${year.startDate.split('-').reverse().join('/')}`;
+  if (hasSetting && nowTime && form.effectiveFrom === today) {
+    const earliest = currentTime && currentTime < form.time ? currentTime : form.time;
+    if (nowTime >= earliest) return 'Hôm nay đã qua giờ chốt, giờ chốt mới chỉ áp dụng từ ngày mai (không đổi giờ chốt giữa ngày)';
+  }
+  return undefined;
+};
+
+export const validateCutoff = (form, year, context = {}) => {
+  const { hasSetting = false, today = '' } = context;
   const e = {};
   if (!form.time) e.time = 'Nhập giờ chốt';
   else if (!TIME.test(form.time)) e.time = 'Nhập giờ hợp lệ dạng HH:mm, ví dụ 08:45';
   if (!form.effectiveFrom) e.effectiveFrom = 'Chọn ngày áp dụng';
   else if (year && (form.effectiveFrom < year.startDate || form.effectiveFrom > year.endDate))
     e.effectiveFrom = `Ngày áp dụng phải nằm trong năm học ${year.name}`;
-  return withLength(e, form, CUTOFF_LIMITS);
+  else {
+    const timing = cutoffPastDateError(form.effectiveFrom, { hasSetting, today }) || cutoffTimingError(form, year, context);
+    if (timing) e.effectiveFrom = timing;
+  }
+  if (form.latestAfternoonArrival && !TIME.test(form.latestAfternoonArrival))
+    e.latestAfternoonArrival = 'Nhập giờ hợp lệ dạng HH:mm, ví dụ 14:00';
+  SCHEDULE_FIELDS.forEach(([key, required]) => {
+    if (!form[key]) e[key] = required;
+    else if (!TIME.test(form[key])) e[key] = 'Nhập giờ hợp lệ dạng HH:mm, ví dụ 15:00';
+  });
+  return withLength({ ...cutoffOrderErrors(form), ...e }, form, CUTOFF_LIMITS);
 };
 
 /** 4 ngày học kỳ do Hiệu trưởng chọn, theo thứ tự BE kiểm tra. */
@@ -228,10 +320,11 @@ export const validateCampus = (form, others = []) => {
   const e = {};
   if (!form.code?.trim()) e.code = 'Nhập mã điểm trường';
   else if (form.code.trim().length > 30) e.code = 'Mã điểm trường tối đa 30 ký tự';
-  else if (others.some((c) => same(c.code, form.code))) e.code = 'Mã điểm trường đã tồn tại';
+  else if (others.some((c) => sameCampusCode(c.code, form.code))) e.code = 'Mã điểm trường đã tồn tại';
   if (!form.name?.trim()) e.name = 'Nhập tên điểm trường';
   else if (others.some((c) => same(c.name, form.name))) e.name = 'Tên điểm trường đã tồn tại';
   if (!form.shortName?.trim()) e.shortName = 'Nhập tên ngắn';
+  else if (others.some((c) => same(c.shortName, form.shortName))) e.shortName = 'Tên ngắn điểm trường đã tồn tại';
   if (!form.address?.trim()) e.address = 'Nhập địa chỉ';
   if (form.phone?.trim() && !isVnPhone(form.phone)) e.phone = PHONE_MESSAGE;
   return withLength(e, form, CAMPUS_LIMITS);
@@ -244,19 +337,18 @@ export const validateVpAssignment = (form) => {
 };
 
 /**
- * Lớp có 0–2 giáo viên. Hộp phân công bắt buộc tích chủ nhiệm khi có giáo viên; gỡ giáo viên thì lớp được để trống
+ * Lớp có 0–3 giáo viên. Hộp phân công bắt buộc tích chủ nhiệm khi có giáo viên; gỡ giáo viên thì lớp được để trống
  * chủ nhiệm (`requireHomeroom: false`). Kích hoạt năm học cần mọi lớp có giáo viên và chủ nhiệm.
- * yearActive: năm đang học mỗi lớp đúng 2 giáo viên, có chủ nhiệm (BE SCH-04, Cần chốt 10/11/2026).
+ * yearActive: năm đang học mỗi lớp 2–3 giáo viên, có GV phụ trách chính (BE SCH-04, Cần chốt 18/11/2026).
  */
 export const validateClassTeachers = (form, { requireHomeroom = true, yearActive = false } = {}) => {
   const e = {};
   const count = form.teacherIds?.length || 0;
-  if (count > TEACHERS_PER_CLASS) e.teacherIds = `Mỗi lớp tối đa ${TEACHERS_PER_CLASS} giáo viên`;
-  else if (yearActive && count !== TEACHERS_PER_CLASS)
-    e.teacherIds = `Năm học đang diễn ra: mỗi lớp cần đúng ${TEACHERS_PER_CLASS} giáo viên (đang chọn ${count})`;
-  if (requireHomeroom && count > 0 && !form.homeroomTeacherId) e.homeroomTeacherId = 'Chọn giáo viên chủ nhiệm';
+  if (count > MAX_TEACHERS_PER_CLASS) e.teacherIds = `Mỗi lớp tối đa ${MAX_TEACHERS_PER_CLASS} giáo viên đứng lớp`;
+  else if (yearActive && count < TEACHERS_PER_CLASS) e.teacherIds = `Mỗi lớp phải có ít nhất ${TEACHERS_PER_CLASS} giáo viên đứng lớp`;
+  if (requireHomeroom && count > 0 && !form.homeroomTeacherId) e.homeroomTeacherId = 'Chọn GV phụ trách chính';
   else if (form.homeroomTeacherId && !form.teacherIds?.includes(form.homeroomTeacherId))
-    e.homeroomTeacherId = 'Giáo viên chủ nhiệm phải nằm trong danh sách giáo viên của lớp';
+    e.homeroomTeacherId = 'GV phụ trách chính phải nằm trong danh sách giáo viên của lớp';
   return e;
 };
 
@@ -325,3 +417,12 @@ export const validateStaffProfile = (form, others = []) => {
   if ((form.note || '').length > 500) e.note = 'Ghi chú tối đa 500 ký tự';
   return checkStaffCommon(form, others, e);
 };
+
+/**
+ * GV đã chọn đang thuộc cơ sở công tác khác cơ sở của lớp: lưu xong BE chuyển cơ sở công tác của họ theo lớp (AUTH-15, Q1=b
+ * chốt 21/11/2026) ⇒ màn hỏi xác nhận trước. GV chưa có cơ sở (campusId trống) không tính.
+ */
+export const teachersFromOtherCampus = (teacherIds = [], teachers = [], classCampusId) =>
+  teacherIds
+    .map((id) => teachers.find((t) => String(t.id) === String(id)))
+    .filter((t) => t?.campusId && String(t.campusId) !== String(classCampusId));

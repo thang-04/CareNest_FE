@@ -16,6 +16,7 @@ import {
   Send,
   Scale,
   Sparkles,
+  RotateCcw,
 } from '@/components/ui/icons';
 import { StatusBadge, createStatusBadge } from '@/components/ui/StatusBadge';
 import { CHILD_STATUS_LABELS } from '@/models/School';
@@ -38,7 +39,7 @@ import {
   MEASUREMENT_RESULT_STATUS_LABELS,
 } from '@/models/children/healthCheckConstants';
 import { CONCLUSION_CATEGORY_LABELS } from '@/models/children/healthExamForm';
-import { TREND_REVIEW_STATUS_LABELS } from '@/models/children/childrenConstants';
+import { PROFILE_CHANGE_STATUS_LABELS, TREND_REVIEW_STATUS_LABELS } from '@/models/children/childrenConstants';
 
 /* Tones follow DESIGN.md §3.2. */
 export const ChildStatusBadge = createStatusBadge(
@@ -49,6 +50,9 @@ export const ChildStatusBadge = createStatusBadge(
   },
   CHILD_STATUS_LABELS,
 );
+
+/* Nhãn Sắp nhập học: trẻ có plannedAdmission (CHD-11), không phải trạng thái của trẻ. */
+export const PlannedAdmissionBadge = ({ size }) => <StatusBadge tone="blue" icon={CalendarClock} label="Sắp nhập học" size={size} />;
 
 /* Kết quả sàng lọc do BE trả; UI không tự tính. Ngoài khoảng bình thường = cần để ý (orange), không dùng màu chẩn đoán. */
 export const HeadCircumferenceBadge = createStatusBadge(
@@ -208,4 +212,15 @@ export const TrendReviewBadge = createStatusBadge(
     APPROVED: ['green', CheckCircle2],
   },
   TREND_REVIEW_STATUS_LABELS,
+);
+
+/* BE:CHD-11 — yêu cầu sửa hồ sơ của GV; chờ duyệt = purple (vàng chờ duyệt, DESIGN.md §3.2). */
+export const ProfileChangeStatusBadge = createStatusBadge(
+  {
+    PENDING: ['purple', Clock],
+    APPROVED: ['green', CheckCircle2],
+    REJECTED: ['red', CircleX],
+    CANCELLED: ['gray', RotateCcw],
+  },
+  PROFILE_CHANGE_STATUS_LABELS,
 );

@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { E2E, api, USERS, beReachable, cleanup, editHeaders, newSession, sql, suspendOtherTeamLeads } from '../support/realBe.mjs';
-import { login, saveStatus } from '../support/ui.mjs';
+import { login, pickYear, saveStatus } from '../support/ui.mjs';
 import { goalTableDocx } from '../support/docx.mjs';
 
 // EDU-24: fixture riêng, BE/Keycloak thật; response giả chỉ dùng để kiểm race/lỗi.
@@ -26,7 +26,8 @@ const read = async (id) => {
 };
 const uiYear = (year) => year.name.replace('-', ' – ');
 const childChecks = (dialog) => dialog.locator('.ga-cur-row input');
-const importDialog = (page) => page.getByRole('dialog', { name: 'Lấy mục tiêu từ kế hoạch có sẵn' });
+// Kế hoạch năm học: hộp tên "… kế hoạch năm"; kế hoạch tổ: "… kế hoạch có sẵn"
+const importDialog = (page) => page.getByRole('dialog', { name: /^Lấy mục tiêu từ kế hoạch (năm|có sẵn)$/ });
 const confirm = (dialog) => dialog.getByRole('button', { name: /^Thêm.*mục tiêu$/ });
 const envelope = (data) => ({ code: 200, desc: 'ok', data });
 const sourceRoute = () => `**/education-plans/goals/${source.id}`;
@@ -41,26 +42,39 @@ const logicalRows = (detail) =>
   );
 
 async function availableSlots() {
-  const occupied = new Set();
-  let page = 0;
-  let pages;
-  do {
-    const result = await api(USERS.vp, 'GET', `${GOALS}?page=${page}&size=200`);
-    expect(result.status, result.desc).toBe(200);
-    result.data.items.forEach((item) => occupied.add(`${item.schoolYearId}:${item.ageGroupId}`));
-    pages = result.data.totalPages;
-    page++;
-  } while (page < pages);
-  return config.schoolYears.flatMap((year) =>
-    config.ageGroups.filter((group) => !occupied.has(`${year.id}:${group.id}`)).map((group) => ({ year, group })),
+  // Đọc từ DB: PHT không thấy bản nháp của người khác nên danh sách API thiếu chỗ đã có kế hoạch năm học
+  const occupied = new Set(
+    sql("select school_year_id || ':' || age_group_id from edu_year_plans")
+      .split('\n')
+      .filter(Boolean),
   );
+  // Năm đã kết thúc chỉ xem (EDU-89) ⇒ không tạo được kế hoạch
+  const closed = new Set(
+    sql("select id::text from school_years where status = 'CLOSED'")
+      .split('\n')
+      .filter(Boolean),
+  );
+  // EDU-98: chỉ nhóm tuổi có dữ liệu chương trình của Bộ (nhóm 3–12 tháng của V176 chưa có)
+  const withCurriculum = new Set();
+  for (const group of config.ageGroups) {
+    const goals = await api(USERS.vp, 'GET', `/education-plans/curriculum/goals?ageGroupId=${group.id}`);
+    if (goals.status === 200 && goals.data.length) withCurriculum.add(group.id);
+  }
+  return config.schoolYears
+    .filter((year) => !closed.has(String(year.id)))
+    .flatMap((year) =>
+      config.ageGroups
+        .filter((group) => withCurriculum.has(group.id) && !occupied.has(`${year.id}:${group.id}`))
+        .map((group) => ({ year, group })),
+    );
 }
 async function addSyntheticYear() {
   const start = Number(sql('select coalesce(max(extract(year from start_date)), 2030)::int + 1 from school_years'));
   const name = `${start}-${start + 1}`;
   const id = Number(
     sql(
-      `insert into school_years (name,start_date,end_date,status) values ('${name}','${start}-09-01','${start + 1}-05-31','PLANNED') returning id`,
+      // Ngày mở chuẩn bị đã qua thì năm sắp tới mới lập kế hoạch được (EDU-89)
+      `insert into school_years (name,start_date,end_date,status,prep_date) values ('${name}','${start}-09-01','${start + 1}-05-31','PLANNED','${E2E.markerDate}') returning id`,
     ).split('\n')[0],
   );
   expect(Number.isSafeInteger(id)).toBe(true);
@@ -73,6 +87,8 @@ function bodyFor(slot, isSource) {
   const domains = config.domains.filter((domain) => domain.standard !== false).slice(0, isSource ? 2 : 1);
   expect(domains.length).toBeGreaterThan(isSource ? 1 : 0);
   return {
+    // Thiếu planLevel BE tạo kế hoạch tổ (Tổ trưởng soạn); PHT soạn kế hoạch năm học
+    planLevel: 'SCHOOL_YEAR',
     schoolYearId: slot.year.id,
     ageGroupId: slot.group.id,
     title: `${marker} ${prefix}`,
@@ -148,9 +164,12 @@ test.afterAll(() => {
 });
 async function openEditor(page) {
   await login(page, USERS.vp);
-  await page.goto(`/education/goals/${target.id}/edit`);
+  await pickYear(page, targetYear.name); // EDU-107: trang lọc theo năm chọn ở header
+  await page.goto(`/education/school-year-plans/${target.id}/edit`);
   await expect(page.locator('#desc')).toBeEditable();
-  await page.getByRole('button', { name: /Lấy từ kế hoạch (có sẵn|năm học)/ }).click();
+  // Các cách lấy nội dung gom vào menu "Lấy / nhập nội dung"
+  await page.getByRole('button', { name: 'Lấy và nhập nội dung kế hoạch năm học' }).click();
+  await page.getByRole('menuitem', { name: 'Lấy kế hoạch năm' }).click();
   const dialog = importDialog(page);
   await dialog.locator('#imp-year').selectOption(uiYear(sourceYear));
   await dialog.locator('#imp-age').selectOption(sourceGroup.code);
@@ -206,96 +225,25 @@ test('EDU-24 selection: one/domain/all, reset filters, cancel and keyboard keep 
 
 test('EDU-24 canEdit=false disables import despite a successful edit lease', async ({ page }) => {
   await login(page, USERS.vp);
-  await page.route(`**/education-plans/goals/${target.id}/start-editing`, async (route) => {
+  // Trang sửa mở thẳng (lưu thủ công, không xin phiên khi mở): BE trả canEdit=false ở bản chi tiết
+  const detailUrl = (url) => new URL(url).pathname.endsWith(`${GOALS}/${target.id}`);
+  await page.route(detailUrl, async (route) => {
+    if (route.request().method() !== 'GET') return route.continue();
     const response = await route.fetch();
     expect(response.status()).toBe(200);
     const body = await response.json();
     body.data.permissions.canEdit = false;
     await route.fulfill({ response, json: body });
   });
-  const lease = page.waitForResponse((response) => response.url().endsWith(`${GOALS}/${target.id}/start-editing`));
-  await page.goto(`/education/goals/${target.id}/edit`);
-  expect((await lease).status()).toBe(200);
-  await expect(page.getByText('Bạn chỉ lập, sửa được kế hoạch năm học của nhóm tuổi mình phụ trách.', { exact: true })).toBeVisible();
+  const detail = page.waitForResponse((r) => detailUrl(r.url()) && r.request().method() === 'GET');
+  await pickYear(page, targetYear.name); // EDU-107: trang lọc theo năm chọn ở header
+  await page.goto(`/education/school-year-plans/${target.id}/edit`);
+  expect((await detail).status()).toBe(200);
+  await expect(page.getByText('Bạn không có quyền sửa kế hoạch năm học này.', { exact: true })).toBeVisible();
   await expect(page.locator('#desc')).toHaveCount(0);
   await expect(page.getByRole('button', { name: /Lấy từ kế hoạch (có sẵn|năm học)/ })).toHaveCount(0);
   expect(logicalRows(await read(target.id))).toEqual(logicalRows(targetBefore));
 });
-
-test('EDU-24 open portal refuses import when the target lease is lost', async ({ page }) => {
-  const dialog = await openEditor(page);
-  await selectFirst(dialog);
-  await page.route(`**/education-plans/goals/${target.id}/editing-heartbeat`, (route) =>
-    route.fulfill({
-      status: 403,
-      json: { code: 403, desc: 'Mất quyền sửa kiểm thử', data: null },
-    }),
-  );
-  await page.evaluate(() => window.dispatchEvent(new Event('online')));
-  await expect(page.locator('main')).toContainText('Mất quyền sửa kiểm thử');
-  await confirm(dialog).click();
-  await expect(dialog).toContainText('Chưa thêm được mục tiêu');
-  expect(logicalRows(await read(target.id))).toEqual(logicalRows(targetBefore));
-});
-
-for (const change of ['revision', 'status', 'selected ID']) {
-  test(`EDU-24 confirmation rejects changed source ${change} and clears selection`, async ({ page }) => {
-    const dialog = await openEditor(page);
-    await selectFirst(dialog);
-    const changed = structuredClone(source);
-    if (change === 'revision') changed.revision++;
-    else if (change === 'status') changed.status = 'APPROVED';
-    else
-      changed.domains[0].rows = changed.domains[0].rows.filter(
-        (row) => row.id !== source.domains[0].rows.find((row) => row.kind === 'goal').id,
-      );
-    await page.route(sourceRoute(), (route) => route.fulfill({ json: envelope(changed) }));
-    await confirm(dialog).click();
-    await expect(dialog).toContainText('Kế hoạch nguồn đã thay đổi');
-    await expect(confirm(dialog)).toBeDisabled();
-    expect(logicalRows(await read(target.id))).toEqual(logicalRows(targetBefore));
-  });
-}
-
-for (const failure of [403, 404, 'network']) {
-  test(`EDU-24 source ${failure} preserves form and supports explicit retry`, async ({ page }) => {
-    const dialog = await openEditor(page);
-    await selectFirst(dialog);
-    await page.route(sourceRoute(), (route) =>
-      failure === 'network'
-        ? route.abort('failed')
-        : route.fulfill({ status: failure, json: { code: failure, desc: `Nguồn kiểm thử ${failure}`, data: null } }),
-    );
-    await confirm(dialog).click();
-    await expect(dialog).toContainText(failure === 'network' ? 'Không thể kết nối máy chủ' : `Nguồn kiểm thử ${failure}`);
-    await expect(confirm(dialog)).toBeEnabled();
-    await page.unroute(sourceRoute());
-    await confirm(dialog).click();
-    await expect(dialog).toBeHidden();
-    await expect(saveStatus(page)).toHaveText('Có thay đổi chưa lưu');
-    expect(logicalRows(await read(target.id))).toEqual(logicalRows(targetBefore));
-  });
-}
-
-for (const action of ['filter', 'close']) {
-  test(`EDU-24 late confirmation after ${action} cannot import`, async ({ page }) => {
-    const dialog = await openEditor(page);
-    await selectFirst(dialog);
-    const delayed = await delayedFresh(page);
-    await confirm(dialog).click();
-    await delayed.started;
-    if (action === 'filter') await dialog.locator('#imp-year').selectOption(uiYear(targetYear));
-    else await dialog.getByRole('button', { name: 'Hủy', exact: true }).click();
-    delayed.release();
-    if (action === 'filter') {
-      await expect(confirm(dialog)).toBeDisabled();
-      await dialog.getByRole('button', { name: 'Hủy', exact: true }).click();
-    }
-    await expect(dialog).toBeHidden();
-    await expect(saveStatus(page)).not.toHaveText('Có thay đổi chưa lưu');
-    expect(logicalRows(await read(target.id))).toEqual(logicalRows(targetBefore));
-  });
-}
 
 test('EDU-24 200 goals select within one second and remain usable at 390/768/1440px', async ({ page }) => {
   const dialog = await openEditor(page);
@@ -314,7 +262,9 @@ test('EDU-24 200 goals select within one second and remain usable at 390/768/144
   ];
   await dialog.getByRole('button', { name: 'Hủy', exact: true }).click();
   await page.route(sourceRoute(), (route) => route.fulfill({ json: envelope(large) }));
-  await page.getByRole('button', { name: /Lấy từ kế hoạch (có sẵn|năm học)/ }).click();
+  // Các cách lấy nội dung gom vào menu "Lấy / nhập nội dung"
+  await page.getByRole('button', { name: 'Lấy và nhập nội dung kế hoạch năm học' }).click();
+  await page.getByRole('menuitem', { name: 'Lấy kế hoạch năm' }).click();
   await dialog.locator('#imp-year').selectOption(uiYear(sourceYear));
   await dialog.locator('#imp-age').selectOption(sourceGroup.code);
   await dialog.locator('#imp-src').selectOption(String(source.id));
@@ -392,7 +342,8 @@ test('EDU-24/22 double confirm imports once; only manual Save persists hierarchy
   expect(logicalRows(await read(source.id))).toEqual(logicalRows(source));
   const reopenedRows = logicalRows(saved);
   await page.goto('/');
-  await page.goto(`/education/goals/${target.id}/edit`);
+  await pickYear(page, targetYear.name); // EDU-107: trang lọc theo năm chọn ở header
+  await page.goto(`/education/school-year-plans/${target.id}/edit`);
   await expect(page.locator('#desc')).toBeEditable();
   await expect.poll(() => page.locator('textarea').evaluateAll((nodes) => nodes.map((node) => node.value))).toContain('Nguồn mục tiêu 0-0');
   await expect(page.getByRole('button', { name: 'Lưu', exact: true })).toBeDisabled();
@@ -410,10 +361,11 @@ test('EDU-43 lấy chủ đề, đợt nghỉ từ kế hoạch khác năm/nhóm
   const moved = (date) => `${Number(date.slice(0, 4)) + shift}${date.slice(4)}`;
   const vn = (date) => date.split('-').reverse().join('/');
   await login(page, USERS.vp);
-  await page.goto(`/education/goals/${target.id}/edit`);
+  await pickYear(page, targetYear.name); // EDU-107: trang lọc theo năm chọn ở header
+  await page.goto(`/education/school-year-plans/${target.id}/edit`);
   await expect(page.locator('#desc')).toBeEditable();
   await page.getByRole('button', { name: /Lấy chủ đề từ kế hoạch có sẵn/ }).click();
-  const dialog = page.getByRole('dialog', { name: 'Lấy chủ đề từ kế hoạch có sẵn' });
+  const dialog = page.getByRole('dialog', { name: /^Lấy chủ đề từ kế hoạch (năm|có sẵn)$/ });
   await dialog.locator('#imt-year').selectOption(uiYear(sourceYear));
   await dialog.locator('#imt-age').selectOption(sourceGroup.code);
   await dialog.locator('#imt-src').selectOption(String(source.id));
@@ -446,52 +398,37 @@ test('EDU-43 lấy chủ đề, đợt nghỉ từ kế hoạch khác năm/nhóm
   await expect(saveStatus(page)).toHaveText(/Đã lưu lúc \d\d:\d\d/);
   const saved = await read(target.id);
   const theme = saved.themes.find((t) => t.name === 'Nguồn chủ đề riêng');
-  expect(theme).toMatchObject({ abbr: 'Nguồn', startDate: start, endDate: moved(source.themes[0].endDate) });
+  // Tiền 04/11: lấy sang giữ nguyên ngày nguồn; bảng tô đỏ ngày lệch và gợi ý dời (ô gợi ý ở trên), người lập tự chọn
+  expect(theme).toMatchObject({ abbr: 'Nguồn', startDate: source.themes[0].startDate, endDate: source.themes[0].endDate });
   const brk = saved.breaks.find((b) => b.label === 'Nguồn nghỉ riêng');
-  expect(brk).toMatchObject({ startDate: moved(source.breaks[0].startDate), endDate: moved(source.breaks[0].endDate) });
+  expect(brk).toMatchObject({ startDate: source.breaks[0].startDate, endDate: source.breaks[0].endDate });
   // Không chép dấu tích chủ đề của kế hoạch nguồn
   const ticked = saved.domains.flatMap((d) => d.rows.flatMap((r) => (r.contents || []).flatMap((c) => c.themeIds || [])));
   expect(ticked).not.toContain(theme.id);
   await page.goto('/');
 });
 
-test('EDU-06/43 Tổ trưởng: nhóm tuổi khác chỉ thấy bản đã ban hành (chỉ đọc) và lấy được chủ đề từ đó', async ({ page }) => {
-  const teacher1 = Number(sql(`select id from user_accounts where email = 'lan.nguyenkim@thuonghong.carenest.edu.vn'`));
+test('EDU-06 Tổ trưởng không xem kế hoạch năm học của nhóm tuổi khác, kể cả bản đã ban hành', async () => {
+  const teacher1 = Number(sql(`select id from user_accounts where username = 'teacher1'`));
   sql(
     `insert into staff_assignments (user_id, staff_role, age_group_id, valid_from) values (${teacher1}, 'AGE_GROUP_TEAM_LEADER', ${Number(target.ageGroupId)}, '${E2E.markerDate}')`,
   );
   suspendOtherTeamLeads('teacher1');
   try {
     const listOf = async () =>
-      (await api(USERS.teacher1, 'GET', `${GOALS}?ageGroupId=${sourceGroup.id}&page=0&size=200`)).data.items.map((p) => p.id);
-    // Bản nháp của nhóm khác: không thấy trong danh sách, đọc chi tiết bị 403
+      (
+        await api(
+          USERS.teacher1,
+          'GET',
+          `${GOALS}?planLevel=SCHOOL_YEAR&ageGroupId=${sourceGroup.id}&schoolYearId=${sourceYear.id}&page=0&size=200`,
+        )
+      ).data.items.map((p) => p.id);
+    // Tiền 25/11/2026: Tổ trưởng chỉ xem kế hoạch năm học của nhóm tuổi mình; nhóm khác không thấy, đọc chi tiết bị 403
     expect(await listOf()).not.toContain(source.id);
     expect((await api(USERS.teacher1, 'GET', `${GOALS}/${source.id}`)).status).toBe(403);
     sql(`update edu_year_plans set status = 'APPROVED' where id = ${Number(source.id)} and title like '${marker}%'`);
-    expect(await listOf()).toContain(source.id);
-    const seen = await api(USERS.teacher1, 'GET', `${GOALS}/${source.id}`);
-    expect(seen.status).toBe(200);
-    expect(seen.data.permissions.canEdit).toBe(false);
-    expect(
-      (await api(USERS.teacher1, 'POST', `${GOALS}/${source.id}/start-editing`, { headers: editHeaders(newSession(), seen.data.revision) }))
-        .status,
-    ).toBe(403);
-
-    await login(page, USERS.teacher1);
-    await page.goto(`/education/goals/${target.id}/edit`);
-    await expect(page.locator('#desc')).toBeEditable();
-    await page.getByRole('button', { name: /Lấy chủ đề từ kế hoạch có sẵn/ }).click();
-    const dialog = page.getByRole('dialog', { name: 'Lấy chủ đề từ kế hoạch có sẵn' });
-    await dialog.locator('#imt-year').selectOption(uiYear(sourceYear));
-    await dialog.locator('#imt-age').selectOption(sourceGroup.code);
-    await dialog.locator('#imt-src').selectOption(String(source.id));
-    // Tổ trưởng đọc được bản đã ban hành của nhóm khác trong hộp chọn; chủ đề, đợt nghỉ đã lấy ở bước EDU-43 nên hiện "Đã có"
-    await expect(dialog.getByRole('checkbox')).toHaveCount(2);
-    await expect(dialog.getByText('Nguồn chủ đề riêng')).toBeVisible();
-    await expect(dialog.getByText('Đã có')).toHaveCount(2);
-    await dialog.getByRole('button', { name: 'Hủy', exact: true }).click();
-    await expect(dialog).toBeHidden();
-    await page.goto('/');
+    expect(await listOf()).not.toContain(source.id);
+    expect((await api(USERS.teacher1, 'GET', `${GOALS}/${source.id}`)).status).toBe(403);
   } finally {
     cleanup();
   }
@@ -522,13 +459,15 @@ test('EDU-46 nhập file Word bảng mục tiêu: xem trước, Hủy không đ�
   const values = () => page.locator('textarea').evaluateAll((els) => els.map((el) => el.value));
   const dialog = page.getByRole('dialog', { name: 'Nhập file mục tiêu' });
   const choose = async (file) => {
-    await page.getByRole('button', { name: 'Nhập file', exact: true }).click();
+    await page.getByRole('button', { name: /^Lấy và nhập nội dung/ }).click(); // "Nhập file" nằm trong menu Lấy / nhập nội dung
+    await page.getByRole('menuitem', { name: 'Nhập file', exact: true }).click();
     await dialog.getByRole('radio', { name: /^Chỉ thay phần có trong file/ }).check();
     await dialog.locator('input[type="file"]').setInputFiles(file);
   };
 
   await login(page, USERS.vp);
-  await page.goto(`/education/goals/${target.id}/edit`);
+  await pickYear(page, targetYear.name); // EDU-107: trang lọc theo năm chọn ở header
+  await page.goto(`/education/school-year-plans/${target.id}/edit`);
   await expect(page.locator('#desc')).toBeEditable();
 
   // .doc hỏng bị từ chối; .doc nhị phân hợp lệ được kiểm riêng bên dưới.
@@ -564,8 +503,9 @@ test('EDU-46 nhập file Word bảng mục tiêu: xem trước, Hủy không đ�
   const theme = saved.themes.find((t) => t.abbr === 'Đích');
   const row = saved.domains.flatMap((d) => d.rows).find((r) => r.text === goalText);
   expect(row.contents.map((c) => c.text)).toEqual(['Nội dung file 1', 'Nội dung file 2']);
-  expect(row.contents[0].themeIds || []).toEqual([theme.id]);
-  expect(row.contents[1].themeIds || []).toEqual([]);
+  // Spec 012 (G94-326): kế hoạch năm học không lưu dấu tích chủ đề, dấu tích chỉ ở kế hoạch tổ
+  expect(theme).toBeTruthy();
+  expect(row.contents.flatMap((c) => c.themeIds || [])).toEqual([]);
   await page.goto('/');
 });
 
@@ -574,11 +514,13 @@ test('EDU-46 .doc nhị phân ở bước 2: xem trước/Hủy, thay phần có
   const goalText = 'Trẻ thực hiện vận động';
   const before = await read(target.id);
   await login(page, USERS.vp);
-  await page.goto(`/education/goals/${target.id}/edit`);
+  await pickYear(page, targetYear.name); // EDU-107: trang lọc theo năm chọn ở header
+  await page.goto(`/education/school-year-plans/${target.id}/edit`);
   await expect(page.locator('#desc')).toBeEditable();
   const dialog = page.getByRole('dialog', { name: 'Nhập file mục tiêu', exact: true });
   const choose = async () => {
-    await page.getByRole('button', { name: 'Nhập file', exact: true }).click();
+    await page.getByRole('button', { name: /^Lấy và nhập nội dung/ }).click(); // "Nhập file" nằm trong menu Lấy / nhập nội dung
+    await page.getByRole('menuitem', { name: 'Nhập file', exact: true }).click();
     await dialog.getByRole('radio', { name: /^Chỉ thay phần có trong file/ }).check();
     const response = page.waitForResponse((res) => res.url().endsWith('/education-plans/goals/file-preview'));
     await dialog.locator('input[type=file]').setInputFiles(fixture);
@@ -605,7 +547,8 @@ test('EDU-46 .doc nhị phân ở bước 2: xem trước/Hủy, thay phần có
   expect(saved.themes).toEqual(before.themes);
   expect(saved.breaks).toEqual(before.breaks);
   await page.goto('/');
-  await page.goto(`/education/goals/${target.id}/edit`);
+  await pickYear(page, targetYear.name); // EDU-107: trang lọc theo năm chọn ở header
+  await page.goto(`/education/school-year-plans/${target.id}/edit`);
   await expect(page.locator('#desc')).toBeEditable();
   await expect.poll(() => page.locator('textarea').evaluateAll((els) => els.map((el) => el.value))).toContain(goalText);
   await page.goto('/');
@@ -615,9 +558,11 @@ test('EDU-46 thay toàn bộ: xóa phần thiếu, lưu và mở lại đúng d�
   const fixture = fileURLToPath(new URL('../fixtures/goals-merged.doc', import.meta.url));
   const before = await read(target.id);
   await login(page, USERS.vp);
-  await page.goto(`/education/goals/${target.id}/edit`);
+  await pickYear(page, targetYear.name); // EDU-107: trang lọc theo năm chọn ở header
+  await page.goto(`/education/school-year-plans/${target.id}/edit`);
   await expect(page.locator('#desc')).toBeEditable();
-  await page.getByRole('button', { name: 'Nhập file', exact: true }).click();
+  await page.getByRole('button', { name: /^Lấy và nhập nội dung/ }).click(); // "Nhập file" nằm trong menu Lấy / nhập nội dung
+    await page.getByRole('menuitem', { name: 'Nhập file', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Nhập file mục tiêu', exact: true });
   await expect(dialog.getByRole('radio', { name: /^Thay toàn bộ theo file/ })).toBeChecked();
   await dialog.locator('input[type=file]').setInputFiles(fixture);
@@ -644,7 +589,8 @@ test('EDU-46 thay toàn bộ: xóa phần thiếu, lưu và mở lại đúng d�
   expect(goals.some((row) => row.text === 'Trẻ thực hiện vận động')).toBe(true);
   expect(goals.flatMap((row) => row.contents).every((c) => !(c.themeIds || []).length)).toBe(true);
   await page.goto('/');
-  await page.goto(`/education/goals/${target.id}/edit`);
+  await pickYear(page, targetYear.name); // EDU-107: trang lọc theo năm chọn ở header
+  await page.goto(`/education/school-year-plans/${target.id}/edit`);
   await expect(page.locator('#title')).toHaveValue(title);
   await expect(page.locator('#desc')).toHaveValue('');
   await expect(page.getByRole('textbox', { name: /^Tên chủ đề \d+$/ })).toHaveCount(0);

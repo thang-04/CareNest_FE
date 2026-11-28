@@ -47,7 +47,9 @@ const deferred = () => {
   return { promise, resolve };
 };
 const { tokenStorage, UNAUTHORIZED_EVENT } = await import('../../src/services/http/tokenStorage.js');
-const { APP_ONLY_MESSAGE, authPost, authGet, refreshSession, resetAuthTransport } = await import('../../src/services/http/authTransport.js');
+const { APP_ONLY_MESSAGE, authPost, authGet, refreshSession, resetAuthTransport } = await import(
+  '../../src/services/http/authTransport.js'
+);
 const { axiosClient } = await import('../../src/services/http/axiosClient.js');
 const { normalizeApiError } = await import('../../src/services/http/apiError.js');
 delete axios.defaults.headers.common.Authorization;
@@ -284,7 +286,8 @@ test('a stale CSRF token is refetched once and the gateway write is retried', as
       csrfCalls += 1;
       return success(config, { code: 'OK', data: { token: `csrf-${csrfCalls}`, headerName: 'X-XSRF-TOKEN' } });
     }
-    if (config.headers['X-XSRF-TOKEN'] === 'csrf-1') return failure(config, 403, { code: 403, errorCode: 1101, desc: 'Không có quyền', data: null });
+    if (config.headers['X-XSRF-TOKEN'] === 'csrf-1')
+      return failure(config, 403, { code: 403, errorCode: 1101, desc: 'Không có quyền', data: null });
     return success(config, { code: 'OK', data: { ok: true } });
   };
   assert.deepEqual(await authPost('/auth/logout', {}), { ok: true });
@@ -330,4 +333,80 @@ test('403 1101 sent again with a fresh CSRF at login means an app-only account',
     message: APP_ONLY_MESSAGE,
   });
   assert.equal(requests.filter((config) => config.url === '/auth/login').length, 2);
+});
+
+test('a replaced session (refresh 401 errorCode 1016) is known when the logout event fires', async () => {
+  const { lastRefreshErrorCode, SESSION_REPLACED } = await import('../../src/services/http/authTransport.js');
+  tokenStorage.set('existing-token');
+  let seen = 'not-fired';
+  const listener = () => {
+    seen = lastRefreshErrorCode();
+  };
+  window.addEventListener(UNAUTHORIZED_EVENT, listener);
+  respond = (config) =>
+    config.url === '/auth/csrf'
+      ? success(config, { token: 'csrf-test', headerName: 'X-XSRF-TOKEN' })
+      : failure(config, 401, config.url === '/auth/refresh' ? { errorCode: SESSION_REPLACED } : {});
+  try {
+    await assert.rejects(axiosClient.get('/protected'), { status: 401 });
+    assert.equal(seen, SESSION_REPLACED);
+    resetAuthTransport();
+    assert.equal(lastRefreshErrorCode(), null);
+  } finally {
+    window.removeEventListener(UNAUTHORIZED_EVENT, listener);
+  }
+});
+
+test('an ordinary expired refresh is not reported as replaced and a later refresh clears the reason', async () => {
+  const { lastRefreshErrorCode } = await import('../../src/services/http/authTransport.js');
+  respond = (config) =>
+    config.url === '/auth/csrf'
+      ? success(config, { token: 'csrf-test', headerName: 'X-XSRF-TOKEN' })
+      : failure(config, 401, { errorCode: 1003 });
+  await assert.rejects(refreshSession(), { status: 401 });
+  assert.equal(lastRefreshErrorCode(), 1003);
+  respond = (config) =>
+    success(config, config.url === '/auth/csrf' ? { token: 'csrf-test', headerName: 'X-XSRF-TOKEN' } : { accessToken: 'fresh-token' }); // carenest:allow-secret
+  await refreshSession();
+  assert.equal(lastRefreshErrorCode(), null);
+});
+
+test('403 with a blocked-account code notifies session end with the BE message; other 403 codes do not', async () => {
+  tokenStorage.set('existing-token');
+  const events = [];
+  const listener = (event) => events.push(event.detail);
+  window.addEventListener(UNAUTHORIZED_EVENT, listener);
+  try {
+    respond = (config) => failure(config, 403, { errorCode: 1015, desc: 'Tài khoản của bạn đã bị vô hiệu hóa' });
+    await assert.rejects(axiosClient.get('/protected'), { status: 403, errorCode: 1015 });
+    respond = (config) => failure(config, 403, { errorCode: 1014, desc: 'Tài khoản chưa được cấp quyền' });
+    await assert.rejects(axiosClient.get('/protected'), { status: 403, errorCode: 1014 });
+    respond = (config) => failure(config, 403, { errorCode: 1101, desc: 'Không có quyền' });
+    await assert.rejects(axiosClient.get('/protected'), { status: 403, errorCode: 1101 });
+    assert.deepEqual(events, [
+      { errorCode: 1015, message: 'Tài khoản của bạn đã bị vô hiệu hóa' },
+      { errorCode: 1014, message: 'Tài khoản chưa được cấp quyền' },
+    ]);
+  } finally {
+    window.removeEventListener(UNAUTHORIZED_EVENT, listener);
+  }
+});
+
+test('notifySessionBlocked ignores non-403 statuses and responses without an error code', async () => {
+  const { notifySessionBlocked } = await import('../../src/services/http/tokenStorage.js');
+  let count = 0;
+  const listener = () => {
+    count += 1;
+  };
+  window.addEventListener(UNAUTHORIZED_EVENT, listener);
+  try {
+    assert.equal(notifySessionBlocked({ response: { status: 401, data: { errorCode: 1015 } } }), false);
+    assert.equal(notifySessionBlocked({ response: { status: 403, data: {} } }), false);
+    assert.equal(notifySessionBlocked({}), false);
+    assert.equal(count, 0);
+    assert.equal(notifySessionBlocked({ response: { status: 403, data: { errorCode: 1015 } } }), true);
+    assert.equal(count, 1);
+  } finally {
+    window.removeEventListener(UNAUTHORIZED_EVENT, listener);
+  }
 });

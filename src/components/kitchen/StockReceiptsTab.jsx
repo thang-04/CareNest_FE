@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useReceiptOrigin } from '@/hooks/kitchen/useReceiptOrigin';
 import { Download, Plus } from '@/components/ui/icons';
 import { exportWithPreview } from '@/components/ui/ExportPreview';
-import { EmptyState, ErrorState, LoadingState } from '@/components';
+import { Button, EmptyState, ErrorState, LoadingState, SelectField } from '@/components';
 import { KbOptionalDateFilter } from '@/components/kitchen/KitchenFilters';
 import { ReceiptStatusBadge } from '@/components/kitchen/KitchenBadges';
 import { useCanManageStock, useReceipts } from '@/hooks/kitchen/useDryStock';
@@ -13,11 +14,12 @@ import { formatDate, formatMoney, todayInput } from '@/utils/format';
 /** Danh sách phiếu nhập kho của một điểm trường; mở phiếu để xem, sửa nháp, xác nhận hoặc hủy. */
 export function StockReceiptsTab({ campusId }) {
   const navigate = useNavigate();
-  const canManage = useCanManageStock();
+  const origin = useReceiptOrigin();
+  const canManage = useCanManageStock(campusId);
   const [filters, setFilters] = useState({ status: '', from: '', to: '' });
   const receipts = useReceipts({ campusId, ...filters });
   const create = (
-    <Link className="btn btn--primary" to={`/kitchen/stock-receipts/new?campusId=${campusId}`}>
+    <Link className="btn btn--primary" to={`/kitchen/stock-receipts/new?campusId=${campusId}`} state={origin}>
       <Plus size={16} /> Lập phiếu nhập
     </Link>
   );
@@ -42,17 +44,21 @@ export function StockReceiptsTab({ campusId }) {
           <thead>
             <tr>
               <th className="center">Ngày nhập</th>
-              <th>Nhà cung cấp</th>
-              <th className="num">Số thực phẩm</th>
+              <th className="center">Nhà cung cấp</th>
+              <th className="num">Số mặt hàng</th>
               <th className="money">Tổng tiền</th>
               <th className="center">Trạng thái</th>
             </tr>
           </thead>
           <tbody>
             {receipts.data.map((r) => (
-              <tr key={r.id} className="row-click" {...clickableRowProps(() => navigate(`/kitchen/stock-receipts/${r.id}`))}>
+              <tr
+                key={r.id}
+                className="row-click"
+                {...clickableRowProps(() => navigate(`/kitchen/stock-receipts/${r.id}`, { state: origin }))}
+              >
                 <td className="fw-600 text-primary center">{formatDate(r.receivedDate)}</td>
-                <td>{r.supplierName}</td>
+                <td className="center">{r.supplierName}</td>
                 <td className="num">{r.lines.length}</td>
                 <td className="money nowrap">{formatMoney(r.totalValue)}</td>
                 <td className="center">
@@ -68,7 +74,7 @@ export function StockReceiptsTab({ campusId }) {
   const exportCsv = () =>
     exportWithPreview(
       [
-        ['Ngày nhập', 'Nhà cung cấp', 'Số thực phẩm', 'Tổng tiền', 'Trạng thái'],
+        ['Ngày nhập', 'Nhà cung cấp', 'Số mặt hàng', 'Tổng tiền', 'Trạng thái'],
         ...(receipts.data || []).map((r) => [
           formatDate(r.receivedDate),
           r.supplierName,
@@ -83,30 +89,30 @@ export function StockReceiptsTab({ campusId }) {
   return (
     <section className="card">
       <div className="card__body kb-toolbar kb-toolbar--card">
-        <button type="button" className="btn kb-export" onClick={exportCsv} disabled={!receipts.data?.length}>
-          <Download size={15} /> Xuất Excel
-        </button>
+        <Button className="kb-export" icon={Download} onClick={exportCsv} disabled={!receipts.data?.length}>
+          Xuất Excel
+        </Button>
         <label className="date-filter">
           Trạng thái
-          <select className="select" value={filters.status} onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}>
+          <SelectField className="select" value={filters.status} onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}>
             <option value="">Tất cả</option>
             {Object.entries(RECEIPT_STATUS_LABELS).map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
               </option>
             ))}
-          </select>
+          </SelectField>
         </label>
-        <KbOptionalDateFilter label="Từ ngày" value={filters.from} onChange={(from) => setFilters((f) => ({ ...f, from }))} />
-        <KbOptionalDateFilter label="Đến ngày" value={filters.to} onChange={(to) => setFilters((f) => ({ ...f, to }))} />
-        <button
-          type="button"
-          className="btn"
-          disabled={!filters.status && !filters.from && !filters.to}
-          onClick={() => setFilters({ status: '', from: '', to: '' })}
-        >
+        <KbOptionalDateFilter
+          label="Từ ngày"
+          value={filters.from}
+          max={filters.to}
+          onChange={(from) => setFilters((f) => ({ ...f, from }))}
+        />
+        <KbOptionalDateFilter label="Đến ngày" value={filters.to} min={filters.from} onChange={(to) => setFilters((f) => ({ ...f, to }))} />
+        <Button disabled={!filters.status && !filters.from && !filters.to} onClick={() => setFilters({ status: '', from: '', to: '' })}>
           Đặt lại bộ lọc
-        </button>
+        </Button>
       </div>
       {body}
     </section>

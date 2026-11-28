@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { api, USERS, beReachable, editHeaders, newSession } from '../support/realBe.mjs';
-import { login, saveStatus } from '../support/ui.mjs';
+import { login, pickYear, saveStatus } from '../support/ui.mjs';
 
 test.setTimeout(120_000);
 const GOALS = '/education-plans/goals';
@@ -39,12 +39,22 @@ test('EDU-48 xóa cả nhánh, lưu/mở lại BE thật và Lĩnh vực ellipsi
     pages = list.data.totalPages;
     current++;
   } while (current < pages);
+  // EDU-98: nhóm tuổi chưa có dữ liệu chương trình của Bộ (vd. 3–12 tháng, V176) không dùng được cho bước chọn Lĩnh vực
+  const withCurriculum = new Set();
+  for (const group of config.ageGroups) {
+    const goals = await api(USERS.vp, 'GET', `/education-plans/curriculum/goals?ageGroupId=${group.id}`);
+    if (goals.status === 200 && goals.data.length) withCurriculum.add(group.id);
+  }
   const slot = config.schoolYears.flatMap((year) =>
-    config.ageGroups.filter((group) => !occupied.has(`${year.id}:${group.id}`)).map((group) => ({ year, group })),
+    config.ageGroups
+      .filter((group) => withCurriculum.has(group.id) && !occupied.has(`${year.id}:${group.id}`))
+      .map((group) => ({ year, group })),
   )[0];
   expect(slot, 'Cần một cặp năm/nhóm trống; không xóa dữ liệu có sẵn để lấy chỗ').toBeTruthy();
   const content = (text, themeKeys = ['a']) => ({ text, themeKeys });
   const body = {
+    // Thiếu planLevel BE tạo kế hoạch tổ (Tổ trưởng soạn); PHT soạn kế hoạch năm học
+    planLevel: 'SCHOOL_YEAR',
     schoolYearId: slot.year.id,
     ageGroupId: slot.group.id,
     title: `${marker} Xóa nhánh`,
@@ -86,7 +96,9 @@ test('EDU-48 xóa cả nhánh, lưu/mở lại BE thật và Lĩnh vực ellipsi
   expect(finish.status, finish.desc).toBe(200);
   const before = await read();
   await login(page, USERS.vp);
-  await page.goto(`/education/goals/${ownedId}/edit`);
+  // EDU-107: trang kế hoạch lọc theo năm chọn ở header ⇒ chọn đúng năm của bản vừa tạo
+  await pickYear(page, slot.year.name);
+  await page.goto(`/education/school-year-plans/${ownedId}/edit`);
   await expect(page.locator('#desc')).toBeEditable();
   let writes = 0;
   page.on('request', (request) => {
@@ -95,14 +107,17 @@ test('EDU-48 xóa cả nhánh, lưu/mở lại BE thật và Lĩnh vực ellipsi
   const remove = page.getByRole('button', { name: 'Xóa lĩnh vực con 1', exact: true });
   await remove.click();
   const dialog = page.getByRole('dialog', { name: 'Xóa lĩnh vực con', exact: true });
-  await expect(dialog).toContainText('Xóa lĩnh vực con 1');
-  for (const label of ['2 nhóm kết quả mong đợi', '3 mục tiêu', '4 nội dung', '5 dấu tích chủ đề'])
+  await expect(dialog).toContainText('Lĩnh vực con 1 "Nhánh cần xóa"');
+  // Kế hoạch năm học không giữ dấu tích chủ đề (BE bỏ themeKeys) ⇒ chỉ đếm nhóm, mục tiêu, nội dung
+  for (const label of ['2 nhóm kết quả mong đợi', '3 mục tiêu', '4 nội dung'])
     await expect(dialog).toContainText(label);
   await dialog.getByRole('button', { name: 'Quay lại', exact: true }).click();
   expect((await read()).domains).toEqual(before.domains);
   await expect(remove).toBeVisible();
   await remove.click();
-  await dialog.getByRole('button', { name: 'Xóa', exact: true }).click();
+  // Hộp xóa có hai cách: chỉ bỏ lĩnh vực con hoặc xóa cả nhánh
+  await dialog.getByRole('radio', { name: 'Xóa cả nhánh' }).check();
+  await dialog.getByRole('button', { name: 'Xóa cả nhánh', exact: true }).click();
   const values = () => page.locator('textarea').evaluateAll((nodes) => nodes.map((node) => node.value));
   await expect.poll(values).not.toContain('Mục tiêu cần xóa 1');
   await expect.poll(values).not.toContain('Mục tiêu trực tiếp cần xóa');
@@ -121,10 +136,12 @@ test('EDU-48 xóa cả nhánh, lưu/mở lại BE thật và Lĩnh vực ellipsi
   expect(saved.breaks).toEqual(before.breaks);
   expect(writes).toBe(1);
   await page.goto('/');
-  await page.goto(`/education/goals/${ownedId}/edit`);
+  await page.goto(`/education/school-year-plans/${ownedId}/edit`);
   await expect.poll(values).toContain('Mục tiêu giữ nguyên');
   await expect.poll(values).not.toContain('Nhánh cần xóa');
-  await page.getByRole('button', { name: /Lấy từ Chương trình của Bộ/ }).click();
+  // Các cách lấy nội dung gom vào menu "Lấy / nhập nội dung"
+  await page.getByRole('button', { name: 'Lấy và nhập nội dung kế hoạch năm học' }).click();
+  await page.getByRole('menuitem', { name: 'Lấy từ Chương trình của Bộ' }).click();
   await page.getByRole('tab', { name: /Gợi ý nội dung/ }).click();
   const domain = page.getByLabel('Lĩnh vực', { exact: true });
   const longName = 'Phát triển tình cảm và kỹ năng xã hội';
@@ -134,7 +151,8 @@ test('EDU-48 xóa cả nhánh, lưu/mở lại BE thật và Lĩnh vực ellipsi
     await expect(domain).toHaveCSS('white-space', 'nowrap');
     await expect(domain).toHaveCSS('text-overflow', 'ellipsis');
     await expect(domain).toHaveAttribute('title', longName);
-    await expect(domain).toHaveValue(longName);
+    // Ô lọc lưu mã lĩnh vực (G94-278), kiểm chữ của lựa chọn đang chọn
+    await expect(domain.locator('option:checked')).toHaveText(longName);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.locator('.ga-cur-modal').screenshot({ path: testInfo.outputPath(`domain-${width}.png`) });
   }

@@ -259,6 +259,15 @@
   cursor: not-allowed;
 }
 
+/* Ô soạn/duyệt khóa theo luật (EDU-110): vẫn focus được để đọc lý do, trông như nút bị vô hiệu hóa */
+.perm-check-cell:has(input[aria-disabled='true']),
+.perm-check-cell input[aria-disabled='true'] {
+  cursor: not-allowed;
+}
+.perm-check-cell input[aria-disabled='true'] {
+  opacity: 0.5;
+}
+
 .perm-fixed {
   display: inline-flex;
   min-height: var(--btn-height);
@@ -638,8 +647,9 @@
 .vp-task-row__place {
   justify-self: end;
 }
-.vp-place .tab {
-  padding: var(--space-1) var(--space-3);
+/* Ô chọn nơi được sửa: co theo nội dung (tên điểm trường), không giãn hết cột */
+.select.vp-place {
+  width: auto;
   font-size: var(--fs-sm);
 }
 .vp-task__gap {

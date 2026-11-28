@@ -1,3 +1,4 @@
+import { ResponsiveToolbar } from '@/components/ui/ResponsiveToolbar';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
@@ -9,11 +10,12 @@ import { LearningResourceViewer } from '@/components/education-plan/LearningReso
 import { DAY_SECTIONS } from '@/models/education-plan/classPlan';
 import { resourcesOf } from '@/models/education-plan/learningResources.mjs';
 import { learningResourceService } from '@/services/education-plan/learningResourceService';
+import { classPlanVersionPath } from '@/models/education-plan/planVersions.mjs';
 
 export default function TeachingPresentationPage() {
   const { classId, themeId } = useParams();
   const [query] = useSearchParams();
-  return <Presentation key={`${classId}/${themeId}/${query.get('date')}`} />;
+  return <Presentation key={`${classId}/${themeId}/${query.get('date')}/${query.get('plan') || ''}`} />;
 }
 
 /** Tên hiển thị của một mục: tên dòng hoạt động đầu tiên, không có thì mục đích. */
@@ -85,12 +87,15 @@ function Presentation() {
   }, [activities.length]);
   if (ctx.loading) return <LoadingState />;
   if (!cls || !theme) return <StatusPage kind="404" title="Không tìm thấy lớp hoặc chủ đề" />;
-  const back = `/education/day-plans/${classId}${weekKey ? `?week=${weekKey}` : ''}`;
+  const back = classPlanVersionPath(
+    `/education/day-plans/${classId}${weekKey ? `?week=${weekKey}` : ''}`,
+    ctx.superseded ? yearPlan.id : null,
+  );
   if (!date || !doc || !dayContent)
     return (
       <div className="page ga-page ga-teaching">
         <PageHead title={theme.name} desc={cls.name} />
-        <Notice tone="warn">
+        <Notice tone="info">
           Dạy học theo từng ngày: mở trang Kế hoạch giáo dục ngày, chọn một ngày đã lưu rồi bấm "Dạy học ngày này".{' '}
           <Link to={back}>Quay lại kế hoạch</Link>
         </Notice>
@@ -99,19 +104,14 @@ function Presentation() {
   return (
     <div className="page ga-page ga-teaching ga-class-editor ga-year-page" ref={stage}>
       <div className="ga-sticky-head">
-        <PageHead
-          title={theme.name}
-          desc={
-            <>
-              {cls.name} · {date} <EduStatusBadge status={doc.status} doc={doc} />
-            </>
-          }
-        />
-        <div className="ga-year-toolbar" role="group" aria-label="Thao tác dạy học">
-          <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
+        <PageHead title={theme.name} />
+        <ResponsiveToolbar className="ga-year-toolbar" role="group" aria-label="Thao tác dạy học">
+          <div className="ga-year-toolbar__group">
             <Link className="btn btn--sm btn--outline-primary" to={back}>
               Quay lại kế hoạch
             </Link>
+          </div>
+          <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
             <button
               type="button"
               className="btn btn--sm btn--outline-primary"
@@ -128,12 +128,15 @@ function Presentation() {
               Toàn màn hình
             </button>
           </div>
-        </div>
+        </ResponsiveToolbar>
       </div>
+      <p className="page__desc">
+        {cls.name} · {date} <EduStatusBadge status={doc.status} doc={doc} />
+      </p>
       {doc.status !== 'approved' && doc.status !== 'APPROVED' && (
-        <Notice tone="warn">Đây là bản chưa hoàn tất phê duyệt. Chế độ dạy học không thay đổi trạng thái hồ sơ.</Notice>
+        <Notice tone="info">Đây là bản chưa hoàn tất phê duyệt. Chế độ dạy học không thay đổi trạng thái hồ sơ.</Notice>
       )}
-      {fullError && <Notice tone="warn">{fullError}</Notice>}
+      {fullError && <Notice>{fullError}</Notice>}
       <div className="ga-teaching-layout">
         <aside className="ga-teaching-nav" aria-label="Hoạt động dạy học">
           <h2>
@@ -161,7 +164,7 @@ function Presentation() {
           </p>
           <h1 className="ga-teaching-title">{activity.text || activity.label}</h1>
           {error ? (
-            <Notice tone="warn">Chưa tải được học liệu: {error}</Notice>
+            <Notice>Chưa tải được học liệu: {error}</Notice>
           ) : loading ? (
             <p role="status">Đang tải danh sách học liệu…</p>
           ) : (

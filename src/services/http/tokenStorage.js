@@ -41,3 +41,16 @@ export const tokenStorage = {
 };
 
 export const UNAUTHORIZED_EVENT = 'carenest:unauthorized';
+
+// 403 mang mã 1014 (chưa cấp quyền) / 1015 (tài khoản bị vô hiệu hóa): phiên không dùng tiếp được ⇒ kết thúc phiên như 401
+export const SESSION_BLOCKED_CODES = [1014, 1015];
+
+/** Lỗi axios 403 + errorCode khóa/chưa cấp quyền ⇒ phát sự kiện hết phiên kèm câu của BE; trả true nếu đã phát. */
+export const notifySessionBlocked = (error) => {
+  const response = error?.response;
+  const errorCode = response?.data?.errorCode;
+  if (response?.status !== 403 || !SESSION_BLOCKED_CODES.includes(errorCode)) return false;
+  const message = response.data?.desc || null;
+  window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT, { detail: { errorCode, message } }));
+  return true;
+};

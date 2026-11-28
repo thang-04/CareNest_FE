@@ -18,7 +18,7 @@ const REASON_MAX = 300;
  * Mở lại nhận xét tuần đã khóa (BE OBS-29) cùng bố cục form mở lại ngày đánh giá: lớp, tuần giáo án đã khóa, mở đến,
  * lý do. Trong thời gian mở GV sửa, gửi được cả lớp tuần đó; hết hạn tự khóa lại. Quyền và phạm vi do BE kiểm.
  */
-export function WeeklyCommentReopenForm({ kindField, classes, classesLoading, classLabel, yearEnd, user, onReopened }) {
+export function WeeklyCommentReopenForm({ kindField, classes, classesLoading, classLabel, yearEnd, user, onReopened, readOnly = false }) {
   const toast = useToast();
   const [form, setForm] = useState(() => ({ classId: '', weekStart: '', reason: '', ...defaultUnlockUntil(yearEnd) }));
   const [errors, setErrors] = useState({});
@@ -124,7 +124,7 @@ export function WeeklyCommentReopenForm({ kindField, classes, classesLoading, cl
         placeholder="Ví dụ: cô gửi nhầm nội dung"
         onChange={(e) => set({ reason: e.target.value })}
       />
-      <Button variant="primary" type="submit" icon={Unlock} loading={busy} disabled={!classes.length}>
+      <Button variant="primary" type="submit" icon={Unlock} loading={busy} disabled={!classes.length || readOnly}>
         Mở lại tuần
       </Button>
       {errors._form && (

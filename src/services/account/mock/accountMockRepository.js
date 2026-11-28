@@ -1,5 +1,6 @@
 import { readDb, writeDb, clone, delay, ApiError } from '@/mocks/mockDatabase';
 import { pushNotification } from '@/mocks/notificationMockRepository';
+import { announcementMockRepository } from '@/mocks/announcementMockRepository';
 import { createPasswordToken, passwordMatches, setUserPassword } from '@/mocks/authMockRepository';
 import { uid } from '@/utils/id';
 import { ageGroupById } from '@/models/School';
@@ -264,6 +265,18 @@ export const accountMockRepository = {
       writeDb((db) => {
         const n = db.notifications.find((x) => x.id === id);
         if (n) n.read = true;
+      });
+    }
+    if (found.announcementId != null) {
+      const full = await announcementMockRepository.myAnnouncement(found.announcementId);
+      return clone({
+        ...found,
+        title: full.title,
+        message: full.body,
+        bodyHtml: full.bodyHtml,
+        senderName: full.senderName,
+        attachments: full.attachments,
+        read: true,
       });
     }
     return clone({ ...found, read: true });

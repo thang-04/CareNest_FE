@@ -1,4 +1,4 @@
-import { AGE_GROUPS, CLASSES, WEEKDAYS } from '@/models/education-plan/educationPlanConstants';
+import { AGE_GROUPS, WEEKDAYS } from '@/models/education-plan/educationPlanConstants';
 import { Card, fmtDate } from '@/components/education-plan/eduUi';
 import { CodeChips } from '@/components/education-plan/PlanWidgets';
 
@@ -43,7 +43,7 @@ export const weekdayLabel = (iso) => {
   return wd < 5 ? WEEKDAYS[wd] : wd === 5 ? 'Thứ 7' : 'Chủ nhật';
 };
 
-export const className = (id) => CLASSES.find((c) => c.id === id)?.name || '—';
+export const className = (id, classes = []) => classes.find((c) => String(c.id) === String(id))?.name || '—';
 export const typeLabel = (t) => (t === 'week' ? 'Kế hoạch tuần' : 'Kế hoạch ngày');
 
 export function periodLabel(l) {
@@ -196,14 +196,14 @@ export function DayTable({ slots }) {
   );
 }
 
-export function LessonInfo({ l, theme }) {
+export function LessonInfo({ l, theme, classes }) {
   return (
     <dl className="info-list">
       <dt>Loại</dt>
       <dd>{typeLabel(l.type)}</dd>
       <dt>Lớp</dt>
       <dd>
-        {className(l.classId)} · {AGE_GROUPS.find((a) => a.id === l.ageGroupId)?.name}
+        {className(l.classId, classes)} · {AGE_GROUPS.find((a) => a.id === l.ageGroupId)?.name}
       </dd>
       <dt>Thời gian</dt>
       <dd>{periodLabel(l)}</dd>

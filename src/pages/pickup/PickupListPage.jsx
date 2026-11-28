@@ -6,6 +6,7 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { Modal } from '@/components/ui/Modal';
 import { PickupCallFlow, PickupPhotoFlow } from '@/components/pickup/PickupVerifyFlow';
+import { PickupTimeCorrection } from '@/components/pickup/PickupTimeCorrection';
 import { EmptyState, ErrorState, LoadingState, SkeletonRows } from '@/components/ui/States';
 import { Tabs } from '@/components/ui/Tabs';
 import { PickupPerson, PickupStatusBadge, VerificationBadge } from '@/components/pickup/PickupBadges';
@@ -13,6 +14,8 @@ import { usePickupBoard, usePickupClasses } from '@/hooks/pickup/usePickups';
 import { PICKUP_REASON_LABELS, PICKUP_STATUS } from '@/models/pickup/pickupConstants';
 import { pickupCrumbs } from '@/utils/pickup/breadcrumbs';
 import { formatDate, normalizeText, todayInput } from '@/utils/format';
+import { lockedYearMessage } from '@/utils/schoolYearPrep';
+import { Button } from '@/components';
 import '@/styles/modules/pickup.css';
 
 const TABS = [
@@ -26,7 +29,8 @@ const timeOf = (iso) => (iso ? new Date(iso).toLocaleTimeString('vi-VN', { hour:
 /** #99 Pickup List: children of the class waiting to be picked up (UC 3.15 entry point). */
 export default function PickupListPage() {
   const [params, setParams] = useSearchParams();
-  const { schoolYear, activeYear } = useSchoolYear();
+  // Năm sắp diễn ra chưa tới ngày mở chuẩn bị (CHD-12): đón trẻ chỉ xem
+  const { schoolYear, activeYear, lockedYear, yearLocked, setSchoolYear } = useSchoolYear();
   const today = todayInput();
   const date = params.get('date') || today;
   // Đón trẻ theo năm học đang hoạt động (user chốt 2026-10-28, Y-1): xem lại từ ngày đầu năm; năm chưa bắt đầu thì không chặn.
@@ -48,12 +52,18 @@ export default function PickupListPage() {
   // để trang ghi kết quả quay lại mở lại đúng modal.
   const verifyId = params.get('verify') || '';
   const callId = params.get('call') || '';
+  const [correcting, setCorrecting] = useState(null);
   const closeModals = () => {
     const next = new URLSearchParams(params);
     next.delete('verify');
     next.delete('call');
     if (!next.get('classId') && classId) next.set('classId', classId);
     setParams(next, { replace: true });
+  };
+  // BE thật không phát sự kiện đổi dữ liệu (mock thì có): sau khi trả trẻ phải tự tải lại bảng
+  const handedOver = () => {
+    closeModals();
+    reload({ silent: true });
   };
 
   const rows = board?.rows || [];
@@ -80,11 +90,30 @@ export default function PickupListPage() {
     <div className="page">
       <Breadcrumb items={pickupCrumbs()} />
       <h1 className="page__title">Đón trẻ</h1>
-      {activeYear && schoolYear !== activeYear.id && (
+      {yearLocked ? (
         <div className="alert alert--info mb-16" role="status">
           <Info size={18} />
-          <div>Đón trẻ luôn theo lớp của năm học đang hoạt động {activeYear.label}.</div>
+          <div>
+            {lockedYearMessage(lockedYear)}
+            {activeYear && (
+              <>
+                {' '}
+                Đón trẻ làm ở năm học đang hoạt động {activeYear.label}.{' '}
+                <Button size="sm" onClick={() => setSchoolYear(activeYear.id)}>
+                  Chuyển sang năm học {activeYear.label}
+                </Button>
+              </>
+            )}
+          </div>
         </div>
+      ) : (
+        activeYear &&
+        schoolYear !== activeYear.id && (
+          <div className="alert alert--info mb-16" role="status">
+            <Info size={18} />
+            <div>Đón trẻ luôn theo lớp của năm học đang hoạt động {activeYear.label}.</div>
+          </div>
+        )
       )}
       {classError ? (
         <ErrorState error={classError} onRetry={reloadClasses} />
@@ -225,7 +254,12 @@ export default function PickupListPage() {
                               )}
                             </td>
                             <td className="cell--actions">
-                              {isToday && r.status === PICKUP_STATUS.WAITING && (
+                              {!yearLocked && isToday && r.pickup?.handedOverAt && (
+                                <Button size="sm" onClick={() => setCorrecting(r)} aria-label={`Sửa giờ trả của ${r.child.fullName}`}>
+                                  Sửa giờ
+                                </Button>
+                              )}
+                              {!yearLocked && isToday && r.status === PICKUP_STATUS.WAITING && (
                                 <div className="row-actions">
                                   <button type="button" className="btn btn--sm btn--primary" onClick={() => setParam('verify', r.child.id)}>
                                     <UserCheck size={15} /> Trả trẻ
@@ -256,11 +290,23 @@ export default function PickupListPage() {
               <ClipboardList size={16} /> Kết quả trả trẻ hôm nay
             </Link>
           </div>
-          <Modal open={!!verifyId} size="lg" title={`Trả trẻ: ${nameOf(verifyId)}`} onClose={closeModals}>
-            {verifyId && <PickupPhotoFlow key={verifyId} childId={verifyId} onDone={closeModals} />}
+          <Modal open={!!verifyId && !yearLocked} size="lg" title={`Trả trẻ: ${nameOf(verifyId)}`} onClose={closeModals}>
+            {verifyId && !yearLocked && <PickupPhotoFlow key={verifyId} childId={verifyId} onDone={handedOver} />}
           </Modal>
-          <Modal open={!!callId} title={`Gọi phụ huynh: ${nameOf(callId)}`} onClose={closeModals}>
-            {callId && <PickupCallFlow key={callId} childId={callId} onDone={closeModals} />}
+          <Modal open={!!correcting} title={`Sửa giờ trả: ${correcting?.child.fullName || ''}`} onClose={() => setCorrecting(null)}>
+            {correcting && (
+              <PickupTimeCorrection
+                key={correcting.pickup.id}
+                pickup={correcting.pickup}
+                onDone={() => {
+                  setCorrecting(null);
+                  reload();
+                }}
+              />
+            )}
+          </Modal>
+          <Modal open={!!callId && !yearLocked} title={`Gọi phụ huynh: ${nameOf(callId)}`} onClose={closeModals}>
+            {callId && !yearLocked && <PickupCallFlow key={callId} childId={callId} onDone={handedOver} />}
           </Modal>
         </>
       )}

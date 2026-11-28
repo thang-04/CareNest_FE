@@ -10,17 +10,42 @@ export const SCHOOL_SCOPE = 'Toàn trường';
 export const toEduYear = (id) => (id ? id.replace('-', ' – ') : id);
 export const fromEduYear = (label) => (label ? label.replace(' – ', '-') : label);
 
-export const AGE_GROUPS = [
-  { id: 'ag-2', name: 'Nhà trẻ (24–36 tháng)' },
-  { id: 'ag-3', name: 'Mẫu giáo bé (3–4 tuổi)' },
-  { id: 'ag-4', name: 'Mẫu giáo nhỡ (4–5 tuổi)' },
-  { id: 'ag-5', name: 'Mẫu giáo lớn (5–6 tuổi)' },
-];
+// Nạp từ cấu hình BE trước khi vẽ các trang; giữ cùng tham chiếu cho cả màn hình và file xuất.
+export const AGE_GROUPS = [];
+export const setAgeGroups = (groups) => {
+  AGE_GROUPS.splice(0, AGE_GROUPS.length, ...groups);
+};
 
-export const CLASSES = [
-  { id: 'c-choi1', name: 'Chồi 1', room: 'Phòng 201', ageGroupId: 'ag-4' },
-  { id: 'c-choi2', name: 'Chồi 2', room: 'Phòng 202', ageGroupId: 'ag-4' },
-];
+export const ageRangeKey = (group) =>
+  group?.ageFromMonths != null && group?.ageToMonths != null ? group.ageFromMonths + ':' + group.ageToMonths : null;
+
+const ageGroupOf = (id) =>
+  id == null
+    ? null
+    : AGE_GROUPS.find((group) => [group.id, group.code, group.databaseId].some((value) => value != null && String(value) === String(id)));
+
+export const sameAgeRange = (left, right) => {
+  // Nhóm không có trong danh mục (danh mục chưa nạp) ⇒ so theo ID; nhóm thiếu mốc tháng thì không khớp
+  if (left != null && String(left) === String(right) && !ageGroupOf(left)) return true;
+  const key = ageRangeKey(ageGroupOf(left));
+  return key != null && key === ageRangeKey(ageGroupOf(right));
+};
+
+export const ageRangeOptions = (groups = AGE_GROUPS, { includeIncomplete = false } = {}) => {
+  const options = new Map();
+  for (const group of groups) {
+    const key = ageRangeKey(group);
+    if (key && !options.has(key)) options.set(key, { ...group, rangeKey: key, name: group.shortName?.trim() || group.name });
+    if (!key && includeIncomplete)
+      options.set(`incomplete:${group.id}`, {
+        ...group,
+        missingRange: true,
+        name: group.shortName?.trim() || group.name,
+      });
+  }
+  return [...options.values()];
+};
+export const rangeOptionId = (id, options = ageRangeOptions()) => options.find((g) => sameAgeRange(g.id, id))?.id || '';
 
 /** 5 lĩnh vực theo Chương trình Giáo dục mầm non hiện hành. */
 export const STANDARD_DOMAINS = [
@@ -72,6 +97,7 @@ export const isEduReviewPending = (status) =>
 
 export function educationDisplayStatus(doc) {
   if (!doc || doc.status !== EDU_STATUS.DRAFT) return doc?.status;
+  if (typeof doc.returned === 'boolean') return doc.returned ? EDU_STATUS.REJECTED : doc.status;
   const transition = [...(doc.history || [])]
     .reverse()
     .find((event) => /^(reject|return|submit|approve|issue|trả lại|gửi duyệt|ban hành)/i.test(event.action || event.label || ''));
@@ -216,6 +242,7 @@ export const EDU_ERROR_CODE = {
   YEAR_PLAN_CLASS_MISMATCH: 7108,
   YEAR_PLAN_NOT_ISSUED: 7109,
   EDU_CONFIG_FORBIDDEN: 7201,
+  SIGNERS_INVALID: 7202,
   YEAR_PLAN_SIGNER_REQUIRED: 7203,
   CLASS_DOC_APPROVER_REQUIRED: 7204,
   LESSON_ROW_REQUIRED: 7206,

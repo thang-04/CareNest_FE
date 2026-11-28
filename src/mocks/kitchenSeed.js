@@ -145,7 +145,8 @@ export const seedMealCount = ({ campusId, date, session, classes, children }) =>
   const rows = classes
     .filter((c) => c.campusId === campusId)
     .map((c, ci) => {
-      const kids = children.filter((ch) => ch.classId === c.id && ch.status === 'ACTIVE');
+      // NUT-07/CHD-13: chỉ đếm trẻ báo ăn (thiếu cờ ⇒ báo ăn)
+      const kids = children.filter((ch) => ch.classId === c.id && ch.status === 'ACTIVE' && ch.mealRegistered !== false);
       const absent = (day + ci) % 3 === 0 ? 1 : 0;
       const afternoonSkip = session === 'AFTERNOON' && kids.length > 2 ? 1 : 0;
       const substitute = kids.filter((ch) => (ch.allergies || []).length > 0).length;

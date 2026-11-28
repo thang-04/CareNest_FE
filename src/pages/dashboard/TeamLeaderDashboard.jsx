@@ -5,13 +5,12 @@ import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { Widget, Shortcuts, ShortList } from '@/components/dashboard/DashboardWidgets';
 import { ApprovalsWidget } from '@/components/dashboard/ApprovalsWidget';
 import { ClassTodayPanel } from '@/components/dashboard/ClassTodayPanel';
-import { getEducationLessons } from '@/services/education-plan/educationPlanService';
+import { getAllClassDocSummaries, getClassDocContext } from '@/services/education-plan/educationPlanService';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { EduStatusBadge } from '@/components/education-plan/eduUi';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { ageGroupById } from '@/models/School';
-import { formatDate } from '@/utils/format';
 import '@/styles/modules/dashboard.css';
-const TO_FIX = [EDU_STATUS.DRAFT, EDU_STATUS.REJECTED];
 
 /**
  * #13 Trang chủ Tổ trưởng — phương án A (plan 2026-11-13-home-day-rhythm): cùng khung lớp hôm nay + tiến độ 5 bước của lớp mình
@@ -20,11 +19,22 @@ const TO_FIX = [EDU_STATUS.DRAFT, EDU_STATUS.REJECTED];
 export default function TeamLeaderDashboard() {
   const { user } = useAuth();
   const approvals = usePendingApprovals();
+  const { schoolYear } = useSchoolYear();
+  // Hồ sơ chủ đề còn Nháp (kể cả bị trả lại, EDU-05) của lớp thuộc nhóm tuổi mình
   const themesQ = useWidget(
-    () => getEducationLessons().then((d) => d.themes.filter((t) => t.ageGroupId === user.ageGroupId)),
-    [user.ageGroupId],
+    async (u) => {
+      const [docs, context] = await Promise.all([
+        getAllClassDocSummaries(schoolYear, u, ['semester'], { statuses: [EDU_STATUS.DRAFT], currentOnly: true }),
+        getClassDocContext(schoolYear, u),
+      ]);
+      const own = new Map(
+        (context.classes || []).filter((c) => String(c.ageGroupId) === String(user.ageGroupId)).map((c) => [String(c.id), c.name]),
+      );
+      return docs.filter((d) => own.has(String(d.classId))).map((d) => ({ ...d, className: own.get(String(d.classId)) }));
+    },
+    [schoolYear, user.ageGroupId],
   );
-  const toFix = (themesQ.data || []).filter((t) => TO_FIX.includes(t.status));
+  const toFix = themesQ.data || [];
   const group = ageGroupById(user.ageGroupId);
   const shortcuts = [
     {
@@ -60,14 +70,10 @@ export default function TeamLeaderDashboard() {
                   key: t.id,
                   to: '/education/theme-plans',
                   icon: BookOpenCheck,
-                  code: t.code,
-                  title: t.name,
+                  code: t.className,
+                  title: `Học kỳ ${t.semesterNo}: kế hoạch chủ đề`,
                   // Badge ở dòng phụ: cột 1/3 hẹp, badge cuối dòng làm vỡ tiêu đề
-                  meta: (
-                    <>
-                      <EduStatusBadge status={t.status} /> {formatDate(t.startDate)} – {formatDate(t.endDate)}
-                    </>
-                  ),
+                  meta: <EduStatusBadge status={t.status} doc={t} />,
                 }))}
               />
             </Widget>

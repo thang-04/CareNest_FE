@@ -1,11 +1,12 @@
 import { ROLES } from '@/models/User';
 import { formatDate } from '@/utils/format';
 import { getUsers } from '@/services/masterDataService';
-import { getEducationLessons } from '@/services/education-plan/educationPlanService';
+import { getAllClassDocSummaries, getClassDocContext, getReviewQueue } from '@/services/education-plan/educationPlanService';
+import { planRoute } from '@/models/education-plan/planLevel.mjs';
+import { submitEntryOf } from '@/models/education-plan/reviewHistory.mjs';
 import { getClassAssessmentOverview, getRewardLists } from '@/services/assessment/assessmentService';
 import { getMealCounts } from '@/services/attendance/attendanceService';
 import { getPublishedMenu } from '@/services/kitchen/kitchenService';
-import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { OVERVIEW_PERIOD, REWARD_STATUS_LABELS } from '@/models/assessment/assessmentConstants';
 import { MEAL_COUNT_STATUS, MEAL_COUNT_STATUS_LABELS } from '@/models/attendance/attendanceConstants';
 import { MEAL_SESSION_LABELS, MENU_TYPE } from '@/models/kitchen/kitchenConstants';
@@ -21,64 +22,24 @@ import { sortKey } from '@/utils/dashboard/dashboardFormat';
  * PROPOSED backend: GET /approvals/pending → PendingApprovalGroup[] (one call instead of many).
  */
 
-const LESSON_TYPE = {
-  week: 'Kế hoạch tuần',
-  day: 'Kế hoạch ngày',
-};
-const STATUS_EDU = {
-  PENDING_TL: 'Chờ tổ trưởng duyệt',
-  PENDING_VP: 'Chờ Phó HT duyệt',
-};
-const lastAt = (history = []) => history[history.length - 1]?.at || null;
-const lessonPeriod = (l) => (l.type === 'day' ? `ngày ${formatDate(l.date)}` : `${formatDate(l.weekStart)} – ${formatDate(l.weekEnd)}`);
-
 /** Each source: (user, ctx) → Promise<PendingApprovalItem[]>. ctx = { users, schoolYear, date } */
 const SOURCES = {
-  [APPROVAL_TYPE.LESSON_REVIEW]: async (user) => {
-    const { lessons } = await getEducationLessons();
-    return lessons
-      .filter((l) => l.status === EDU_STATUS.PENDING_TL && l.ageGroupId === user.ageGroupId)
-      .map((l) => ({
-        id: l.id,
-        code: l.code,
-        title: `${LESSON_TYPE[l.type] || 'Kế hoạch giáo dục ngày'} ${lessonPeriod(l)}`.trim(),
-        by: l.createdBy,
-        at: lastAt(l.history),
-        campusId: null,
-        statusLabel: STATUS_EDU.PENDING_TL,
-        to: '/education/plan-reviews',
-      }));
-  },
-  [APPROVAL_TYPE.THEME_PLAN]: async () => {
-    const { themes } = await getEducationLessons();
-    return themes
-      .filter((t) => t.status === EDU_STATUS.PENDING_VP)
-      .map((t) => ({
-        id: t.id,
-        code: t.code,
-        title: `Kế hoạch chủ đề: ${t.name}`,
-        by: t.createdBy,
-        at: lastAt(t.history),
-        campusId: null,
-        statusLabel: STATUS_EDU.PENDING_VP,
-        to: '/education/plan-reviews',
-      }));
-  },
-  [APPROVAL_TYPE.LESSON_PLAN]: async () => {
-    const { lessons } = await getEducationLessons();
-    return lessons
-      .filter((l) => l.status === EDU_STATUS.PENDING_VP)
-      .map((l) => ({
-        id: l.id,
-        code: l.code,
-        title: `${LESSON_TYPE[l.type] || 'Kế hoạch giáo dục ngày'} ${lessonPeriod(l)}`.trim(),
-        by: l.createdBy,
-        at: lastAt(l.history),
-        campusId: null,
-        statusLabel: STATUS_EDU.PENDING_VP,
-        to: '/education/plan-reviews',
-      }));
-  },
+  // Kế hoạch năm/tổ của năm đang chọn: BE trả đúng bản chờ người gọi duyệt (EDU-05, EDU-54)
+  [APPROVAL_TYPE.YEAR_PLAN]: async (user, { schoolYear }) =>
+    (await getReviewQueue(user, schoolYear)).map((g) => ({
+      id: g.id,
+      code: g.code,
+      title: g.title,
+      by: g.sentBy?.name || submitEntryOf(g)?.by || '—',
+      at: g.sentAt ?? g.sentBy?.at ?? null,
+      campusId: null,
+      statusLabel: 'Chờ duyệt',
+      to: `${planRoute(g)}/${g.id}`,
+    })),
+  // Hồ sơ lớp chờ đúng lượt người xem (EDU-05, EDU-18): BE lọc theo chuỗi duyệt và phạm vi, FE chỉ hiển thị
+  [APPROVAL_TYPE.LESSON_REVIEW]: (user, { schoolYear }) => classDocRows(user, schoolYear, ['semester', 'dossier']),
+  [APPROVAL_TYPE.THEME_PLAN]: (user, { schoolYear }) => classDocRows(user, schoolYear, ['semester']),
+  [APPROVAL_TYPE.LESSON_PLAN]: (user, { schoolYear }) => classDocRows(user, schoolYear, ['dossier']),
   // Danh sách khen thưởng của lớp: PHT xem xét bản chờ PHT; HT phê duyệt bản chờ HT (BE cho HT xử lý cả bản chờ PHT)
   [APPROVAL_TYPE.REWARD_REVIEW]: async (user, { schoolYear }) =>
     user?.role === ROLES.VICE_PRINCIPAL
@@ -100,7 +61,7 @@ const SOURCES = {
       .map((c) => ({
         id: c.id,
         code: `${MEAL_SESSION_LABELS[c.session] || c.session} ${formatDate(c.date)}`,
-        title: `${c.totals.normal + c.totals.substitute} suất (${c.totals.substitute} suất thay thế)`,
+        title: `${c.totals.normal + c.totals.substitute} suất`,
         by: 'Hệ thống chốt theo giờ điểm danh',
         at: c.aggregatedAt || c.date,
         campusId: c.campusId,
@@ -109,6 +70,30 @@ const SOURCES = {
       }));
   },
 };
+async function classDocRows(user, schoolYear, kinds) {
+  const [docs, context] = await Promise.all([
+    getAllClassDocSummaries(schoolYear, user, kinds, { review: true, myTurn: true }),
+    getClassDocContext(schoolYear, user),
+  ]);
+  const className = (id) => (context.classes || []).find((c) => String(c.id) === String(id))?.name || '';
+  return docs.map((d) => {
+    const sent = [...(d.history || [])].reverse().find((h) => !h.tone);
+    return {
+      id: d.id,
+      code: className(d.classId),
+      title:
+        d.kind === 'semester'
+          ? `Học kỳ ${d.semesterNo}: kế hoạch chủ đề · ${(d.themeIds || []).length} chủ đề`
+          : `Chủ đề ${d.themeNo || ''}: ${d.themeName || '—'} · kế hoạch giáo dục ngày`,
+      by: sent?.by || '—',
+      at: sent?.at || null,
+      campusId: null,
+      statusLabel: 'Chờ duyệt',
+      to: '/education/plan-reviews',
+    };
+  });
+}
+
 function rewardRow(r) {
   return {
     id: r.listId,
@@ -131,7 +116,7 @@ export async function getPendingApprovals(user, { schoolYear, date }) {
   if (!canViewPendingApprovals(user)) return [];
   const types = APPROVAL_TYPES_BY_ROLE[user.role] || [];
   // Names only decorate the rows: the list still works when the user directory is unavailable.
-  const users = await getUsers()
+  const users = await getUsers(user)
     .then((list) => Object.fromEntries(list.map((u) => [u.id, u.fullName])))
     .catch(() => ({}));
   const ctx = {
@@ -183,11 +168,14 @@ export function buildLunch({ counts, menu, campusId = '', campusName = (id) => i
 }
 
 /** Sổ báo ăn + thực đơn đã công bố hôm nay; nguồn lỗi hoặc 403 theo vai trò trả null. */
-export async function getLunchSources(user, { date }) {
+// withCounts=false: trang chủ theo lớp chỉ hiện món; sổ báo ăn toàn trường chỉ HT/PHT/bếp đọc được (403 với GV)
+export async function getLunchSources(user, { date, withCounts = true }) {
   const [counts, menu] = await Promise.all([
-    getMealCounts({ date }, user)
-      .then((r) => r?.counts || [])
-      .catch(() => null),
+    withCounts
+      ? getMealCounts({ date }, user)
+          .then((r) => r?.counts || [])
+          .catch(() => null)
+      : null,
     getPublishedMenu({ date, view: 'day' }, user).catch(() => null),
   ]);
   return { counts, menu };

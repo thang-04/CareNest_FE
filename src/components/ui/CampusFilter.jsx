@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { campusOptionLabel } from '@/utils/campusLabel';
 
 /**
  * Ô chọn điểm trường dùng chung (DESIGN §6.3, §14.1). Chỉ hiện khi có từ 2 điểm trường để chọn.
@@ -25,7 +26,7 @@ export function CampusFilter({
         <option value="">{allLabel}</option>
         {campuses.map((c) => (
           <option key={c.id} value={c.id}>
-            {c.shortName || c.name}
+            {campusOptionLabel(c, campuses)}
           </option>
         ))}
       </select>

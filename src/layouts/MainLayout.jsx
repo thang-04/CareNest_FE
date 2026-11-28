@@ -10,6 +10,7 @@ import { AppSplash } from '@/components/ui/AppSplash';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { AreaGate } from '@/routes/RoleGuard';
 import { DemoDataBanner } from './DemoDataBanner';
+import { DevClockWidget } from './DevClockWidget';
 import { useMediaQuery } from '@/hooks';
 import { HeaderSlotContext } from '@/contexts/HeaderSlotContext';
 import './layout.css';
@@ -109,6 +110,7 @@ export function MainLayout() {
         </HeaderSlotContext.Provider>
         <Footer />
       </div>
+      <DevClockWidget />
     </div>
   );
 }

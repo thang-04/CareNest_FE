@@ -192,6 +192,14 @@ test('lớp hôm nay: quá giờ chốt còn trẻ chưa điểm danh thì báo 
   assert.equal(day.steps[1].status, 'doing');
 });
 
+test('lớp hôm nay: không phải ngày học thì bước đánh giá "Không có" và không báo lỗi tải', () => {
+  const day = buildClassDay({ sheet: { ...SHEET, schoolDay: false }, pickup: PICKUP, daily: null });
+  const evaluation = day.steps[3];
+  assert.equal(evaluation.status, 'none');
+  assert.equal(evaluation.note, 'Hôm nay không phải ngày học');
+  assert.equal(day.steps[0].note, 'Hôm nay không phải ngày học');
+});
+
 test('lớp hôm nay: cần chú ý gồm trẻ cần lưu ý khi khám, trẻ dị ứng, đơn nghỉ; không có tên trẻ', () => {
   const { attention } = buildClassDay({ sheet: SHEET, pickup: PICKUP, daily: DAILY });
   assert.deepEqual(

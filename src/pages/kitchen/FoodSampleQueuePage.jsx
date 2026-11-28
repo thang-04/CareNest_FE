@@ -1,16 +1,18 @@
 import { useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Check, Download, Printer } from '@/components/ui/icons';
-import { Breadcrumb, EmptyState, ErrorState, LoadingState, Modal, PrintPaperFit, PrintToolbar } from '@/components';
+import { Breadcrumb, Button, EmptyState, ErrorState, LoadingState, Modal, PrintPaperFit, PrintToolbar, SelectField } from '@/components';
 import { KbCampusFilter, KbDateFilter } from '@/components/kitchen/KitchenFilters';
+import { DayBandRow } from '@/components/kitchen/DayBandRow';
 import { FoodSampleFormPrint } from '@/components/kitchen/FoodSampleFormPrint';
 import { SampleDisposalBadge, SampleStatusBadge } from '@/components/kitchen/SampleRecordBadges';
 import { useToast } from '@/contexts/ToastContext';
 import { useStockCampus } from '@/hooks/kitchen/useDryStock';
+import { useDayGroupToggle } from '@/hooks/kitchen/useDayGroupToggle';
 import { useFoodSamples } from '@/hooks/kitchen/useKitchenRecords';
 import { KITCHEN_RECORD_PAGES, MEAL_SESSION_LABELS } from '@/models/kitchen/kitchenRecordConstants';
 import { kitchenRecordsApi } from '@/services/kitchenRecordsApi';
-import { daysBefore, isPendingApproval, nextApproval, printableSamples, sortSamples } from '@/utils/kitchen/kitchenRecords';
+import { daysBefore, isPendingApproval, nextApproval, printableSamples, sameMealCount, sortSamples } from '@/utils/kitchen/kitchenRecords';
 import { kitchenCrumbs } from '@/utils/kitchen/breadcrumbs';
 import { foodSampleCsvRows } from '@/utils/kitchen/kitchenExport';
 import { exportWithPreview } from '@/components/ui/ExportPreview';
@@ -19,13 +21,16 @@ import '@/styles/modules/kitchen.css';
 import '@/styles/modules/kitchen-records.css';
 
 const DEFAULT_RANGE_DAYS = 30;
+const SAMPLE_COLUMNS = 6;
 
-function SampleRow({ sample, busy, onApprove }) {
+function SampleRow({ sample, sameMeal, busy, onApprove }) {
   const next = nextApproval(sample);
   return (
     <tr>
-      <td>{formatDate(sample.date)}</td>
-      <td>{MEAL_SESSION_LABELS[sample.session] || sample.session}</td>
+      <td className="center">
+        {MEAL_SESSION_LABELS[sample.session] || sample.session}
+        {sameMeal > 1 && <div className="text-xs muted">Bữa có {sameMeal} mẫu</div>}
+      </td>
       <td>
         <ul className="kr-dishes">
           {sample.dishes.map((dish) => (
@@ -34,11 +39,11 @@ function SampleRow({ sample, busy, onApprove }) {
         </ul>
         {sample.note && <div className="text-xs muted">{sample.note}</div>}
       </td>
-      <td>{formatDateTime(sample.sampledAt)}</td>
-      <td>
+      <td className="center">{formatDateTime(sample.sampledAt)}</td>
+      <td className="center">
         <SampleStatusBadge status={sample.status} />
       </td>
-      <td>
+      <td className="center">
         <SampleDisposalBadge status={sample.disposalStatus} />
         {sample.disposalStatus !== 'NONE' && sample.disposedAt && (
           <div className="text-xs muted">Hủy lúc {formatDateTime(sample.disposedAt)}</div>
@@ -49,9 +54,9 @@ function SampleRow({ sample, busy, onApprove }) {
       </td>
       <td className="cell--actions">
         {next && (
-          <button type="button" className="btn btn--sm btn--primary" disabled={busy} onClick={() => onApprove(sample, next)}>
-            <Check size={14} /> {next === 'sample' ? 'Duyệt lưu mẫu' : 'Duyệt hủy mẫu'}
-          </button>
+          <Button variant="primary" size="sm" icon={Check} loading={busy} onClick={() => onApprove(sample, next)}>
+            {next === 'sample' ? 'Duyệt lưu mẫu' : 'Duyệt hủy mẫu'}
+          </Button>
         )}
       </td>
     </tr>
@@ -90,7 +95,20 @@ export default function FoodSampleQueuePage() {
     const sorted = sortSamples(samples.data);
     return pendingOnly ? sorted.filter(isPendingApproval) : sorted;
   }, [samples.data, pendingOnly]);
+  // rows đã sắp ngày mới nhất trước, nên gom liên tiếp giữ nguyên thứ tự
+  const days = useMemo(() => {
+    const byDate = new Map();
+    rows.forEach((sample) => {
+      if (!byDate.has(sample.date)) byDate.set(sample.date, { date: sample.date, samples: [], pending: 0 });
+      const day = byDate.get(sample.date);
+      day.samples.push(sample);
+      if (isPendingApproval(sample)) day.pending += 1;
+    });
+    return [...byDate.values()];
+  }, [rows]);
+  const dayToggle = useDayGroupToggle(pendingOnly);
   const printable = useMemo(() => printableSamples(samples.data), [samples.data]);
+  const mealCountOf = useMemo(() => sameMealCount(samples.data), [samples.data]);
 
   const approve = async (sample, kind) => {
     setBusyId(sample.id);
@@ -135,20 +153,41 @@ export default function FoodSampleQueuePage() {
           <table className="table table--grid kr-table">
             <thead>
               <tr>
-                <th>Ngày</th>
-                <th>Bữa ăn</th>
+                <th className="center">Bữa ăn</th>
                 <th>Món lưu mẫu</th>
-                <th>Lấy mẫu lúc</th>
-                <th>Lưu mẫu</th>
-                <th>Hủy mẫu</th>
+                <th className="center">Lấy mẫu lúc</th>
+                <th className="center">Lưu mẫu</th>
+                <th className="center">Hủy mẫu</th>
                 <th className="cell--actions">Thao tác</th>
               </tr>
             </thead>
-            <tbody>
-              {rows.map((sample) => (
-                <SampleRow key={sample.id} sample={sample} busy={busyId === sample.id} onApprove={approve} />
-              ))}
-            </tbody>
+            {days.map((day, i) => {
+              // Ngày còn bản ghi chờ duyệt tự mở và có nhãn cảnh báo
+              const open = dayToggle.isOpen(day.date, i, day.pending > 0);
+              return (
+                <tbody key={day.date}>
+                  <DayBandRow
+                    colSpan={SAMPLE_COLUMNS}
+                    label={formatDate(day.date)}
+                    count={day.samples.length}
+                    unit="bản ghi"
+                    warning={day.pending > 0 ? `${day.pending} chờ duyệt` : undefined}
+                    open={open}
+                    onToggle={() => dayToggle.toggle(day.date)}
+                  />
+                  {open &&
+                    day.samples.map((sample) => (
+                      <SampleRow
+                        key={sample.id}
+                        sample={sample}
+                        sameMeal={mealCountOf(sample)}
+                        busy={busyId === sample.id}
+                        onApprove={approve}
+                      />
+                    ))}
+                </tbody>
+              );
+            })}
           </table>
         </div>
       </section>
@@ -163,32 +202,31 @@ export default function FoodSampleQueuePage() {
         </div>
       </div>
       <div className="kb-toolbar">
-        <KbDateFilter label="Từ ngày" value={from} onChange={(next) => setParam('from', next)} />
-        <KbDateFilter label="Đến ngày" value={to} onChange={(next) => setParam('to', next)} />
+        <KbDateFilter label="Từ ngày" value={from} max={to} onChange={(next) => setParam('from', next)} />
+        <KbDateFilter label="Đến ngày" value={to} min={from} onChange={(next) => setParam('to', next)} />
         {campus.campusId && <KbCampusFilter campusId={campus.campusId} onChange={campus.setCampusId} canPick={campus.canPick} />}
         <label className="date-filter">
           Hiển thị
-          <select
-            className="select"
+          <SelectField
             value={pendingOnly ? 'pending' : 'all'}
             onChange={(e) => setParam('status', e.target.value === 'pending' ? 'pending' : '')}
-          >
-            <option value="all">Tất cả bản ghi</option>
-            <option value="pending">Chỉ việc chờ duyệt</option>
-          </select>
+            options={[
+              { value: 'all', label: 'Tất cả bản ghi' },
+              { value: 'pending', label: 'Chỉ việc chờ duyệt' },
+            ]}
+          />
         </label>
         <div className="kb-toolbar__end">
-          <button
-            type="button"
-            className="btn"
+          <Button
+            icon={Download}
             disabled={!rows.length}
             onClick={() => exportWithPreview(foodSampleCsvRows(rows), `so-luu-mau-${from}-${to}.xlsx`)}
           >
-            <Download size={16} /> Xuất Excel
-          </button>
-          <button type="button" className="btn" disabled={!printable.length} onClick={() => setPrinting(true)}>
-            <Printer size={16} /> In biểu mẫu
-          </button>
+            Xuất Excel
+          </Button>
+          <Button icon={Printer} disabled={!printable.length} onClick={() => setPrinting(true)}>
+            In biểu mẫu
+          </Button>
         </div>
       </div>
       {body}
@@ -198,7 +236,7 @@ export default function FoodSampleQueuePage() {
         size="xl"
         className="print-modal"
         title="Sổ lưu và hủy mẫu thức ăn"
-        footer={<PrintToolbar sheetRef={sheetRef} fileBase={`So_luu_mau_${from}_${to}`} printLabel="In" />}
+        footer={<PrintToolbar sheetRef={sheetRef} fileBase={`So_luu_mau_${from}_${to}`} onClose={() => setPrinting(false)} />}
       >
         <PrintPaperFit>
           <FoodSampleFormPrint ref={sheetRef} samples={printable} campusName={printCampus} from={from} to={to} />

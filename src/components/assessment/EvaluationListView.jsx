@@ -26,6 +26,8 @@ import { getCampuses } from '@/services/masterDataService';
 import { getAgeGroups } from '@/services/schoolService';
 import { monthInSemester, semestersOf } from '@/utils/semesters';
 import { SemesterSelect } from '@/components/form/SemesterSelect';
+import { useYearCampuses } from '@/hooks/useYearCampuses';
+import { PERMISSIONS } from '@/models/bePermissions';
 
 const TEACHER_TABS = [
   { key: 'TODO', label: 'Chờ xem xét', match: (e) => e.status !== EVAL_STATUS.CONFIRMED },
@@ -65,7 +67,9 @@ export function EvaluationListView({ kind }) {
   });
   const { tab, classId, theme, keyword, campusId = '', ageGroupId = '' } = f;
   const scopedClasses = classScope.data || [];
-  const campusOptions = (campuses || []).filter((c) => scopedClasses.some((cls) => String(cls.campusId) === String(c.id)));
+  // HT: điểm trường của năm đang chọn; PHT: theo phạm vi quyền được cấp
+  const yearCampuses = useYearCampuses(PERMISSIONS.ASSESSMENT_VIEW);
+  const campusOptions = yearCampuses || (campuses || []).filter((c) => scopedClasses.some((cls) => String(cls.campusId) === String(c.id)));
   const campusName = (id) => campusOptions.find((c) => String(c.id) === String(id))?.name;
   const campusClasses = scopedClasses.filter((c) => !campusId || String(c.campusId) === campusId);
   const groupOptions = (ageGroups || []).filter((g) => campusClasses.some((c) => String(c.ageGroupId) === String(g.id)));
@@ -256,7 +260,14 @@ export function EvaluationListView({ kind }) {
           )}
           {!moreFilters && periodTypeSelect}
           {!moreFilters && themeSelect}
-          {monthly && <SemesterSelect value={semKey} onChange={(key) => applyFilters({ sem: key, period: '' })} />}
+          {monthly && (
+            <SemesterSelect
+              value={semKey}
+              emptyLabel="Cả năm học"
+              yearOption={false}
+              onChange={(key) => applyFilters({ sem: key, period: '' })}
+            />
+          )}
           {!yearEnd && (
             <div className="dg-period-nav">
               <button

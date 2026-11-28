@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, Check, Info, Plus, X } from '@/components/ui/icons';
 import { Avatar } from '@/components/ui/Avatar';
 import { Switch } from '@/components/ui/Switch';
+import { SelectField } from '@/components/form/Field';
 import { ReasonModal } from '@/components/permissions/ReasonModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { VP_PLACE, VP_VIEW_CODE } from '@/models/account/vpTaskAreas';
+import { VP_VIEW_CODE } from '@/models/account/vpTaskAreas';
 import { updatePermissionOverrides } from '@/services/account/permissionService';
 import {
   VP_AREA_STATE,
@@ -15,6 +16,8 @@ import {
   setVpCell,
   setVpTask,
   vpAreasView,
+  vpCampusLabels,
+  vpCellOptions,
   vpChangePreview,
   vpDraftChanges,
   vpDraftOf,
@@ -186,26 +189,24 @@ function AreaToggle({ area, disabled, onChange }) {
   );
 }
 
-/** Chọn nơi áp dụng cho việc đang bật: chỉ mã campusScoped mới chọn được, còn lại hiện nơi cố định. */
-function PlacePicker({ task, campusName, disabled, onChange }) {
-  if (!task.choosable) return <span className="text-sm muted">{vpPlaceText(task.place, campusName)}</span>;
-  const options = [VP_PLACE.CAMPUS, VP_PLACE.SCHOOL];
+/**
+ * Chọn nơi áp dụng cho việc đang bật: chỉ mã campusScoped mới chọn được (điểm trường phụ trách, từng điểm trường khác,
+ * cả trường — AUTH-20), còn lại hiện nơi cố định.
+ */
+function PlacePicker({ task, campusName, campusId, campuses, campusNameOf, disabled, onChange }) {
+  if (!task.choosable) return <span className="text-sm muted">{vpPlaceText(task.place, campusName, campusNameOf)}</span>;
+  const options = vpCellOptions(task, campuses, campusId)
+    .slice(1)
+    .map((place) => ({ value: place, label: vpPlaceText(place, campusName, campusNameOf) }));
   return (
-    <div className="tabs tabs--pill vp-place" role="radiogroup" aria-label={`Nơi được sửa: ${task.label}`}>
-      {options.map((place) => (
-        <button
-          key={place}
-          type="button"
-          role="radio"
-          aria-checked={task.place === place}
-          className={`tab ${task.place === place ? 'tab--active' : ''}`}
-          disabled={disabled}
-          onClick={() => onChange(place)}
-        >
-          {vpPlaceText(place, campusName)}
-        </button>
-      ))}
-    </div>
+    <SelectField
+      className="select vp-place"
+      aria-label={`Nơi được sửa: ${task.label}`}
+      value={task.place}
+      disabled={disabled}
+      options={options}
+      onChange={(e) => onChange(e.target.value)}
+    />
   );
 }
 
@@ -224,6 +225,8 @@ export function VpTaskEditor({ person, others = [], campuses, readOnly, onSaved,
   const setDraft = (change) => setStored({ key, draft: change(draft) });
   const [reviewing, setReviewing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const campusLabels = vpCampusLabels(campuses);
+  const campusNameOf = (id) => campusLabels.get(String(id));
 
   const areas = vpAreasView(person.items, draft);
   const presets = vpPresetsOf(person.items, draft);
@@ -238,7 +241,7 @@ export function VpTaskEditor({ person, others = [], campuses, readOnly, onSaved,
         .forEach((task) =>
           othersByTask.set(task.code, [
             ...(othersByTask.get(task.code) || []),
-            `${other.fullName} (${vpPlaceText(task.place, other.campusName)})`,
+            `${other.fullName} (${vpPlaceText(task.place, other.campusName, campusNameOf)})`,
           ]),
         ),
     ),
@@ -344,6 +347,7 @@ export function VpTaskEditor({ person, others = [], campuses, readOnly, onSaved,
               </h3>
               <AreaToggle area={area} disabled={readOnly} onChange={(on) => setDraft((d) => setVpArea(d, area, on))} />
             </header>
+            {area.note && <p className="text-sm text-2">{area.note}</p>}
             <ul className="vp-area__tasks">
               {area.tasks.map((task) => {
                 const names = othersByTask.get(task.code) || [];
@@ -370,6 +374,9 @@ export function VpTaskEditor({ person, others = [], campuses, readOnly, onSaved,
                         <PlacePicker
                           task={task}
                           campusName={person.campusName}
+                          campusId={person.campusId}
+                          campuses={campuses}
+                          campusNameOf={campusNameOf}
                           disabled={readOnly}
                           onChange={(place) => setDraft((d) => setVpCell(d, task.code, place))}
                         />
@@ -412,7 +419,7 @@ export function VpTaskEditor({ person, others = [], campuses, readOnly, onSaved,
           onClose={() => setReviewing(false)}
           onSubmit={save}
         >
-          <ReviewTable preview={vpChangePreview(person.items, draft, person.campusName)} />
+          <ReviewTable preview={vpChangePreview(person.items, draft, person.campusName, campusNameOf)} />
         </ReasonModal>
       )}
     </div>

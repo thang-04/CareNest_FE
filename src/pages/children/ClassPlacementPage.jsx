@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useMasterData } from '@/hooks/useMasterData';
-import { useChildRecords, useClassOptions, usePlacementClasses } from '@/hooks/children/useChildRecords';
+import { useChildRecords, useClassOptions, usePlacementClasses, useYearHolidays } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
@@ -14,13 +14,27 @@ import { clickableRowProps } from '@/utils/clickableRow';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { FormField } from '@/components/form/FormField';
+import { DateInput } from '@/components/form/DateInput';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { Button } from '@/components/ui/Button';
 import { ActiveYearNotice } from '@/components/children/ActiveYearNotice';
+import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { ClassPlacementFields } from '@/components/children/ClassPlacementFields';
-import { placeChild } from '@/services/children/childrenService';
+import { cancelScheduledPlacement, placeChild } from '@/services/children/childrenService';
 import { CHILD_STATUS, ageLabel } from '@/models/School';
-import { normalizeText } from '@/utils/format';
+import { formatDate, normalizeText, todayInput } from '@/utils/format';
+import {
+  earliestPlacementDate,
+  firstSchoolDay,
+  hasScheduledTransfer,
+  isNotStarted,
+  notStartedLabel,
+  placementDateError,
+  scheduledTransferLabel,
+} from '@/utils/children/startDate';
 import { canOpenPlacement, canPlaceChild, childCampusesOf } from '@/utils/children/childrenPermissions';
 import { suggestAgeGroupId } from '@/utils/children/childrenHelpers';
+import { classFullness } from '@/utils/children/placementClasses';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
 
@@ -33,12 +47,11 @@ export default function ClassPlacementPage() {
   const { user } = useAuth();
   const toast = useToast();
   const md = useMasterData();
-  const { schoolYear, activeYear, yearReadOnly } = useSchoolYear();
+  const { schoolYear, schoolYears, activeYear, yearReadOnly, yearLocked, setSchoolYear } = useSchoolYear();
   // Xếp, chuyển lớp luôn ở năm học đang hoạt động dù header chọn năm khác (user chốt 2026-10-28, Y-3).
   const yearId = activeYear?.id || schoolYear;
   const [params, setParams] = useSearchParams();
   const { children, loading, error, reload } = useChildRecords({ schoolYear: yearId });
-  const { classes } = usePlacementClasses();
   // Nhóm tuổi của năm học đang hoạt động (BE /school-structure hoặc mock); năm sinh so với ngày bắt đầu năm học
   const { ageGroups } = useClassOptions(yearId);
   const yearStart = activeYear?.startDate || yearId;
@@ -48,12 +61,33 @@ export default function ClassPlacementPage() {
   const [campusId, setCampusId] = useState('');
   const [classId, setClassId] = useState('');
   const [reason, setReason] = useState('');
+  // G94-180/CHD-14: ngày vào lớp / ngày chuyển lớp (ngày tương lai = lịch chuyển)
+  const [effectiveDate, setEffectiveDate] = useState('');
+  const [dateTouched, setDateTouched] = useState(false);
   const [errors, setErrors] = useState({});
   const [confirm, setConfirm] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const { holidays } = useYearHolidays(yearId);
+  const today = todayInput();
 
   const selectedId = params.get('childId') || '';
   const selected = children.find((c) => c.id === selectedId) || null;
   const suggested = selected ? suggestAgeGroupId(selected.dateOfBirth, yearStart, ageGroups) : '';
+  // Sĩ số tính theo ngày vào lớp, bỏ chính trẻ này (G94-180/CHD-14)
+  const {
+    classes,
+    reload: reloadClasses,
+    from: classesFrom,
+  } = usePlacementClasses(undefined, { from: effectiveDate, childId: selected?.id });
+
+  // Lớp đang chọn thành đã đủ sau khi đổi ngày ⇒ bỏ chọn, báo ở ô Lớp
+  useEffect(() => {
+    const picked = classes.find((c) => c.id === classId);
+    if (!picked || !classFullness(picked).full) return;
+    setClassId('');
+    setErrors((e) => ({ ...e, classId: `${picked.name} đã đủ từ ${classesFrom ? formatDate(classesFrom) : 'hôm nay'}. Chọn lớp khác.` }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ khi số lớp tải lại
+  }, [classes]);
 
   useEffect(() => {
     if (!selected) return;
@@ -62,14 +96,25 @@ export default function ClassPlacementPage() {
     setCampusId(selected.campusId || '');
     setClassId('');
     setReason('');
+    setDateTouched(false);
     setErrors({});
     // Only when another child is chosen (or age groups arrive); reloads of the same child keep the form.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, !!selected, ageGroups.length]);
 
+  // Ngày mặc định: mốc sớm nhất (hôm nay; xếp lần đầu không trước ngày bắt đầu đi học), lùi tới ngày học gần nhất
+  useEffect(() => {
+    if (selected && !dateTouched) setEffectiveDate(firstSchoolDay(earliestPlacementDate(selected, today), holidays, activeYear?.endDate));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- tính lại khi đổi trẻ hoặc ngày nghỉ tải xong
+  }, [selectedId, !!selected, holidays]);
+
   const list = useMemo(() => {
     const kw = normalizeText(keyword).trim();
-    return children.filter((c) => c.status === tab).filter((c) => !kw || normalizeText(`${c.fullName} ${c.code}`).includes(kw));
+    // G94-180/CHD-14: trẻ đã tới ngày bắt đầu đi học mà chưa có lớp lên đầu (cờ startDue do BE tính)
+    return children
+      .filter((c) => c.status === tab)
+      .filter((c) => !kw || normalizeText(`${c.fullName} ${c.code}`).includes(kw))
+      .sort((a, b) => Number(!!b.startDue) - Number(!!a.startDue));
   }, [children, tab, keyword]);
 
   if (!canOpenPlacement(user))
@@ -85,16 +130,44 @@ export default function ClassPlacementPage() {
       </div>
     );
 
-  if (yearReadOnly)
+  // Năm đã kết thúc hoặc năm sắp diễn ra chưa tới ngày mở chuẩn bị (CHD-12): chỉ xem
+  if (yearReadOnly || yearLocked)
     return (
       <div className="page">
         <Breadcrumb items={childrenCrumbs('Xếp lớp')} />
         <h1 className="page__title">Xếp lớp cho trẻ</h1>
-        <ActiveYearNotice action="Xếp lớp, chuyển lớp" />
+        {yearLocked ? <YearLockedNotice action="Xếp lớp, chuyển lớp" /> : <ActiveYearNotice action="Xếp lớp, chuyển lớp" />}
       </div>
     );
 
-  const isTransfer = !!selected?.classId;
+  // Header ở năm sắp diễn ra đã mở chuẩn bị: không hiện bảng năm đang học, xếp lớp năm đó ở màn Xếp lớp năm học mới (user chốt 24/11, Q4=A)
+  if (activeYear && schoolYear !== activeYear.id) {
+    const headerLabel = schoolYears.find((y) => y.id === schoolYear)?.label || schoolYear;
+    return (
+      <div className="page">
+        <Breadcrumb items={childrenCrumbs('Xếp lớp')} />
+        <h1 className="page__title">Xếp lớp cho trẻ</h1>
+        <EmptyState
+          icon={LayoutGrid}
+          title={`Xếp lớp năm học ${headerLabel} làm ở màn Xếp lớp năm học mới`}
+          description={`Trang này xếp, chuyển lớp trong năm học đang hoạt động ${activeYear.label}.`}
+          action={
+            <div className="row gap-2">
+              <Link className="btn btn--primary" to="/school/placement">
+                Mở Xếp lớp năm học mới
+              </Link>
+              <Button onClick={() => setSchoolYear(activeYear.id)}>Về năm học {activeYear.label}</Button>
+            </div>
+          }
+        />
+      </div>
+    );
+  }
+
+  // Lớp chưa bắt đầu không tính là đang học: đổi lớp đó không cần lý do
+  const isTransfer = !!selected?.classId && !isNotStarted(selected);
+  const earliest = selected ? earliestPlacementDate(selected, today) : today;
+  const later = !!effectiveDate && effectiveDate > today;
   const targetClass = classes.find((c) => c.id === classId);
   // Hiệu trưởng, PHT toàn trường: ô Điểm trường mặc định điểm trường của trẻ; lớp điểm trường khác = chuyển điểm trường.
   const campusOptions = childCampusesOf(user, md.campuses, 'update');
@@ -109,20 +182,50 @@ export default function ClassPlacementPage() {
     const errs = {};
     if (!classId) errs.classId = 'Chọn lớp cho trẻ';
     if (isTransfer && !reason.trim()) errs.reason = 'Nhập lý do chuyển lớp';
+    const dateError = placementDateError(effectiveDate, {
+      earliest,
+      today,
+      yearEnd: activeYear?.endDate,
+      holidays,
+      transfer: isTransfer,
+    });
+    if (dateError) errs.effectiveDate = dateError;
     setErrors(errs);
     if (Object.keys(errs).length === 0) setConfirm(true);
   };
 
   const doPlace = async () => {
     try {
-      const child = await placeChild(selected.id, { classId, reason }, user);
-      toast.success(`${child.fullName} đã vào ${child.className}.`, isTransfer ? 'Đã chuyển lớp' : 'Đã xếp lớp');
+      const child = await placeChild(selected.id, { classId, reason, effectiveDate }, user);
+      toast.success(
+        later
+          ? `${child.fullName} sẽ vào ${targetClass?.name || child.className} từ ${formatDate(effectiveDate)}.`
+          : `${child.fullName} đã vào ${child.className}.`,
+        isTransfer ? (later ? 'Đã đặt lịch chuyển lớp' : 'Đã chuyển lớp') : 'Đã xếp lớp',
+      );
       setConfirm(false);
       setParams({});
+      // BE thật không phát sự kiện đổi dữ liệu như mock ⇒ tự tải lại lớp hiện tại của trẻ và sĩ số lớp nguồn, lớp đích
+      reload({ silent: true });
+      reloadClasses({ silent: true });
     } catch (err) {
       setConfirm(false);
       if (err.details) setErrors(err.details);
       toast.error(err, 'Không xếp được lớp');
+    }
+  };
+
+  const doCancel = async () => {
+    try {
+      const child = await cancelScheduledPlacement(selected.id, user);
+      toast.success(child.classId ? `${child.fullName} ở lại ${child.className}.` : `${child.fullName} về Chờ xếp lớp.`, 'Đã hủy lịch');
+      setConfirmCancel(false);
+      setParams({});
+      reload({ silent: true });
+      reloadClasses({ silent: true });
+    } catch (err) {
+      setConfirmCancel(false);
+      toast.error(err, 'Không hủy được lịch');
     }
   };
 
@@ -195,10 +298,13 @@ export default function ClassPlacementPage() {
                         <td>
                           <span className="fw-600">{c.fullName}</span>
                           <div className="muted text-xs">{c.code}</div>
+                          {c.startDue && <StatusBadge tone="orange" size="sm" label="Đã tới ngày đi học, chưa có lớp" />}
                         </td>
                         <td className="nowrap">{ageLabel(c.dateOfBirth)}</td>
                         <td>
                           {c.className || <span className="muted">Chưa xếp</span>}
+                          {isNotStarted(c) && <span className="muted text-xs"> ({notStartedLabel(c)})</span>}
+                          {hasScheduledTransfer(c) && <div className="text-xs">{scheduledTransferLabel(c)}</div>}
                           {pickCampus && <div className="muted text-xs">{campusLabel(c.campusId)}</div>}
                         </td>
                       </tr>
@@ -228,8 +334,25 @@ export default function ClassPlacementPage() {
               </h2>
               <p className="muted text-sm mb-12">
                 {selected.code} · {ageLabel(selected.dateOfBirth)}
-                {selected.className ? ` · đang học ${selected.className}` : ''}
+                {selected.className && !isNotStarted(selected) ? ` · đang học ${selected.className}` : ''}
               </p>
+              {(hasScheduledTransfer(selected) || isNotStarted(selected)) && (
+                <div className="alert alert--info mb-12" role="status">
+                  <div className="stack gap-1">
+                    <span>
+                      {hasScheduledTransfer(selected)
+                        ? `${scheduledTransferLabel(selected)}. Tới hết ngày trước đó trẻ vẫn học ${selected.className}.`
+                        : `Đã xếp vào ${selected.nextClass.className} ${notStartedLabel(selected)}, lớp chưa bắt đầu.`}{' '}
+                      Xếp hoặc chuyển lần nữa sẽ thay lịch này.
+                    </span>
+                    <span>
+                      <Button size="sm" onClick={() => setConfirmCancel(true)}>
+                        {hasScheduledTransfer(selected) ? 'Hủy lịch chuyển' : 'Hủy xếp lớp'}
+                      </Button>
+                    </span>
+                  </div>
+                </div>
+              )}
               <ClassPlacementFields
                 classes={classes}
                 ageGroupId={ageGroupId}
@@ -254,6 +377,24 @@ export default function ClassPlacementPage() {
                   setClassId('');
                 }}
               />
+              <FormField
+                label={isTransfer ? 'Ngày chuyển lớp' : 'Ngày vào lớp'}
+                required
+                error={errors.effectiveDate}
+                hint={later ? 'Ngày tương lai: tới hết ngày trước đó trẻ vẫn ở lớp hiện tại.' : undefined}
+                className="mt-16"
+              >
+                <DateInput
+                  value={effectiveDate}
+                  min={earliest}
+                  max={activeYear?.endDate}
+                  onChange={(value) => {
+                    setEffectiveDate(value);
+                    setDateTouched(true);
+                    setErrors(({ effectiveDate: _d, ...rest }) => rest);
+                  }}
+                />
+              </FormField>
               {isTransfer && (
                 <FormField label="Lý do chuyển lớp" required error={errors.reason} className="mt-16">
                   <textarea
@@ -287,13 +428,29 @@ export default function ClassPlacementPage() {
         message={
           selected && targetClass
             ? isTransfer
-              ? `${selected.fullName} sẽ rời ${selected.className} và vào ${targetName}.${campusNote} Giáo viên lớp mới được thông báo.`
-              : `${selected.fullName} sẽ vào ${targetName}.${campusNote} Giáo viên của lớp được thông báo.`
+              ? `${selected.fullName} sẽ rời ${selected.className} và vào ${targetName} từ ${formatDate(effectiveDate)}.${campusNote} Giáo viên lớp mới được thông báo.`
+              : `${selected.fullName} sẽ vào ${targetName} từ ${formatDate(effectiveDate)}.${campusNote} Giáo viên của lớp được thông báo.`
             : ''
         }
         confirmLabel={isTransfer ? 'Chuyển lớp' : 'Xếp vào lớp'}
         onConfirm={doPlace}
         onClose={() => setConfirm(false)}
+      />
+      <ConfirmationModal
+        open={confirmCancel}
+        title={hasScheduledTransfer(selected) ? 'Hủy lịch chuyển lớp?' : 'Hủy xếp lớp chưa bắt đầu?'}
+        message={
+          selected?.nextClass
+            ? hasScheduledTransfer(selected)
+              ? `${selected.fullName} ở lại ${selected.className}, không chuyển sang ${selected.nextClass.className}.`
+              : `${selected.fullName} không vào ${selected.nextClass.className}, về Chờ xếp lớp.`
+            : ''
+        }
+        confirmLabel="Hủy lịch"
+        cancelLabel="Giữ lịch"
+        danger
+        onConfirm={doCancel}
+        onClose={() => setConfirmCancel(false)}
       />
     </div>
   );

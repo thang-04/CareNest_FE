@@ -1,4 +1,7 @@
+import { childNameWithHistory } from '@/utils/childHistory';
 import { useEffect, useRef, useState } from 'react';
+import { useYearCampuses } from '@/hooks/useYearCampuses';
+import { CampusFilter } from '@/components/ui/CampusFilter';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { AssessmentFormHeading } from '@/components/assessment/AssessmentFormHeading';
 import ThemeEvaluationPreviewModal from '@/components/assessment/ThemeEvaluationPreviewModal';
@@ -13,15 +16,22 @@ import { useToast } from '@/contexts/ToastContext';
 import { useAsync } from '@/hooks/useAsync';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { useThemeClasses } from '@/hooks/assessment/useAssessment';
-import { getSemesterAssessment, saveSemesterAssessment, confirmSemesterAssessment } from '@/services/assessment/assessmentService';
+import {
+  getSemesterAssessment,
+  saveSemesterAssessment,
+  confirmSemesterAssessment,
+  getSemesterRevision,
+} from '@/services/assessment/assessmentService';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import { inlineErrors } from '@/utils/assessment/assessmentValidation';
+import { semesterConfirmBlockedNote } from '@/utils/assessment/semesterConfirmReason';
 import { semesterAssessmentFile, semesterAssessmentRows, semesterLabel } from '@/utils/assessment/semesterAssessmentDoc';
 import { downloadXlsx } from '@/utils/exportXlsx';
 import { formatDate, formatDateTime } from '@/utils/format';
 import { semestersOf } from '@/utils/semesters';
 import { PERMISSIONS } from '@/models/bePermissions';
 import { hasBePermission } from '@/utils/bePermissions';
+import { Button } from '@/components/ui/Button';
 import '@/styles/modules/assessment.css';
 
 export default function SemesterEvaluationListPage() {
@@ -32,9 +42,14 @@ export default function SemesterEvaluationListPage() {
   const semesters = semestersOf(year).filter((s) => s.key !== 'YEAR');
   const { classes, loading: classesLoading, error: classesError } = useThemeClasses();
   const [picked, setPicked] = useState('');
+  // Lọc điểm trường (HT: điểm trường của năm đang chọn; PHT: theo phạm vi quyền được cấp); lớp theo điểm trường đang chọn
+  const yearCampuses = useYearCampuses(PERMISSIONS.ASSESSMENT_VIEW);
+  const [campusId, setCampusId] = useState('');
+  const campusClasses = classes.filter((c) => !campusId || String(c.campusId) === String(campusId));
   // Mặc định lớp mình dạy; tổ trưởng/BGH chọn được lớp khác để xem (AUTH-23)
   const classId =
-    classes.find((c) => String(c.classId) === String(picked))?.classId || (classes.find((c) => c.teaches) || classes[0])?.classId;
+    campusClasses.find((c) => String(c.classId) === String(picked))?.classId ||
+    (campusClasses.find((c) => c.teaches) || campusClasses[0])?.classId;
   const [selectedSemester, setSemester] = useState(1);
   const validSemester = semesters.find((s) => s.key === `S${selectedSemester}`);
   const {
@@ -63,8 +78,11 @@ export default function SemesterEvaluationListPage() {
   const [preview, setPreview] = useState(null);
   const [detail, setDetail] = useState(null);
   const [search, setSearch] = useState({ draft: '', applied: '' });
+  const missing = (board?.rows || []).filter((r) => !r.domains.length || r.domains.some((d) => d.met === null)).length;
   const canEdit = !!board?.canEdit && hasBePermission(user, PERMISSIONS.ASSESSMENT_RECORD);
   const canConfirm = !!board?.canConfirm && hasBePermission(user, PERMISSIONS.ASSESSMENT_CONFIRM);
+  const confirmBlocked = board?.confirmBlockedReason;
+  const confirmBlockedNote = confirmBlocked ? semesterConfirmBlockedNote(confirmBlocked, { endDate: board?.endDate }) : '';
   useEffect(() => {
     setNote(board?.note || '');
     setDetail(null);
@@ -73,6 +91,10 @@ export default function SemesterEvaluationListPage() {
   const dirty = !!board && canEdit && note !== (board.note || '');
   const run = async (confirm = false) => {
     if (!board || busy) return false;
+    if (board.revising && !confirm) {
+      toast.warning('Bấm Xác nhận lại để lưu bản sửa, hoặc bỏ thay đổi để rời trang.', 'Đang sửa bản đã xác nhận');
+      return false;
+    }
     const requestScope = scope;
     setBusy(true);
     setErrors({});
@@ -100,8 +122,24 @@ export default function SemesterEvaluationListPage() {
     }
   };
   const guard = useLeaveGuard({ when: dirty || busy, onSave: () => run() });
+  // OBS-30: sửa bản đã xác nhận; phụ huynh vẫn thấy bản cũ cho tới khi cô xác nhận lại
+  const revising = !!board?.revising;
+  const startRevision = async () => {
+    setBusy(true);
+    setErrors({});
+    try {
+      const draft = await getSemesterRevision({ classId: board.classId, semester: board.semester });
+      setData({ ...draft, revising: true });
+    } catch (e) {
+      setErrors(inlineErrors(e, ['note']));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const cancelRevision = async () => {
+    setData(await getSemesterAssessment({ classId: board.classId, semester: board.semester }));
+  };
   const visible = (board?.rows || []).filter((r) => r.fullName.toLocaleLowerCase('vi').includes(search.applied.toLocaleLowerCase('vi')));
-  const missing = (board?.rows || []).filter((r) => r.domains.some((d) => d.met === null)).length;
   const cell = (r, d) => r.domains.find((c) => c.domainId === d.domainId);
   return (
     <div className="page">
@@ -109,6 +147,7 @@ export default function SemesterEvaluationListPage() {
       <h1 className="page__title">Đánh giá học kỳ</h1>
       <div className="card">
         <div className="filter-bar">
+          <CampusFilter campuses={yearCampuses || []} value={campusId} onChange={(next) => guard.leave(() => setCampusId(next))} />
           <div className="field">
             <label className="field__label" htmlFor="semester-class">
               Lớp
@@ -120,7 +159,7 @@ export default function SemesterEvaluationListPage() {
               disabled={busy || classesLoading}
               onChange={(e) => guard.leave(() => setPicked(e.target.value))}
             >
-              {classes.map((c) => (
+              {campusClasses.map((c) => (
                 <option key={c.classId} value={c.classId}>
                   {c.name}
                   {classes.some((x) => x.teaches) && !c.teaches ? ' (chỉ xem)' : ''}
@@ -265,7 +304,7 @@ export default function SemesterEvaluationListPage() {
                       visible.map((r, i) => (
                         <tr key={r.childId}>
                           <td className="num">{i + 1}</td>
-                          <td>{r.fullName}</td>
+                          <td>{childNameWithHistory(r.fullName, r.historyStatus)}</td>
                           {board.domains.flatMap((d) =>
                             [true, false].map((option) => (
                               <td key={`${d.domainId}-${option}`} className="center">
@@ -274,7 +313,7 @@ export default function SemesterEvaluationListPage() {
                                   className={`dg-theme-cell ${option ? '' : 'is-not-met'}`}
                                   type="button"
                                   disabled={busy}
-                                  aria-label={`${r.fullName} · ${d.name} · Xem căn cứ`}
+                                  aria-label={`${childNameWithHistory(r.fullName, r.historyStatus)} · ${d.name} · Xem căn cứ`}
                                   onClick={() => setDetail({ child: r.fullName, domain: cell(r, d) })}
                                 >
                                   {cell(r, d)?.met === option ? '✓' : ''}
@@ -289,7 +328,9 @@ export default function SemesterEvaluationListPage() {
                 </table>
               </div>
             )}
-            {missing > 0 && <p className="muted text-sm mt-8">{missing} trẻ còn mục tiêu chưa có kết quả.</p>}
+            {missing > 0 && (
+              <p className="muted text-sm mt-8">{missing} trẻ chưa có dữ liệu ở một số mục tiêu (ví dụ vào lớp muộn); vẫn xác nhận được.</p>
+            )}
             {errors._form && (
               <div className="alert alert--danger mt-16" role="alert">
                 {errors._form}
@@ -318,18 +359,39 @@ export default function SemesterEvaluationListPage() {
               )}
               {errors.note && <p className="field__error">{errors.note}</p>}
             </div>
+            {board.canRevise && (
+              <div className="row gap-2 mt-16">
+                <div className="spacer" />
+                <Button onClick={startRevision} loading={busy} disabled={busy}>
+                  Sửa lại
+                </Button>
+              </div>
+            )}
             {(canEdit || hasBePermission(user, PERMISSIONS.ASSESSMENT_CONFIRM)) && (
               <div className="row gap-2 mt-16">
                 <div className="spacer" />
-                {canEdit && (
+                {revising && (
+                  <Button onClick={cancelRevision} disabled={busy}>
+                    Hủy sửa
+                  </Button>
+                )}
+                {canEdit && !revising && (
                   <button className="btn" disabled={busy || (!dirty && board.status !== 'NONE')} onClick={() => run()}>
                     <Save size={16} /> Lưu
                   </button>
                 )}
                 {hasBePermission(user, PERMISSIONS.ASSESSMENT_CONFIRM) && (
-                  <button className="btn btn--primary" disabled={busy || !canConfirm} onClick={() => setConfirmOpen(true)}>
-                    Xác nhận
-                  </button>
+                  <>
+                    <button
+                      className="btn btn--primary"
+                      disabled={busy || !canConfirm}
+                      title={canConfirm ? '' : confirmBlockedNote}
+                      onClick={() => setConfirmOpen(true)}
+                    >
+                      {revising ? 'Xác nhận lại' : 'Xác nhận'}
+                    </button>
+                    {!canConfirm && confirmBlockedNote && <p className="muted text-sm">{confirmBlockedNote}</p>}
+                  </>
                 )}
               </div>
             )}
@@ -339,7 +401,11 @@ export default function SemesterEvaluationListPage() {
       <ConfirmationModal
         open={confirmOpen}
         title="Xác nhận đánh giá học kỳ?"
-        message="Kết quả, lĩnh vực và mục tiêu sẽ được chốt cho cả lớp; sau xác nhận không chỉnh sửa."
+        message={
+          revising
+            ? 'Bản mới sẽ thay bản đã xác nhận, phụ huynh được thông báo. Bản cũ vẫn được lưu.'
+            : 'Kết quả, lĩnh vực và mục tiêu sẽ được chốt cho cả lớp; muốn sửa sau đó phải còn hạn hoặc được mở lại.'
+        }
         onConfirm={() => run(true)}
         onClose={() => !busy && setConfirmOpen(false)}
       />
@@ -361,11 +427,12 @@ export default function SemesterEvaluationListPage() {
                   <tr key={g.goalId}>
                     <td>
                       MT{g.goalNo} · {g.text}
+                      {g.sourceClassName && <span className="muted"> (lớp {g.sourceClassName})</span>}
                     </td>
                     <td className="center">
                       {g.metActivities}/{g.assessedActivities}
                     </td>
-                    <td>{g.met === null ? 'Chưa có kết quả' : g.met ? 'Đạt' : 'Chưa đạt'}</td>
+                    <td>{g.met === null ? 'Chưa có dữ liệu' : g.met ? 'Đạt' : 'Chưa đạt'}</td>
                   </tr>
                 ))}
               </tbody>

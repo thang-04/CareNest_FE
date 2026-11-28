@@ -1,4 +1,7 @@
+import { childNameWithHistory } from '@/utils/childHistory';
 import { useEffect, useMemo, useState } from 'react';
+import { useYearCampuses } from '@/hooks/useYearCampuses';
+import { CampusFilter } from '@/components/ui/CampusFilter';
 import { useSearchParams } from 'react-router-dom';
 import { CheckCircle2, Download, Printer, Save } from '@/components/ui/icons';
 import ThemeEvaluationPreviewModal from '@/components/assessment/ThemeEvaluationPreviewModal';
@@ -13,7 +16,8 @@ import { AssessmentFormHeading } from '@/components/assessment/AssessmentFormHea
 import { useToast } from '@/contexts/ToastContext';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { useThemeClasses, useThemeEvaluation, useThemeList } from '@/hooks/assessment/useAssessment';
-import { confirmThemeEvaluation, saveThemeEvaluation } from '@/services/assessment/assessmentService';
+import { confirmThemeEvaluation, getThemeRevision, saveThemeEvaluation } from '@/services/assessment/assessmentService';
+import { Button } from '@/components/ui/Button';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import { themeEvaluationFile } from '@/utils/assessment/themeEvaluationDoc';
 import { exportWithPreview } from '@/components/ui/ExportPreview';
@@ -44,7 +48,11 @@ export default function ThemeEvaluationPage() {
   const [search] = useSearchParams();
   const [classId, setClassId] = useState(search.get('classId') || '');
   const [themeId, setThemeId] = useState(search.get('period') || '');
-  const currentClassId = classId || classes[0]?.classId || '';
+  // Lọc điểm trường (HT: điểm trường của năm đang chọn; PHT: theo phạm vi quyền được cấp); lớp theo điểm trường đang chọn
+  const yearCampuses = useYearCampuses(PERMISSIONS.ASSESSMENT_VIEW);
+  const [campusId, setCampusId] = useState('');
+  const campusClasses = classes.filter((c) => !campusId || String(c.campusId) === String(campusId));
+  const currentClassId = campusClasses.some((c) => String(c.classId) === String(classId)) ? classId : campusClasses[0]?.classId || '';
   const { themes, loading: themesLoading, error: themesError, reload: reloadThemes } = useThemeList(currentClassId);
   // Mặc định chủ đề đã kết thúc gần nhất, chưa có thì chủ đề đang diễn ra
   const defaultTheme = [...themes].reverse().find((t) => t.period === 'ENDED') || themes.find((t) => t.period === 'ONGOING') || themes[0];
@@ -115,7 +123,27 @@ export default function ThemeEvaluationPage() {
       setConfirmOpen(false);
     }
   };
-  const save = () => run('save', saveThemeEvaluation, 'Đã lưu đánh giá cuối chủ đề.');
+  // Đang sửa bản đã xác nhận thì không có lưu nháp
+  const save = () => {
+    if (ev?.revising) {
+      toast.warning('Bấm Xác nhận lại để lưu bản sửa, hoặc bỏ thay đổi để rời trang.', 'Đang sửa bản đã xác nhận');
+      return false;
+    }
+    return run('save', saveThemeEvaluation, 'Đã lưu đánh giá cuối chủ đề.');
+  };
+  // OBS-30: sửa bản đã xác nhận; phụ huynh vẫn thấy bản cũ cho tới khi cô xác nhận lại
+  const revising = !!ev?.revising;
+  const startRevision = async () => {
+    setBusy('revise');
+    try {
+      const draft = await getThemeRevision({ classId: Number(currentClassId), themeId: Number(currentThemeId) });
+      setEvaluation({ ...draft, revising: true });
+    } catch (err) {
+      toast.error(err, 'Chưa sửa lại được đánh giá');
+    } finally {
+      setBusy('');
+    }
+  };
 
   const exportExcel = () => {
     if (!ev) return;
@@ -124,9 +152,15 @@ export default function ThemeEvaluationPage() {
       [
         ['BẢNG ĐÁNH GIÁ SỰ PHÁT TRIỂN CỦA TRẺ'],
         [`Chủ đề: ${ev.themeName}`],
-        [`(Từ ngày ${formatDate(ev.startDate)} đến ngày ${formatDate(ev.endDate)}) – Lớp ${ev.className}`],
+        [`(Từ ngày ${formatDate(ev.startDate)} đến ngày ${formatDate(ev.endDate)}) – ${ev.className}`],
         head,
-        ...ev.rows.map((r, i) => [i + 1, r.fullName, ...r.cells.map((c) => mark(c.met)), r.met, r.notMet]),
+        ...ev.rows.map((r, i) => [
+          i + 1,
+          childNameWithHistory(r.fullName, r.historyStatus),
+          ...r.cells.map((c) => mark(c.met)),
+          r.met,
+          r.notMet,
+        ]),
         ['', 'Tổng số trẻ đạt', ...ev.goals.map((g) => g.metChildren)],
         ['', 'Tỷ lệ (%)', ...ev.goals.map((g) => (g.rate == null ? '' : g.rate))],
         [],
@@ -150,7 +184,17 @@ export default function ThemeEvaluationPage() {
       <h1 className="page__title">Đánh giá cuối chủ đề</h1>
       <div className="card">
         <div className="filter-bar">
-          {classes.length > 1 && (
+          <CampusFilter
+            campuses={yearCampuses || []}
+            value={campusId}
+            onChange={(next) =>
+              guard.leave(() => {
+                setCampusId(next);
+                setThemeId('');
+              })
+            }
+          />
+          {campusClasses.length > 1 && (
             <div className="field">
               <span className="field__label">Lớp</span>
               <select
@@ -165,7 +209,7 @@ export default function ThemeEvaluationPage() {
                   })
                 }
               >
-                {classes.map((c) => (
+                {campusClasses.map((c) => (
                   <option key={c.classId} value={c.classId}>
                     {c.name}
                     {classes.some((x) => x.teaches) && !c.teaches ? ' (chỉ xem)' : ''}
@@ -287,7 +331,7 @@ export default function ThemeEvaluationPage() {
                                 title="Đối chiếu đánh giá hằng ngày trong thời gian chủ đề"
                                 onClick={() => setXcheck(r)}
                               >
-                                {r.fullName}
+                                {childNameWithHistory(r.fullName, r.historyStatus)}
                               </button>
                             </td>
                             {r.cells.map((c) => {
@@ -296,7 +340,7 @@ export default function ThemeEvaluationPage() {
                               // Bỏ sửa tay ô đã lưu: chưa biết kết quả hệ thống tính tới khi lưu
                               // BE cũ chưa trả kết quả tự tính: bỏ sửa tay ô đã lưu thì chưa biết giá trị tới khi lưu
                               const reverting = c.manual && !manual && c.auto === undefined;
-                              const label = `${r.fullName} – MT ${goalTitle[c.goalId] || ''}: ${
+                              const label = `${childNameWithHistory(r.fullName, r.historyStatus)} – MT ${goalTitle[c.goalId] || ''}: ${
                                 reverting
                                   ? 'về kết quả hệ thống tính khi lưu'
                                   : value === true
@@ -307,7 +351,7 @@ export default function ThemeEvaluationPage() {
                               }`;
                               return (
                                 <td key={c.goalId} className="center">
-                                  {canEdit ? (
+                                  {canEdit && c.canEdit !== false ? (
                                     <button
                                       disabled={!!busy}
                                       type="button"
@@ -390,9 +434,21 @@ export default function ThemeEvaluationPage() {
                   {`Tối đa ${NOTE_MAX} ký tự (đang ${note.length}).`}
                 </span>
               )}
+              {ev.canRevise && (
+                <div className="row gap-2 mt-12 sc-end">
+                  <Button onClick={startRevision} loading={busy === 'revise'} disabled={!!busy}>
+                    Sửa lại
+                  </Button>
+                </div>
+              )}
               {(canEdit || canConfirm) && (
                 <div className="row gap-2 mt-12 sc-end">
-                  {canEdit && (
+                  {revising && (
+                    <Button onClick={() => reload()} disabled={!!busy}>
+                      Hủy sửa
+                    </Button>
+                  )}
+                  {canEdit && !revising && (
                     <button className="btn" onClick={save} disabled={!!busy || !changed}>
                       {busy === 'save' ? <Spinner small /> : <Save size={16} />} Lưu
                     </button>
@@ -404,7 +460,7 @@ export default function ThemeEvaluationPage() {
                       disabled={!!busy || !canConfirm}
                       title={ev.canConfirm ? '' : 'Xác nhận được từ ngày kết thúc chủ đề'}
                     >
-                      <CheckCircle2 size={16} /> Xác nhận đánh giá
+                      <CheckCircle2 size={16} /> {revising ? 'Xác nhận lại' : 'Xác nhận đánh giá'}
                     </button>
                   )}
                 </div>
@@ -416,7 +472,11 @@ export default function ThemeEvaluationPage() {
       <ConfirmationModal
         open={confirmOpen}
         title="Xác nhận đánh giá cuối chủ đề?"
-        message="Bảng sẽ được lưu cố định để in và cho tổ trưởng, Ban giám hiệu xem. Đã xác nhận thì không sửa được."
+        message={
+          revising
+            ? 'Bản mới sẽ thay bản đã xác nhận, phụ huynh được thông báo. Bản cũ vẫn được lưu.'
+            : 'Bảng sẽ được lưu cố định để in và cho tổ trưởng, Ban giám hiệu xem. Muốn sửa sau đó phải còn hạn hoặc được mở lại.'
+        }
         confirmLabel="Xác nhận đánh giá"
         onConfirm={() => run('confirm', confirmThemeEvaluation, 'Đã xác nhận đánh giá cuối chủ đề.')}
         onClose={() => setConfirmOpen(false)}

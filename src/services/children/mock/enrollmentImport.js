@@ -69,10 +69,21 @@ const toTbState = (value) => {
   return v;
 };
 
+// Ô Báo ăn (CHD-13): trống/Có ⇒ true, Không ⇒ false; chữ khác giữ nguyên để validateDeclaration báo lỗi đúng dòng.
+const toMealRegistered = (value) => {
+  const v = String(value || '').trim();
+  if (!v || isYes(v)) return true;
+  if (isNone(v)) return false;
+  return v;
+};
+
 const toDeclaration = (allergies, diet, raw = {}) => {
-  const a = String(allergies || '').trim();
-  const d = String(diet || '').trim();
+  const mealRegistered = toMealRegistered(raw.mealRegistered);
+  // Không báo ăn ⇒ bỏ qua ô Dị ứng, Chế độ ăn.
+  const a = mealRegistered === false ? '' : String(allergies || '').trim();
+  const d = mealRegistered === false ? '' : String(diet || '').trim();
   return {
+    mealRegistered,
     allergies: !a
       ? { state: DECLARATION_STATE.NOT_PROVIDED, items: [] }
       : isNone(a)

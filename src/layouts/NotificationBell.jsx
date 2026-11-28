@@ -1,9 +1,12 @@
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { notificationTypeLabel } from '@/utils/notificationLabel.mjs';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Bell, Checks } from '@/components/ui/icons';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { timeAgo } from '@/utils/format';
 import { useGuardedNavigate } from '@/hooks/useLeaveGuard';
+import { notificationTarget } from '@/utils/notifications/notificationTarget.mjs';
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
@@ -24,7 +27,7 @@ export function NotificationBell() {
   const openNotification = async (n) => {
     setOpen(false);
     if (!n.read) await markRead(n.id);
-    if (n.link) navigate(n.link);
+    navigate(notificationTarget(n));
   };
 
   return (
@@ -49,7 +52,10 @@ export function NotificationBell() {
             {notifications.length === 0 && <div className="state notif-bell__state">Chưa có thông báo nào</div>}
             {notifications.slice(0, 12).map((n) => (
               <button key={n.id} className={`notif-item ${n.read ? '' : 'notif-item--unread'}`} onClick={() => openNotification(n)}>
-                <div className="notif-item__title">{n.title}</div>
+                <div className="notif-item__title row row--wrap gap-2">
+                  {n.title}
+                  <StatusBadge tone="gray" label={notificationTypeLabel(n.type, n.typeLabel)} />
+                </div>
                 <div className="notif-item__msg">{n.message}</div>
                 <div className="notif-item__time">{timeAgo(n.createdAt)}</div>
               </button>

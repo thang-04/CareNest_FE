@@ -4,6 +4,7 @@
  * cần sửa để hiển thị. BE kiểm lại khi gửi duyệt. diffPlans chỉ dùng cho mock (BE giả).
  */
 import { planLevel } from './planLevel.mjs';
+import { sameSchoolYearId } from './schoolYearScope.mjs';
 import { DOMAINS } from '@/models/education-plan/educationPlanConstants';
 import { numberGoals, toRows } from '@/models/education-plan/goalTable';
 import { addDays, CLASS_DOC, themeGoalBlocks, yearWeeks } from '@/models/education-plan/classPlan';
@@ -12,7 +13,10 @@ export const CHANGE = { UNCHANGED: 'UNCHANGED', CHANGED: 'CHANGED', REMOVED: 'RE
 
 export const versionOf = (plan) => Number(plan?.versionNo) || 1;
 
-const sameChain = (a, b) => a.ageGroupId === b.ageGroupId && a.schoolYear === b.schoolYear && planLevel(a) === planLevel(b);
+const sameChain = (a, b) =>
+  a.ageGroupId === b.ageGroupId &&
+  (a.schoolYearId != null && b.schoolYearId != null ? sameSchoolYearId(a.schoolYearId, b.schoolYearId) : a.schoolYear === b.schoolYear) &&
+  planLevel(a) === planLevel(b);
 
 /** Các phiên bản cùng (năm học, nhóm tuổi), theo số phiên bản tăng dần. */
 export const chainOf = (goals, plan) => (plan ? goals.filter((g) => sameChain(g, plan)).sort((a, b) => versionOf(a) - versionOf(b)) : []);
@@ -23,11 +27,38 @@ export const currentPlanOf = (goals, ageGroupId, schoolYear, level = 'TEAM') =>
     .filter((g) => g.ageGroupId === ageGroupId && g.schoolYear === schoolYear && g.status === 'APPROVED' && planLevel(g) === level)
     .sort((a, b) => versionOf(b) - versionOf(a))[0] || null;
 
+export const currentPlanInYear = (goals, ageGroupId, schoolYearId, level = 'TEAM') =>
+  goals
+    .filter((goal) => sameSchoolYearId(goal.schoolYearId, schoolYearId) && goal.ageGroupId === ageGroupId && goal.status === 'APPROVED' && planLevel(goal) === level)
+    .sort((a, b) => versionOf(b) - versionOf(a))[0] || null;
+
 /** Phiên bản đã ban hành ngay trước plan (nguồn để chép tài liệu lớp). */
 export const previousPlanOf = (goals, plan) =>
   chainOf(goals, plan)
     .filter((g) => g.status === 'APPROVED' && versionOf(g) < versionOf(plan))
     .at(-1) || null;
+
+/** Nguồn lớp luôn là bản tổ ban hành cùng năm, kể cả khi mở từ hồ sơ của bản cũ (EDU-26). */
+export function classTeamPlanSelection(goals, cls, schoolYearId, requestedPlanId) {
+  if (!cls) return { current: null, listed: null, previous: null, pending: null };
+  const inYear = goals.filter(
+    (goal) =>
+      planLevel(goal) === 'TEAM' && goal.ageGroupId === cls.ageGroupId && sameSchoolYearId(goal.schoolYearId, schoolYearId),
+  );
+  const approved = inYear.filter((goal) => goal.status === 'APPROVED').sort((a, b) => versionOf(b) - versionOf(a));
+  const current = approved[0] ?? null;
+  const listed = approved.find((goal) => String(goal.id) === requestedPlanId) ?? current;
+  return { current, listed, previous: previousPlanOf(approved, listed), pending: inYear[0] ?? null };
+}
+
+export function classPlanVersionPath(path, planId) {
+  if (planId == null) return path;
+  const [withoutHash, hash] = path.split('#');
+  const [pathname, query] = withoutHash.split('?');
+  const params = new URLSearchParams(query);
+  params.set('plan', planId);
+  return `${pathname}?${params}${hash ? `#${hash}` : ''}`;
+}
 
 /** Khóa Web giáo án tuần: phiên bản ≥2 thêm id kế hoạch năm để không trùng tuần của phiên bản cũ (BE kiểm khớp). */
 export const weekDocId = (classId, weekStart, plan) => `wp_${classId}_${weekStart}${versionOf(plan) > 1 ? `_${plan.id}` : ''}`;
@@ -385,5 +416,13 @@ export const mergeGoals = (prev = [], next = []) =>
   next.map((g) => {
     if (!g.summary) return g;
     const old = prev.find((x) => x.id === g.id);
-    return old && !old.summary && old.revision === g.revision && old.status === g.status && old.versionNo === g.versionNo ? old : g;
+    if (!old || old.summary || old.revision !== g.revision || old.status !== g.status || old.versionNo !== g.versionNo) return g;
+    const newReturn = typeof g.returned === 'boolean' && old.returned !== g.returned;
+    const newDeadline = Object.hasOwn(g, 'timeLock') && g.timeLock !== old.timeLock;
+    if (!newReturn && !newDeadline) return old;
+    return {
+      ...old,
+      ...(newReturn ? { returned: g.returned } : {}),
+      ...(newDeadline ? { timeLock: g.timeLock, reviewDeadline: g.reviewDeadline } : {}),
+    };
   });

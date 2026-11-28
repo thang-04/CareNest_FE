@@ -7,6 +7,8 @@ import { normalizeText } from '@/utils/format';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useConfigYear } from '@/hooks/school-config/useConfigYear';
+import { useYearCampuses } from '@/hooks/useYearCampuses';
+import { campusOptionLabel } from '@/utils/campusLabel';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useSchoolYears, useTeacherAssignments, useTeamLeaders } from '@/hooks/school-config/useSchoolConfig';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
@@ -32,6 +34,7 @@ import { teacherCrumbs } from '@/utils/school-config/breadcrumbs';
 import { ClassTeachersModal } from '@/components/school-config/ClassTeachersModal';
 import { SubstituteTeacherModal } from '@/components/school-config/SubstituteTeacherModal';
 import { TeamLeaderModal } from '@/components/school-config/TeamLeaderModal';
+import { isLocked, workingTeacherCount } from '@/utils/school-config/classTeachers';
 import '@/styles/modules/school-config.css';
 
 const CAMPUS_ALL = 'all';
@@ -86,10 +89,10 @@ function TeamLeaderRow({ group, classCount, current, campusName, readOnly, acts,
  * #26 Teacher Assignment (UC 2.6). Teacher part follows "Phân công giáo viên"; team leaders follow the separate VP area "Phân công tổ trưởng nhóm tuổi":
  * FULL (always the Principal) chooses any campus, RESTRICTED works on the own campus.
  */
-// Lọc tình trạng: đủ = 2 giáo viên + chủ nhiệm; lớp được lưu với 0–2 giáo viên
+// Lọc tình trạng: đủ = từ 2 giáo viên còn hoạt động + phụ trách chính; lớp được lưu với 0–3 giáo viên
 const STATUS_MATCH = {
-  FULL: (c) => c.teacherIds.length >= TEACHERS_PER_CLASS && !!c.homeroomTeacherId,
-  MISSING: (c) => c.teacherIds.length > 0 && c.teacherIds.length < TEACHERS_PER_CLASS,
+  FULL: (c) => workingTeacherCount(c) >= TEACHERS_PER_CLASS && !!c.homeroomTeacherId && !isLocked(c, c.homeroomTeacherId),
+  MISSING: (c) => c.teacherIds.length > 0 && workingTeacherCount(c) < TEACHERS_PER_CLASS,
   NONE: (c) => c.teacherIds.length === 0,
   NO_HOMEROOM: (c) => c.teacherIds.length > 0 && !c.homeroomTeacherId,
 };
@@ -97,9 +100,11 @@ const STATUS_MATCH = {
 export default function TeacherAssignmentPage() {
   const { user } = useAuth();
   const toast = useToast();
-  const md = useMasterData();
   const [params, setParams] = useSearchParams();
   const yearId = useConfigYear();
+  const md = useMasterData(yearId);
+  // HT: điểm trường của năm đang chọn (BE V151)
+  const yearCampuses = useYearCampuses();
   const access = teacherAssignmentAccess(user);
   const fullScope = access.scope === 'ALL';
   // Phạm vi toàn trường: chọn "Toàn trường" (mặc định của Hiệu trưởng, ?campus=all) hoặc 1 điểm trường;
@@ -276,9 +281,9 @@ export default function TeacherAssignmentPage() {
                     onChange={(e) => setFilter({ campus: e.target.value, group: '', class: '' })}
                   >
                     <option value={CAMPUS_ALL}>Toàn trường</option>
-                    {md.campuses.map((c) => (
+                    {(yearCampuses || md.campuses).map((c, _i, list) => (
                       <option key={c.id} value={c.id}>
-                        {c.shortName || c.name}
+                        {campusOptionLabel(c, list)}
                       </option>
                     ))}
                   </select>
@@ -317,7 +322,7 @@ export default function TeacherAssignmentPage() {
                   <option value="FULL">Đủ giáo viên</option>
                   <option value="MISSING">Thiếu 1 GV</option>
                   <option value="NONE">Chưa có giáo viên</option>
-                  <option value="NO_HOMEROOM">Chưa có chủ nhiệm</option>
+                  <option value="NO_HOMEROOM">Chưa có GV phụ trách chính</option>
                 </select>
                 <SearchSubmit
                   className="sc-head-search"
@@ -345,7 +350,7 @@ export default function TeacherAssignmentPage() {
                     {allCampuses && <th>Điểm trường</th>}
                     <th>Nhóm tuổi</th>
                     <th className="num">Sĩ số</th>
-                    <th>Chủ nhiệm</th>
+                    <th>Phụ trách chính</th>
                     <th>Giáo viên</th>
                     <th className="cell--actions">Thao tác</th>
                   </tr>
@@ -387,10 +392,18 @@ export default function TeacherAssignmentPage() {
                             .map((id) => teacherName(c, id))
                             .filter(Boolean)
                             .join(', ') || <span className="muted">Chưa phân công</span>}
+                          {c.teacherIds
+                            .filter((id) => isLocked(c, id))
+                            .map((id) => (
+                              <span key={id}>
+                                {' '}
+                                <span className="chip chip--orange">{teacherName(c, id)} bị khóa tài khoản, cần chọn người thay</span>
+                              </span>
+                            ))}
                           {c.teacherIds.length > 0 && !c.homeroomTeacherId && (
                             <>
                               {' '}
-                              <span className="chip chip--orange">Chưa có chủ nhiệm</span>
+                              <span className="chip chip--orange">Chưa có GV phụ trách chính</span>
                             </>
                           )}
                           {c.teacherIds.length > 0 && c.teacherIds.length < TEACHERS_PER_CLASS && (

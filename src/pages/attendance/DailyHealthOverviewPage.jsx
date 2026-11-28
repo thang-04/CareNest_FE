@@ -1,4 +1,5 @@
-import { Fragment, useRef, useState } from 'react';
+import { childNameWithHistory } from '@/utils/childHistory';
+import { Fragment, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ChevronDown, ChevronRight, HeartPulse, Info } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
@@ -22,6 +23,8 @@ import { symptomLabels } from '@/utils/dailyHealthValidation';
 import { formatDate, formatDateTime, isIsoDate } from '@/utils/format';
 import '@/styles/modules/attendance.css';
 import { CampusFilter } from '@/components/ui/CampusFilter';
+import { useYearCampuses } from '@/hooks/useYearCampuses';
+import { PERMISSIONS } from '@/models/bePermissions';
 
 const timeOf = (iso) => formatDateTime(iso).split(' ')[1] || '—';
 
@@ -183,9 +186,9 @@ function AttentionTable({ items, filtered, onClearFilter, onOpen }) {
                 <tr key={item.childId} className="row-click dd-hov__row" {...clickableRowProps(() => onOpen(item))}>
                   <td className="nowrap">
                     <div className="dd-hov__child">
-                      <ChildAvatar child={{ fullName: item.childName, photoUrl: item.photoUrl }} size="sm" />
+                      <ChildAvatar child={{ childId: item.childId, fullName: item.childName, photoUrl: item.photoUrl }} size="sm" />
                       <div>
-                        <div className="fw-600">{item.childName}</div>
+                        <div className="fw-600">{childNameWithHistory(item.childName, item.historyStatus)}</div>
                         {item.childCode && <div className="muted text-xs">{item.childCode}</div>}
                       </div>
                     </div>
@@ -236,13 +239,17 @@ function AttentionTable({ items, filtered, onClearFilter, onOpen }) {
 /** Sức khỏe trong ngày: Hiệu trưởng xem toàn trường, Phó hiệu trưởng xem điểm trường của mình; chỉ xem. */
 export default function DailyHealthOverviewPage() {
   const { user } = useAuth();
-  const md = useMasterData();
+  // Ô điểm trường theo năm học đang chọn (BE V151): HT đủ điểm trường của năm, PHT theo phạm vi quyền được cấp
+  const baseMd = useMasterData();
+  const yearCampuses = useYearCampuses(PERMISSIONS.ATTENDANCE_VIEW);
+  const md = useMemo(() => (yearCampuses ? { ...baseMd, campuses: yearCampuses } : baseMd), [baseMd, yearCampuses]);
   const [params, setParams] = useSearchParams();
   const today = schoolToday();
   const { defaultDate } = useAttendanceYear();
   const paramDate = params.get('date');
   const date = isIsoDate(paramDate) && paramDate <= today ? paramDate : defaultDate;
-  const isPrincipal = user?.role === ROLES.PRINCIPAL;
+  // HT, hoặc PHT được cấp nhiều điểm trường / toàn trường: lọc được theo điểm trường
+  const isPrincipal = user?.role === ROLES.PRINCIPAL || (yearCampuses?.length || 0) > 1;
   const campusId = isPrincipal ? params.get('campusId') || '' : '';
   const ageGroupId = params.get('ageGroupId') || '';
   const classId = params.get('classId') || '';

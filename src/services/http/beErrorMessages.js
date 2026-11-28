@@ -12,7 +12,11 @@ const RULES = [
   [/^School year name must be YYYY-YYYY/, 'name', () => 'Tên năm học có dạng NNNN-NNNN, năm sau lớn hơn năm trước 1 năm (ví dụ 2027-2028)'],
   [/^End date must be after start date/, 'endDate', () => 'Ngày kết thúc phải sau ngày bắt đầu'],
   [/^School year (\S+) already exists/, 'name', (m) => `Năm học ${m[1]} đã tồn tại`],
-  [/^Dates overlap school year (\S+)/, 'endDate', (m) => `Khoảng thời gian trùng với năm học ${m[1]}`],
+  [
+    /^Dates overlap school year (\S+)/,
+    '_form',
+    (m) => `Khoảng ngày học trùng với năm học ${m[1]}. Hãy điều chỉnh ngày bắt đầu hoặc ngày kết thúc.`,
+  ],
   [/^School year name can only change before it starts/, 'name', () => 'Chỉ đổi được tên năm học khi năm học chưa bắt đầu'],
   [/^School year already has classes, name cannot change/, 'name', () => 'Năm học đã có lớp, không đổi được tên'],
   [/^School year already has classes and cannot be deleted/, '_form', () => 'Năm học đã có lớp, không xóa được'],
@@ -102,11 +106,11 @@ const RULES = [
   [/^Cutoff time and effective date have not changed/, 'time', () => 'Giờ chốt và ngày áp dụng chưa thay đổi'],
   [/^Effective date must be inside school year (\S+)/, 'effectiveFrom', (m) => `Ngày áp dụng phải nằm trong năm học ${m[1]}`],
   // Phân công giáo viên / tổ trưởng
-  [/^Choose 2 different teachers for the class/, 'teacherIds', () => 'Chọn 2 giáo viên khác nhau cho lớp'],
+  [/^Choose 2 different teachers for the class/, 'teacherIds', () => 'Chọn các giáo viên khác nhau cho lớp'],
   [
     /^Homeroom teacher must be one of the class teachers/,
     'homeroomTeacherId',
-    () => 'Giáo viên chủ nhiệm phải là một trong 2 giáo viên của lớp',
+    () => 'GV phụ trách chính phải là một trong các giáo viên của lớp',
   ],
   [/^Only teachers of the class campus can be assigned/, 'teacherIds', () => 'Chỉ phân công giáo viên thuộc điểm trường của lớp'],
 

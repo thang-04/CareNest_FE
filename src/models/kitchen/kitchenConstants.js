@@ -137,19 +137,38 @@ export const RECEIPT_STATUS = { DRAFT: 'DRAFT', CONFIRMED: 'CONFIRMED', CANCELLE
 export const RECEIPT_STATUS_LABELS = { DRAFT: 'Nháp', CONFIRMED: 'Đã xác nhận nhập', CANCELLED: 'Đã hủy' };
 
 // Loại biến động kho khô (BE StockMovementType)
-export const STOCK_MOVEMENT_TYPES = ['RECEIPT', 'DEDUCT', 'ADJUST', 'SHORTFALL_DEDUCT', 'RECEIPT_CANCEL'];
+export const STOCK_MOVEMENT_TYPES = ['RECEIPT', 'DEDUCT', 'ADJUST', 'SHORTFALL_DEDUCT', 'RECEIPT_CANCEL', 'SUPPLIER_RETURN', 'WRITE_OFF'];
 export const STOCK_MOVEMENT_LABELS = {
   RECEIPT: 'Nhập kho',
   DEDUCT: 'Trừ theo suất',
   ADJUST: 'Điều chỉnh suất',
   SHORTFALL_DEDUCT: 'Trừ phần thiếu',
   RECEIPT_CANCEL: 'Hủy phiếu',
+  SUPPLIER_RETURN: 'Trả nhà cung cấp',
+  WRITE_OFF: 'Xuất hủy (hết hạn)',
 };
 
 export const SUPPLIER_STATUS = { ACTIVE: 'ACTIVE', INACTIVE: 'INACTIVE' };
 export const SUPPLIER_STATUS_LABELS = { ACTIVE: 'Đang dùng', INACTIVE: 'Ngừng dùng' };
+// Trạng thái hợp đồng NCC do BE tính tại hôm nay (BE:docs/business/BUSINESS_RULES.md NUT-27); chỉ cảnh báo
+export const CONTRACT_STATUS_LABELS = {
+  ACTIVE: 'Còn hạn',
+  EXPIRING: 'Sắp hết hạn',
+  EXPIRED: 'Hết hạn',
+  NOT_STARTED: 'Chưa hiệu lực',
+  NONE: 'Chưa có hợp đồng',
+};
 
 export const NOTE_MAX = 500;
+
+// Xuất kho khô: lô còn hạn trả lại NCC; lô hết hạn xuất hủy kèm lý do. Khác RETURN (hoàn kho, cộng tồn).
+export const DISPOSAL_KIND = { SUPPLIER_RETURN: 'SUPPLIER_RETURN', WRITE_OFF: 'WRITE_OFF' };
+export const DISPOSAL_KIND_LABELS = { SUPPLIER_RETURN: 'Xuất kho cho NCC', WRITE_OFF: 'Xuất kho (hết hạn)' };
+export const DISPOSAL_REASON_MIN = 3;
+export const DISPOSAL_REASON_HINTS = {
+  SUPPLIER_RETURN: ['Giao thừa so với đơn đặt', 'Sai quy cách', 'Chất lượng không đạt'],
+  WRITE_OFF: ['Hết hạn sử dụng', 'Hư hỏng, ẩm mốc'],
+};
 
 // Giữ mã lịch sử và widget bếp cũ, không mở lại luồng chế biến/bàn giao mới.
 export const PREP_STATUS = { WAITING: 'WAITING', COOKING: 'COOKING', READY_FOR_HANDOVER: 'READY_FOR_HANDOVER' };

@@ -17,12 +17,28 @@ const { ROLES } = await import('@/models/User');
 const { INTEGRATION_MODULES } = await import('@/config/integrationModules');
 const { migrateNormKeys, hasLegacyNormKeys, GRAM_NORM_COLUMNS, SESSION_NORM_KEYS } = await import('@/utils/menu-planning/nutritionSetup');
 const { validateNutritionSetup } = await import('@/utils/menu-planning/menuPlanningValidation');
+const { foodBudgetOn } = await import('@/utils/menu-planning/menuCalculations');
 const { readDb, writeDb } = await import('@/mocks/mockDatabase');
 const { menuPlanningMockRepository: repo } = await import('@/services/menu-planning/mock/menuPlanningMockRepository');
 
 const routes = readFileSync('src/routes/AppRoutes.jsx', 'utf8');
 const block = (name, next) => routes.slice(routes.indexOf(`<Route path="${name}">`), routes.indexOf(`<Route path="${next}">`));
 const VP = { id: 'u_lan', role: 'VICE_PRINCIPAL' };
+
+test('quản trị thông báo mở cho BGH; quy tắc và lịch gửi nằm trong trang Cấu hình, chỉ tab Mẫu cho phó hiệu trưởng', () => {
+  const paths = (role) => getMenuForRole(role, { role }).flatMap((item) => [item.to, ...(item.children || []).map((child) => child.to)]);
+  const principal = paths(ROLES.PRINCIPAL);
+  const vice = paths(ROLES.VICE_PRINCIPAL);
+  assert.ok(principal.includes('/announcements'));
+  assert.ok(principal.includes('/notification-settings'));
+  assert.ok(vice.includes('/announcements'));
+  assert.ok(vice.includes('/notification-settings'));
+  for (const retired of ['/announcement-templates', '/notification-rules', '/announcement-schedules']) {
+    assert.ok(!principal.includes(retired) && !vice.includes(retired), retired);
+  }
+  assert.ok(!paths(ROLES.TEACHER).includes('/announcements'));
+  assert.ok(!paths(ROLES.TEACHER).includes('/notification-settings'));
+});
 
 beforeEach(() => values.clear());
 
@@ -105,4 +121,26 @@ test('kiểm Thiết lập khi nối BE: bữa chỉ đọc không kiểm; bản
     'Bản mới chỉ áp dụng từ ngày sau hôm nay.',
   );
   assert.ok(validateNutritionSetup({ effectiveFrom: '2026-11-04', groups: [{ ...group, price: '' }] }, today, opts)['ag-4.price']);
+});
+
+test('phí dịch vụ (NUT-19): trống = 0, không lớn hơn giá suất; ngân sách thực phẩm = giá − phí', () => {
+  const group = { ageGroupId: 'ag-4', enabled: true, price: '30000', meals: [], norms: {} };
+  const opts = { mealsReadOnly: true };
+  const check = (serviceFee) =>
+    validateNutritionSetup({ effectiveFrom: '2026-11-04', groups: [{ ...group, serviceFee }] }, '2026-11-03', opts);
+  assert.deepEqual(check(''), {});
+  assert.deepEqual(check('5000'), {});
+  assert.deepEqual(check('30000'), {});
+  assert.equal(check('30001')['ag-4.serviceFee'], 'Phí dịch vụ không được lớn hơn giá suất ăn.');
+  const tolerance = (budgetTolerancePct) =>
+    validateNutritionSetup({ effectiveFrom: '2026-11-04', groups: [{ ...group, budgetTolerancePct }] }, '2026-11-03', opts)[
+      'ag-4.budgetTolerancePct'
+    ];
+  assert.equal(tolerance(''), undefined, 'để trống ⇒ mặc định 5%');
+  assert.equal(tolerance('7.5'), undefined);
+  assert.equal(tolerance('101'), 'Biên tiền từ 0 đến 100%.');
+  const prices = [{ ageGroupId: 'ag-4', price: 30000, serviceFee: 5000, effectiveFrom: '2026-09-01', effectiveTo: null }];
+  assert.equal(foodBudgetOn(prices, 'ag-4', '2026-11-04'), 25000);
+  assert.equal(foodBudgetOn([{ ...prices[0], serviceFee: undefined }], 'ag-4', '2026-11-04'), 30000, 'giá cũ chưa có phí ⇒ phí 0');
+  assert.equal(foodBudgetOn(prices, 'ag-2', '2026-11-04'), null);
 });

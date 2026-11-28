@@ -1,6 +1,6 @@
 name: Deploy VPS
 
-# main = production (web.carenest.edu.vn), dev = môi trường dev (dev.carenest.edu.vn): push = verify + deploy,
+# main = production (thuonghong.carenest.edu.vn), dev = môi trường dev (dev.carenest.edu.vn): push = verify + deploy,
 # PR vào main/dev = chỉ verify; thay đổi chỉ tài liệu không chạy
 on:
   push:
@@ -59,7 +59,7 @@ jobs:
       APP_DIR: ${{ github.ref == 'refs/heads/dev' && '/data/thangnd/CAPSTONE/CareNest_FE-dev' || '/data/thangnd/CAPSTONE/CareNest_FE' }}
       CADDY_DIR: /data/thangnd/CAPSTONE/caddy
       SITE_FILE: ${{ github.ref == 'refs/heads/dev' && 'carenest-dev.caddy' || 'carenest-web.caddy' }}
-      SITE_URL: ${{ github.ref == 'refs/heads/dev' && 'https://dev.carenest.edu.vn/' || 'https://web.carenest.edu.vn/' }}
+      SITE_URL: ${{ github.ref == 'refs/heads/dev' && 'https://dev.carenest.edu.vn/' || 'https://thuonghong.carenest.edu.vn/' }}
       # Dev chạy cạnh production: project, container, image và cổng riêng (compose.yaml đọc các biến này)
       COMPOSE_PROJECT: ${{ github.ref == 'refs/heads/dev' && 'carenest-fe-dev' || 'carenest-fe' }}
       WEB_CONTAINER: ${{ github.ref == 'refs/heads/dev' && 'carenest-web-dev' || 'carenest-web' }}
@@ -105,9 +105,11 @@ jobs:
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || '/api' }}
           VITE_USE_MOCK: ${{ vars.VITE_USE_MOCK || 'true' }}
           VITE_AUTH_MODE: ${{ vars.VITE_AUTH_MODE || 'mock' }}
+          # Dev Mode giả lập ngày giờ: chỉ bản dev.carenest.edu.vn, production luôn tắt
+          VITE_DEV_TOOLS: ${{ github.ref == 'refs/heads/dev' && 'true' || 'false' }}
         run: |
           ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" \
-            "cd '$APP_DIR' && VITE_API_BASE_URL='$VITE_API_BASE_URL' VITE_USE_MOCK='$VITE_USE_MOCK' VITE_AUTH_MODE='$VITE_AUTH_MODE' COMPOSE_PROJECT='$COMPOSE_PROJECT' WEB_CONTAINER='$WEB_CONTAINER' WEB_IMAGE='$WEB_IMAGE' WEB_LISTEN='$WEB_LISTEN' bash .incoming/remote-deploy.sh deploy"
+            "cd '$APP_DIR' && VITE_API_BASE_URL='$VITE_API_BASE_URL' VITE_USE_MOCK='$VITE_USE_MOCK' VITE_AUTH_MODE='$VITE_AUTH_MODE' VITE_DEV_TOOLS='$VITE_DEV_TOOLS' COMPOSE_PROJECT='$COMPOSE_PROJECT' WEB_CONTAINER='$WEB_CONTAINER' WEB_IMAGE='$WEB_IMAGE' WEB_LISTEN='$WEB_LISTEN' bash .incoming/remote-deploy.sh deploy"
 
       # Caddy dùng chung với site khác: reload lỗi thì Caddy giữ cấu hình đang chạy,
       # nhưng file lỗi còn trên đĩa sẽ làm Caddy không lên sau reboot ⇒ khôi phục file cũ

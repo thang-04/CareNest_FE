@@ -1,21 +1,26 @@
 import { planLevel as levelOf, planRoute } from '@/models/education-plan/planLevel.mjs';
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Plus, RotateCcw } from '@/components/ui/icons';
 import { ROLES } from '@/models/User';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
-import { useSchoolYear } from '@/contexts/SchoolYearContext';
-import { AGE_GROUPS, EDU_STATUS, allGoalItems } from '@/models/education-plan/educationPlanConstants';
+import { AGE_GROUPS, EDU_STATUS, allGoalItems, ageRangeOptions } from '@/models/education-plan/educationPlanConstants';
 import { Card, EmptyState, PageHead, YearPlanStatusBadge, fmtDate } from '@/components/education-plan/eduUi';
 import { StatCard } from '@/components/ui/StatCard';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { clickableRowProps } from '@/utils/clickableRow';
-import { currentPlanOf, versionOf } from '@/models/education-plan/planVersions.mjs';
+import { versionOf } from '@/models/education-plan/planVersions.mjs';
 import { useAsync } from '@/hooks/useAsync';
 import { usePolling } from '@/hooks/usePolling';
-import { getReviewQueue } from '@/services/education-plan/educationPlanService';
+import { LoadingState, ErrorState } from '@/components/ui/States';
+import { Pagination } from '@/components/ui/Pagination';
+import { getGoalPage, getGoalStats, getReviewQueue } from '@/services/education-plan/educationPlanService';
+import { isReviewTurn } from '@/models/education-plan/reviewTurn.mjs';
 import { Button } from '@/components';
+import { DEFAULT_WORKFLOW_POLICY } from '@/models/education-plan/eduConfig';
+import { canEduApprove, isEduVicePrincipal } from '@/utils/education-plan/eduPermissions';
 
+const PAGE_SIZE = 5;
 const ageName = (id) => AGE_GROUPS.find((a) => a.id === id)?.name || '—';
 
 /** Người soạn kế hoạch (chỉ người này sửa khi còn nháp) và người gửi Phó HT duyệt. */
@@ -38,68 +43,70 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
   const annual = planLevel === 'SCHOOL_YEAR';
   const basePath = planRoute({ planLevel });
   const pageLabel = annual ? 'Kế hoạch năm học' : 'Kế hoạch giáo dục tổ';
-  const { goals: allGoals, schoolYear, role, user, classes, eduConfig } = useEducationPlan();
-  const { schoolYears: yearOptions } = useSchoolYear();
-  const goals = allGoals.filter((g) => levelOf(g) === planLevel);
+  const { schoolYearId, yearOption, role, user, eduConfig } = useEducationPlan();
   const navigate = useNavigate();
   const [q, setQ] = useState('');
   const [age, setAge] = useState('');
   const [showOld, setShowOld] = useState(false);
-  const isVP = role === ROLES.VICE_PRINCIPAL;
-  const isLeader = role === ROLES.TEAM_LEADER;
+  const [page, setPage] = useState(1);
+  const isVP = isEduVicePrincipal(user);
   const isPrincipal = role === ROLES.PRINCIPAL;
 
-  const yearPolicy =
-    eduConfig?.workflowPolicy?.[annual ? 'schoolYear' : 'year'] ||
-    (annual
-      ? { creators: [ROLES.VICE_PRINCIPAL], reviewers: [ROLES.PRINCIPAL] }
-      : { creators: [ROLES.TEAM_LEADER], reviewers: [ROLES.VICE_PRINCIPAL] });
+  const policyKey = annual ? 'schoolYear' : 'year';
+  const yearPolicy = eduConfig?.workflowPolicy?.[policyKey] || DEFAULT_WORKFLOW_POLICY[policyKey];
   const isYearCreator = (yearPolicy.creators || []).includes(role) && !(yearPolicy.reviewers || []).includes(role);
   const principalViewer = isPrincipal && !isYearCreator;
 
-  // API thật (có permissions): danh sách BE đã theo phạm vi người xem (BE:EDU-06), không lọc lại ở client.
-  // Mock: tổ trưởng thấy mọi bản của nhóm tuổi mình; giáo viên chỉ bản đã ban hành của nhóm tuổi các lớp mình dạy
-  const scoped = useMemo(() => {
-    const taught = classes.filter((c) => (c.teacherIds || []).includes(user.id)).map((c) => c.ageGroupId);
-    const issuedPlan = (g) => g.status === EDU_STATUS.APPROVED || g.status === EDU_STATUS.SENT;
-    const visible = (g) =>
-      g.permissions ||
-      isVP ||
-      (isPrincipal && g.status !== EDU_STATUS.DRAFT && g.status !== EDU_STATUS.EDITING) ||
-      (isLeader && g.ageGroupId === user.ageGroupId) ||
-      (issuedPlan(g) && (g.ageGroupId === user.ageGroupId || taught.includes(g.ageGroupId)));
-    return goals.filter((g) => g.schoolYear === schoolYear && visible(g));
-  }, [goals, classes, schoolYear, isVP, isPrincipal, isLeader, user]);
+  // edu-list-paging (Tiền 25/11/2026): BE lọc theo phạm vi người xem (BE:EDU-06), tìm, lọc nhóm tuổi, phân trang 5/trang;
+  // mặc định ẩn bản đã thay thế (currentOnly). Số liệu thẻ + nhóm tuổi đã có kế hoạch lấy từ /goals/stats
+  const list = useAsync(
+    () => getGoalPage(user, { planLevel, schoolYearId, ageRange: age, q, currentOnly: !showOld, page: page - 1, size: PAGE_SIZE }),
+    [user.id, planLevel, schoolYearId, age, q, showOld, page],
+    { enabled: !!schoolYearId, refreshOnDataChange: true },
+  );
+  const stats = useAsync(() => getGoalStats(user, { planLevel, schoolYearId }), [user.id, planLevel, schoolYearId], {
+    enabled: !!schoolYearId,
+    refreshOnDataChange: true,
+  });
+  const rows = list.data?.items || [];
+  const total = list.data?.totalElements || 0;
+  const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  useEffect(() => {
+    if (list.data && page > lastPage) setPage(lastPage);
+  }, [list.data, page, lastPage]);
+  const withPlan = stats.data?.ageGroupIdsWithPlan || [];
   // Bản Chờ duyệt không nằm trong danh sách (chỉ bản đã ban hành); thẻ "Chờ duyệt" đếm theo hàng chờ của BE và dẫn sang đó
-  const queue = useAsync(() => getReviewQueue(user), [user.id], { refreshOnDataChange: true, enabled: isVP || isPrincipal });
-  usePolling(() => queue.reload({ silent: true }), { enabled: isVP || isPrincipal });
+  // FR6.2: PHT không có mã duyệt nào thì không có hàng đợi duyệt
+  const queueEnabled = !!schoolYearId && ((isVP && canEduApprove(user)) || isPrincipal);
+  const queue = useAsync(() => getReviewQueue(user, schoolYearId), [user.id, schoolYearId], {
+    refreshOnDataChange: true,
+    enabled: queueEnabled,
+  });
+  usePolling(() => queue.reload({ silent: true }), { enabled: queueEnabled });
 
   const creationScopes = eduConfig?.[annual ? 'schoolYearCreationScopes' : 'yearCreationScopes'];
   // EDU-89: năm đã kết thúc / năm sắp tới chưa tới ngày mở chuẩn bị ⇒ chỉ xem, không lập kế hoạch
-  const norm = (v) => String(v || '').replace(/\s*[-–]\s*/g, '-');
-  const yearOpt = yearOptions.find((y) => norm(y.label) === norm(schoolYear));
-  const yearWritable = !yearOpt || yearOpt.status === 'ACTIVE' || yearOpt.preparing;
+  const yearOpt = yearOption;
+  const yearWritable = !!yearOpt && (yearOpt.status === 'ACTIVE' || yearOpt.preparing);
   const canCreate =
     annual &&
     yearWritable &&
     !principalViewer &&
     (creationScopes
-      ? creationScopes.some((id) => !scoped.some((g) => g.ageGroupId === id))
-      : isYearCreator && (!user.ageGroupId || !scoped.some((g) => g.ageGroupId === user.ageGroupId)));
+      ? creationScopes.some((id) => !withPlan.includes(id))
+      : isYearCreator && (!user.ageGroupId || !withPlan.includes(user.ageGroupId)));
 
-  // Bản đã ban hành nhưng có bản mới hơn thay thế: hiện "Đã thay thế", mặc định gom lại để danh sách chỉ còn bản đang dùng (Tiền 12/11/2026)
-  const replaced = (g) =>
-    g.status === EDU_STATUS.APPROVED && !(g.current ?? currentPlanOf(goals, g.ageGroupId, g.schoolYear, planLevel)?.id === g.id);
-  const matched = scoped.filter(
-    (g) => (!age || g.ageGroupId === age) && (!q || (g.title + g.code).toLowerCase().includes(q.toLowerCase())),
-  );
-  // Chỉ gom bản thay thế khi danh sách còn bản đang dùng của cùng nhóm tuổi; không thì vẫn hiện để danh sách không trống
-  const foldable = (g) => replaced(g) && matched.some((x) => !replaced(x) && x.ageGroupId === g.ageGroupId);
-  const oldCount = matched.filter(foldable).length;
-  const rows = showOld ? matched : matched.filter((g) => !foldable(g));
-
-  const issued = scoped.filter((g) => g.status === EDU_STATUS.APPROVED || g.status === EDU_STATUS.SENT).length;
-  const pending = (queue.data || []).filter((g) => levelOf(g) === planLevel).length;
+  // Bản đã ban hành có bản mới hơn thay thế: hiện "Đã thay thế" (cờ current từ BE), mặc định ẩn (Tiền 12/11/2026)
+  const replaced = (g) => g.status === EDU_STATUS.APPROVED && g.current === false;
+  const oldCount = stats.data?.replaced || 0;
+  const issued = stats.data?.issued || 0;
+  const scopedCount = stats.data?.total || 0;
+  const goTo = (fn) => (v) => {
+    fn(v);
+    setPage(1);
+  };
+  // EDU-93: hàng chờ có cả hồ sơ của bước khác (chỉ xem); "Chờ bạn duyệt" chỉ đếm hồ sơ đúng lượt
+  const pending = (queue.data || []).filter((g) => levelOf(g) === planLevel && isReviewTurn(g) !== false).length;
 
   return (
     <div className="page ga-page">
@@ -108,7 +115,12 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
       {/* Tổ trưởng, giáo viên chỉ có 1–2 kế hoạch mỗi năm: không cần thẻ tổng quan, tìm kiếm, lọc */}
       {(isVP || isPrincipal) && (
         <div className="stat-grid">
-          <StatCard tone="blue" label={annual ? 'Kế hoạch trong năm học' : 'Kế hoạch giáo dục tổ'} value={scoped.length} />
+          <StatCard
+            tone="blue"
+            label={annual ? 'Kế hoạch trong năm học' : 'Kế hoạch giáo dục tổ'}
+            value={scopedCount}
+            loading={stats.loading && !stats.data}
+          />
           <StatCard tone="green" label="Đã ban hành" value={issued} />
           <StatCard
             tone="orange"
@@ -125,11 +137,11 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
           <div className="filter-bar">
             {(isVP || isPrincipal) && (
               <>
-                <SearchSubmit value={q} placeholder="Tìm theo tên hoặc mã" label="Tìm kế hoạch" onSearch={setQ} />
-                <select className="select" value={age} onChange={(e) => setAge(e.target.value)} aria-label="Lọc theo nhóm tuổi">
+                <SearchSubmit value={q} placeholder="Tìm theo tên hoặc mã" label="Tìm kế hoạch" onSearch={goTo(setQ)} />
+                <select className="select" value={age} onChange={(e) => goTo(setAge)(e.target.value)} aria-label="Lọc theo nhóm tuổi">
                   <option value="">Tất cả nhóm tuổi</option>
-                  {AGE_GROUPS.map((a) => (
-                    <option key={a.id} value={a.id}>
+                  {ageRangeOptions().map((a) => (
+                    <option key={a.rangeKey} value={a.rangeKey}>
                       {a.name}
                     </option>
                   ))}
@@ -145,7 +157,11 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
             )}
           </div>
         )}
-        {rows.length === 0 && scoped.length > 0 ? (
+        {list.error ? (
+          <ErrorState error={list.error} onRetry={list.reload} />
+        ) : list.loading && !list.data ? (
+          <LoadingState />
+        ) : rows.length === 0 && scopedCount > 0 ? (
           // Có kế hoạch nhưng bộ lọc loại hết: không báo "chưa có", cho đặt lại bộ lọc
           <EmptyState
             title="Không có kết quả phù hợp"
@@ -154,6 +170,7 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
                 onClick={() => {
                   setQ('');
                   setAge('');
+                  setPage(1);
                 }}
               >
                 <RotateCcw size={15} /> Đặt lại bộ lọc
@@ -209,9 +226,10 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
             </table>
           </div>
         )}
+        {total > PAGE_SIZE && <Pagination page={page} pageSize={PAGE_SIZE} total={total} onChange={setPage} unit="kế hoạch" />}
         {oldCount > 0 && (
           <div className="card__body">
-            <button type="button" className="link-btn" aria-expanded={showOld} onClick={() => setShowOld((v) => !v)}>
+            <button type="button" className="link-btn" aria-expanded={showOld} onClick={() => goTo(setShowOld)((v) => !v)}>
               {showOld ? 'Ẩn phiên bản cũ' : `Hiện phiên bản cũ (${oldCount})`}
             </button>
           </div>

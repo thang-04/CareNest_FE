@@ -2,6 +2,8 @@ import { Fragment, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Pencil, Lock, Unlock, CircleX, Users, CheckCircle2, ChevronDown, History } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
+import { useChildYearLock } from '@/hooks/children/useChildYearLock';
+import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { useToast } from '@/contexts/ToastContext';
 import { useHealthCheck } from '@/hooks/children/useHealthChecks';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
@@ -33,6 +35,8 @@ import { SegmentedProgress } from '@/components/ui/SegmentedProgress';
 import { ChildInfoTable } from '@/components/children/ChildInfoTable';
 import { SidePanel } from '@/components/ui/SidePanel';
 import '@/styles/modules/children.css';
+import { useDevClockMarks } from '@/hooks/useDevClockMarks';
+import { dayEndAt, dayStartAt } from '@/utils/devClock';
 
 // Các đoạn của thanh tiến độ theo progress BE trả (trạng thái loại trừ nhau); "Chưa khám" là phần còn lại của rãnh.
 const EXAM_SEGMENTS = [
@@ -101,6 +105,7 @@ export default function HealthCheckDetailPage() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const { user } = useAuth();
+  const yearLocked = useChildYearLock();
   const toast = useToast();
   const { detail, loading, error, reload } = useHealthCheck(campaignId);
   const [tab, setTab] = useState('classes');
@@ -110,6 +115,14 @@ export default function HealthCheckDetailPage() {
   const [historyOpen, setHistoryOpen] = useState(false);
 
   const campaign = detail?.campaign;
+  useDevClockMarks(
+    campaign
+      ? [
+          { label: `Bắt đầu ${campaign.name}`, at: dayStartAt(campaign.startDate) },
+          { label: `Kết thúc ${campaign.name}`, at: dayEndAt(campaign.endDate) },
+        ]
+      : [],
+  );
   const crumbs = healthCheckCrumbs(campaign?.name || 'Chi tiết đợt khám');
 
   if (loading)
@@ -128,12 +141,20 @@ export default function HealthCheckDetailPage() {
     );
 
   const { classes, watchList } = detail;
-  const manage = canManageHealthCheck(user, campaign.campusId);
+  // Năm đã kết thúc hoặc năm sắp diễn ra chưa tới ngày mở chuẩn bị (CFG-YR-01, CHD-12): đợt chỉ xem
+  const manage = canManageHealthCheck(user, campaign.campusId) && !yearLocked;
   const teacher = isTeacherRole(user);
   const isRound = campaign.kind === CAMPAIGN_KIND.MEASUREMENT;
   // Đợt/kỳ đã qua ngày kết thúc: mở lại phải chọn ngày kết thúc mới từ hôm nay (HLT-17, cả kỳ cân đo từ 2026-11-04).
   const reopenNeedsEndDate = campaign.endDate < todayInput();
   const w = wordsOf(isRound);
+  // Giáo viên có từ 2 lớp ⇒ mỗi lớp một khối thu gọn (user chốt 2026-11-24, Q5b)
+  const fold = classes.length > 1;
+  const foldProps = (c, i) => ({
+    collapsible: fold,
+    defaultOpen: classId ? c.classId === classId : i === 0,
+    summary: `${c.className} – ${isRound ? 'đã cân đo' : 'đã có kết luận'} ${c.recorded}/${c.total} trẻ`,
+  });
   const Roster = isRound ? MeasurementRoundRoster : HealthCheckClassRoster;
   const unclosed = [CAMPAIGN_STATUS.UPCOMING, CAMPAIGN_STATUS.IN_PROGRESS].includes(campaign.status);
   const lastEvent = campaign.history?.[campaign.history.length - 1];
@@ -144,6 +165,8 @@ export default function HealthCheckDetailPage() {
     try {
       const result = await action();
       toast.success(typeof success === 'function' ? success(result) : success);
+      // BE thật không phát sự kiện đổi dữ liệu như mock ⇒ tự tải lại trạng thái, nút thao tác, lịch sử của đợt
+      reload({ silent: true });
       return true;
     } catch (err) {
       toast.error(err, 'Không thực hiện được');
@@ -174,6 +197,7 @@ export default function HealthCheckDetailPage() {
       await reopenHealthCheck(campaign.id, { reason: reopen.reason, ...(reopenNeedsEndDate ? { endDate: reopen.endDate } : {}) }, user);
       toast.success(`Đã mở lại ${w.name}. Giáo viên của điểm trường đã nhận thông báo.`);
       setReopen(null);
+      reload({ silent: true });
     } catch (err) {
       if (err.details?.reason || err.details?.endDate)
         setReopen({ ...reopen, error: err.details.reason || '', endDateError: err.details.endDate || '' });
@@ -218,6 +242,7 @@ export default function HealthCheckDetailPage() {
         )}
       </div>
 
+      <YearLockedNotice subject="đợt khám, kỳ cân đo" />
       <StatusBanner campaign={campaign} isRound={isRound} />
 
       {/* Một khối tổng quan thay cho thẻ thông tin + hàng thẻ số liệu + cột lịch sử (user yêu cầu 2026-11-11): thẻ số liệu lặp
@@ -314,7 +339,10 @@ export default function HealthCheckDetailPage() {
             />
           </section>
         ) : (
-          classes.map((c) => <Roster key={c.classId} campaignId={campaign.id} classId={c.classId} />)
+          // Trạng thái đợt đổi (hủy, đóng, mở lại) ⇒ dựng lại danh sách để tải lại quyền nhập
+          classes.map((c, i) => (
+            <Roster key={`${c.classId}-${campaign.status}`} campaignId={campaign.id} classId={c.classId} {...foldProps(c, i)} />
+          ))
         )
       ) : (
         <section className="card mt-16">
@@ -424,7 +452,7 @@ export default function HealthCheckDetailPage() {
                           {open && (
                             <tr id={panelId} className="tr-acc-panel">
                               <td colSpan={isRound ? 4 : 5}>
-                                <Roster campaignId={campaign.id} classId={c.classId} embedded />
+                                <Roster key={`${c.classId}-${campaign.status}`} campaignId={campaign.id} classId={c.classId} embedded />
                               </td>
                             </tr>
                           )}

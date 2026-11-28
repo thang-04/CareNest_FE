@@ -14,6 +14,8 @@ const useAuth=()=>({user:{role:'PRINCIPAL'}}),isLeader=()=>true,useSchoolYear=()
 const useQualityReport=()=>({report:{months:['2027-09','2027-10','2028-02'],rows:[{classId:'test',className:'TEST class',avgPresentByMonth:{'2027-09':3,'2027-10':4}}],totals:[],campuses:[]},loading:false}),useProgramCompletion=()=>({});
 const Breadcrumb=()=>null,EmptyState=()=>null,ErrorState=()=>null,SkeletonRows=()=>null,Tabs=()=>null,Download=()=>null,SemesterSelect=()=>null;
 const assessmentCrumbs=()=>[],SECTIONS={},exportWithPreview=(rows)=>{globalThis.qualityExport=rows;};
+const todayInput=()=>'2028-03-01',formatDate=(d)=>d;
+const useYearCampuses=()=>null,PERMISSIONS={};
 const {monthInSemester,semestersOf}=globalThis.qualitySemesterFns;
 `;
 const { code } = await transformWithOxc(stubs + source.replace(/^import[\s\S]*?;\r?\n/gm, ''), 'QualityReportPage.jsx', {

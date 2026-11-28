@@ -4,8 +4,10 @@ import { ROLES, ROLE_LABELS } from '@/models/User';
 /** Tài khoản nhân sự › nhập / xuất Excel (Cần 31/10/2026). Giới hạn khớp BE `CreateAccountRequest` (AUTH-15, AUTH-21). */
 export const STAFF_TEMPLATE_URL = '/templates/tai-khoan-nhan-su-mau.xlsx';
 export const STAFF_SHEET = 'Nhân sự';
-// GV không chọn lớp khi tạo (BE AUTH-15 từ 01/11/2026): file cũ còn cột "Lớp" phía sau thì bị bỏ qua
+// GV không chọn lớp khi tạo (BE AUTH-15 từ 01/11/2026): file cũ còn cột "Lớp" phía sau thì bị bỏ qua.
+// Cột "Điểm trường" = cơ sở công tác, bắt buộc với mọi vai trò kể cả GV (BE AUTH-15, chốt 21/11/2026)
 export const STAFF_COLUMNS = ['Họ tên', 'Số điện thoại', 'Email', 'Vai trò', 'Điểm trường'];
+export const WORK_CAMPUS_REQUIRED = 'Vui lòng chọn cơ sở công tác';
 export const STAFF_ROLES = [ROLES.VICE_PRINCIPAL, ROLES.TEACHER, ROLES.KITCHEN_STAFF];
 // AUTH-15: PHT và GV phải có email (nhận thư đặt mật khẩu, quên mật khẩu trên Web); bếp dùng tài khoản chung nên không bắt buộc
 const EMAIL_REQUIRED_ROLES = [ROLES.VICE_PRINCIPAL, ROLES.TEACHER];
@@ -46,31 +48,54 @@ export function validateStaffProfile(form, role) {
 }
 
 /** Lỗi theo ô của một tài khoản (form tạo và từng dòng Excel dùng chung). */
-export function validateStaffAccount(form, { campuses = [], teacherCampusRequired = false } = {}) {
+export function validateStaffAccount(form, { campuses = [] } = {}) {
   const e = validateStaffProfile(form, form.role);
   if (!text(form.phone)) e.phone = 'Nhập số điện thoại';
   else if (!normalizePhone(form.phone)) e.phone = 'Số điện thoại di động gồm 10 số, bắt đầu bằng 03, 05, 07, 08 hoặc 09';
   if (!STAFF_ROLES.includes(form.role)) e.role = 'Chọn vai trò';
-  // AUTH-15: GV tạo chưa gắn lớp; điểm trường chỉ để BE kiểm PHT tạo trong điểm trường mình (PHT bắt buộc chọn)
-  else if (form.role === ROLES.TEACHER) {
-    if (!form.campusId && teacherCampusRequired) e.campusId = 'Chọn điểm trường';
-    else if (form.campusId && !campuses.some((c) => String(c.id) === String(form.campusId))) e.campusId = 'Điểm trường không tồn tại';
-  } else if (!form.campusId) e.campusId = 'Chọn điểm trường';
+  // BE AUTH-15: mọi vai trò có cơ sở công tác ngay khi tạo (GV chưa cần lớp)
+  if (!form.campusId) e.campusId = WORK_CAMPUS_REQUIRED;
   else if (!campuses.some((c) => String(c.id) === String(form.campusId))) e.campusId = 'Điểm trường không tồn tại';
   return e;
 }
 
-/** Body POST /accounts: PHT / bếp gắn điểm trường; GV chưa gắn lớp, chỉ kèm điểm trường nếu có (BE AUTH-15). */
+/** Form Admin tạo Hiệu trưởng: không có vai trò / điểm trường để chọn (BE: Admin chỉ tạo HT, HT phân công toàn trường). */
+export function validatePrincipalAccount(form) {
+  const e = validateStaffProfile(form, ROLES.PRINCIPAL);
+  if (!text(form.phone)) e.phone = 'Nhập số điện thoại';
+  else if (!normalizePhone(form.phone)) e.phone = 'Số điện thoại di động gồm 10 số, bắt đầu bằng 03, 05, 07, 08 hoặc 09';
+  return e;
+}
+
+export const toPrincipalPayload = (form) => ({
+  phone: normalizePhone(form.phone),
+  fullName: text(form.fullName),
+  email: text(form.email) || null,
+  role: ROLES.PRINCIPAL,
+});
+
+/** Body POST /accounts: PHT / bếp gắn phân công điểm trường; GV chưa gắn lớp, điểm trường là cơ sở công tác (BE AUTH-15). */
 export const toCreatePayload = (form) => ({
   phone: normalizePhone(form.phone),
   fullName: text(form.fullName),
   email: text(form.email) || null,
   role: form.role,
-  assignment: form.role === ROLES.TEACHER && !form.campusId ? null : { campusId: form.campusId },
+  assignment: { campusId: form.campusId || null },
 });
 
-/** Body PATCH /accounts/{id}/profile (AUTH-25): chỉ họ tên và email; SĐT là tên đăng nhập nên không sửa ở đây. */
-export const toProfilePayload = (form) => ({ fullName: text(form.fullName), email: text(form.email) || null });
+/** Lỗi form sửa hồ sơ: GV phải có cơ sở công tác (GV cũ chưa có thì bắt buộc chọn — BE AUTH-15). */
+export function validateStaffEdit(form, role) {
+  const e = validateStaffProfile(form, role);
+  if (role === ROLES.TEACHER && !form.workCampusId) e.workCampusId = WORK_CAMPUS_REQUIRED;
+  return e;
+}
+
+/** Body PATCH /accounts/{id}/profile (AUTH-25): họ tên, email; GV kèm cơ sở công tác. SĐT là tên đăng nhập nên không sửa ở đây. */
+export const toProfilePayload = (form, role) => ({
+  fullName: text(form.fullName),
+  email: text(form.email) || null,
+  ...(role === ROLES.TEACHER && form.workCampusId ? { workCampusId: form.workCampusId } : {}),
+});
 
 const findCampus = (campuses, v) => campuses.find((c) => [c.shortName, c.name, c.code].some((x) => x && key(x) === key(v))) || null;
 const roleOf = (v) => STAFF_ROLES.find((r) => key(ROLE_LABELS[r]) === key(v) || key(r) === key(v)) || '';
@@ -79,7 +104,7 @@ const roleOf = (v) => STAFF_ROLES.find((r) => key(ROLE_LABELS[r]) === key(v) || 
  * Sheet "Nhân sự" → { items, errors, ignoredColumns }. Kiểm như form tạo; trùng SĐT / email trong file hoặc với tài khoản đã có thì báo lỗi dòng.
  * existing: [{ phone, email }] của tài khoản đang có. Cột thừa sau "Điểm trường" (vd. "Lớp" của file mẫu cũ) bị bỏ qua. BE kiểm lại khi lưu.
  */
-export function matchStaffRows(rows, { campuses = [], existing = [], teacherCampusRequired = false }) {
+export function matchStaffRows(rows, { campuses = [], existing = [] }) {
   const errors = [];
   const items = [];
   if (!rows)
@@ -102,7 +127,7 @@ export function matchStaffRows(rows, { campuses = [], existing = [], teacherCamp
     const campus = campusText ? findCampus(campuses, campusText) : null;
     const role = roleOf(roleText);
     const form = { fullName, phone, email, role, campusId: campus?.id || '' };
-    const e = validateStaffAccount(form, { campuses, teacherCampusRequired });
+    const e = validateStaffAccount(form, { campuses });
     if (roleText && !role) e.role = `Vai trò "${roleText}" không đúng (Phó hiệu trưởng, Giáo viên, Nhân viên bếp)`;
     if (campusText && !campus) e.campusId = `Không có điểm trường "${campusText}"`;
     const p = normalizePhone(phone);

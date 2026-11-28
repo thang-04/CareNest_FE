@@ -7,6 +7,8 @@ import { useToast } from '@/contexts/ToastContext';
 import { Breadcrumb, FormField, LoadingState, PasswordInput, Spinner } from '@/components';
 import { AccountSideCard } from '@/components/account/AccountSideCard';
 import { NewPasswordFields } from '@/components/account/NewPasswordFields';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { useProfile } from '@/hooks/account/useAccount';
 import { formatDateTime } from '@/utils/format';
 import { changePassword } from '@/services/account/accountService';
@@ -28,6 +30,9 @@ export default function ChangePasswordPage() {
   const [serverError, setServerError] = useState('');
   const [busy, setBusy] = useState(false);
   const { data: profile } = useProfile({ live: false });
+  // Chỉ hỏi khi rời màn; không có nút Lưu trong hộp vì không tự gửi mật khẩu
+  const dirty = Object.values(values).some(Boolean);
+  const guard = useLeaveGuard({ when: dirty && !busy });
 
   const onCurrentChange = (e) => change({ currentPassword: e.target.value }); // carenest:allow-secret – tên field
 
@@ -57,11 +62,14 @@ export default function ChangePasswordPage() {
       await changePassword(values, user);
       setValues(EMPTY);
       toast.success('Mật khẩu của bạn đã được thay đổi thành công.');
-      if (AUTH_USE_MOCK) navigate(backTo, { replace: true });
+      if (AUTH_USE_MOCK) guard.leaveNow(backTo, { replace: true });
       else {
         const notice = 'Mật khẩu mới đã được lưu. Vui lòng đăng nhập lại.';
-        endSession(notice);
-        navigate('/login', { replace: true, state: { notice } });
+        // Gỡ mục lịch sử phụ của guard xong mới kết thúc phiên (kết thúc phiên có thể gỡ màn này)
+        guard.leaveNow(() => {
+          endSession(notice);
+          navigate('/login', { replace: true, state: { notice } });
+        });
       }
     } catch (err) {
       if (Object.keys(err.details || {}).length) setErrors(err.details);
@@ -118,7 +126,13 @@ export default function ChangePasswordPage() {
             <FormField label="Mật khẩu hiện tại" required error={errors.currentPassword}>
               <PasswordInput autoComplete="current-password" autoFocus value={values.currentPassword} onChange={onCurrentChange} />
             </FormField>
-            <NewPasswordFields values={values} errors={errors} onChange={change} onBlur={blur} />
+            <NewPasswordFields
+              values={values}
+              errors={errors}
+              onChange={change}
+              onBlur={blur}
+              username={profile?.username ?? user?.username ?? null}
+            />
           </div>
           <div className="card__body page-actions ac-actions">
             <Link to={backTo} className="btn">
@@ -130,6 +144,7 @@ export default function ChangePasswordPage() {
           </div>
         </form>
       </div>
+      <LeaveConfirmModal {...guard.modal} canSave={false} />
     </div>
   );
 }

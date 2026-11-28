@@ -199,6 +199,8 @@ export const IMPORT_COLUMNS = [
   // CCCD phụ huynh bắt buộc cả khi nhập Excel (user chốt 2026-10-21); file mẫu cũ thiếu cột này không nhập được.
   { key: 'guardianIdNumber', label: 'Số CCCD phụ huynh', required: true },
   { key: 'email', label: 'Email', required: false },
+  // Báo ăn = trẻ ăn ở trường; Không thì bỏ qua dị ứng, chế độ ăn (CHD-13).
+  { key: 'mealRegistered', label: 'Báo ăn (Có/Không, để trống = Có)', required: false },
   { key: 'allergies', label: 'Dị ứng (để trống = chưa cung cấp, "Không" = không có)', required: false },
   { key: 'diet', label: 'Chế độ ăn (để trống = chưa cung cấp, "Không" = không có)', required: false },
   // Hành chính và tiền sử bắt buộc trừ CCCD trẻ, nhóm máu (user chốt 2026-10-22); file mẫu cũ thiếu cột không nhập được.
@@ -250,3 +252,34 @@ export const GROWTH_CHART_AXES = {
 };
 
 export const growthAxesFor = (ageGroupId) => GROWTH_CHART_AXES[ageGroupId] || GROWTH_CHART_AXES.DEFAULT;
+
+/** Lịch sử sửa hồ sơ (BE `child_history`, `ChildHistoryAction`): nhãn hành động; BE giả ghi trường thô nên cần nhãn trường. */
+export const CHILD_HISTORY_ACTION_LABELS = {
+  ENROLLED: 'Tiếp nhận',
+  UPDATED: 'Sửa hồ sơ',
+  WITHDRAWN: 'Nghỉ học',
+  READMITTED: 'Tiếp nhận lại',
+  LEAVE_SCHEDULED: 'Hẹn nghỉ học',
+  LEAVE_CANCELLED: 'Hủy lịch nghỉ học',
+};
+export const CHILD_HISTORY_FIELD_LABELS = {
+  fullName: 'Họ tên',
+  dateOfBirth: 'Ngày sinh',
+  gender: 'Giới tính',
+  guardians: 'Phụ huynh',
+  mealRegistered: 'Báo ăn',
+};
+
+/** BE:CHD-11 — yêu cầu sửa hồ sơ/khai báo trẻ do GV gửi, HT/PHT duyệt. Giá trị khớp `ProfileChangeKind`/`ProfileChangeStatus`. */
+export const PROFILE_CHANGE_KIND = { PROFILE: 'PROFILE', HEALTH_DECLARATION: 'HEALTH_DECLARATION' };
+export const PROFILE_CHANGE_KIND_LABELS = {
+  PROFILE: 'Sửa hồ sơ',
+  HEALTH_DECLARATION: 'Sửa khai báo ăn và sức khỏe',
+};
+export const PROFILE_CHANGE_STATUS = { PENDING: 'PENDING', APPROVED: 'APPROVED', REJECTED: 'REJECTED', CANCELLED: 'CANCELLED' };
+export const PROFILE_CHANGE_STATUS_LABELS = {
+  PENDING: 'Chờ duyệt',
+  APPROVED: 'Đã duyệt',
+  REJECTED: 'Bị từ chối',
+  CANCELLED: 'Đã thay bằng yêu cầu mới',
+};

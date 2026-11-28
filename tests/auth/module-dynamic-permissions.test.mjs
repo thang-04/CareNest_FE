@@ -29,6 +29,23 @@ test('phân công giáo viên mặc định theo campus và mở toàn trường
   assert.equal(canAssignTeachers(2, school, 'update'), true);
 });
 
+test('AUTH-20: việc giao tại điểm trường cụ thể chỉ mở nút ở điểm trường đó, không ở điểm trường phụ trách', () => {
+  const rooms = live(ROLES.VICE_PRINCIPAL, [PERMISSIONS.ROOM_MANAGE], {
+    campusId: 1,
+    bePinnedCampusPermissions: { [PERMISSIONS.ROOM_MANAGE]: 3 },
+  });
+  assert.equal(canManageRooms(rooms, 3, 'update'), true);
+  assert.equal(canManageRooms(rooms, 1, 'update'), false);
+
+  const assign = live(ROLES.VICE_PRINCIPAL, [PERMISSIONS.STAFF_ASSIGNMENT_MANAGE], {
+    campusId: 1,
+    bePinnedCampusPermissions: { [PERMISSIONS.STAFF_ASSIGNMENT_MANAGE]: 3 },
+  });
+  assert.equal(teacherAssignmentAccess(assign).campusId, 3);
+  assert.equal(canAssignTeachers(3, assign, 'update'), true);
+  assert.equal(canAssignTeachers(1, assign, 'update'), false);
+});
+
 test('điểm danh, sức khỏe và mở lại dùng ba quyền độc lập, vẫn giữ phạm vi lớp/campus', () => {
   const cls = { id: 10, campusId: 1, canRecord: true, canUnlock: true };
   assert.equal(canRecordAttendance(cls, live(ROLES.TEACHER, [PERMISSIONS.DAILY_HEALTH_RECORD])), false);
@@ -56,6 +73,9 @@ test('ghi, xác nhận và duyệt khen thưởng dùng đúng quyền đánh gi
   assert.equal(canReviewEvaluation(ev, cls, teacher), true);
   assert.equal(canConfirmEvaluation(ev, cls, teacher), false);
   assert.equal(canConfirmEvaluation(ev, cls, confirmer), true);
+  // OBS-33: BE trả canConfirm = false cho GV không chủ nhiệm ⇒ ẩn nút xác nhận
+  assert.equal(canConfirmEvaluation(ev, { ...cls, canConfirm: false }, confirmer), false);
+  assert.equal(canConfirmEvaluation(ev, { ...cls, canConfirm: true }, confirmer), true);
 
   const proposal = { campusId: 1, status: 'PENDING_VP' };
   const vp = live(ROLES.VICE_PRINCIPAL, [PERMISSIONS.REWARD_REVIEW], { campusId: 1 });

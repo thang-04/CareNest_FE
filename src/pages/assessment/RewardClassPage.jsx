@@ -274,9 +274,11 @@ export default function RewardClassPage() {
       <button className="btn" onClick={() => save(false)} disabled={!!busy}>
         {busy === 'save' ? <Spinner small /> : <Save size={16} />} Lưu nháp
       </button>
-      <button className="btn btn--primary" disabled={!!busy} onClick={() => check(true) && setSubmitOpen(true)}>
-        <Send size={16} /> {d.status === S.RETURNED ? 'Gửi lại danh sách' : 'Gửi danh sách'}
-      </button>
+      {d.canSubmit && (
+        <button className="btn btn--primary" disabled={!!busy} onClick={() => check(true) && setSubmitOpen(true)}>
+          <Send size={16} /> {d.status === S.RETURNED ? 'Gửi lại danh sách' : 'Gửi danh sách'}
+        </button>
+      )}
     </>
   );
 
@@ -372,7 +374,10 @@ export default function RewardClassPage() {
                     <Fragment key={c.childId}>
                       <tr>
                         <td>
-                          <ChildNameCell child={{ fullName: c.fullName }} sub={c.dateOfBirth ? formatDate(c.dateOfBirth) : null} />
+                          <ChildNameCell
+                            child={{ childId: c.childId, fullName: c.fullName }}
+                            sub={c.dateOfBirth ? formatDate(c.dateOfBirth) : null}
+                          />
                         </td>
                         <td className="num nowrap">
                           {c.attendanceRate == null ? '—' : `${c.attendanceRate}%`}

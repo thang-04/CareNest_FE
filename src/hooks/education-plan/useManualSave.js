@@ -99,14 +99,15 @@ export function useManualSave({ doc, enabled, save, onSaved, backup, onRestore }
     const warn = (e) => {
       if (latest.current.unsaved) e.preventDefault();
     };
-    document.addEventListener('keydown', onKey);
+    // Pha capture: nút menu (RowMenu) chặn keydown lan lên, sau khi đóng hộp thoại focus quay về đó thì Ctrl+S vẫn lưu
+    document.addEventListener('keydown', onKey, true);
     window.addEventListener('beforeunload', warn);
     window.addEventListener('pagehide', keepBackup);
     const timer = setInterval(keepBackup, 750);
     return () => {
       keepBackup();
       clearInterval(timer);
-      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('keydown', onKey, true);
       window.removeEventListener('beforeunload', warn);
       window.removeEventListener('pagehide', keepBackup);
     };

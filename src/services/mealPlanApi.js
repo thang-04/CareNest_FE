@@ -1,5 +1,5 @@
 import { beClient } from '@/services/http/beClient';
-import { toPlanRequest } from '@/utils/menu-planning/mealPlanGrid';
+import { toAmendRequest, toPlanRequest } from '@/utils/menu-planning/mealPlanGrid';
 import { addDays } from '@/models/menu-planning/menuPlanningConstants';
 
 /*
@@ -39,13 +39,14 @@ export const createMealPlanApi = ({ client = beClient } = {}) => ({
    * Thống kê một ngày thực đơn cho N trẻ của một nhóm tuổi (không lưu): bảng thực phẩm (lượng ăn, thải bỏ, lượng mua, tiền),
    * bảng kiểm dinh dưỡng, % năng lượng từng bữa. `children` trống ⇒ BE lấy suất đã xác nhận, không có thì sĩ số đang học.
    */
-  async getMenuStatistics({ ageGroupId, date, campusId, children, items }) {
+  async getMenuStatistics({ ageGroupId, date, campusId, children, items, useBalance }) {
     const body = {
       ageGroupId,
       ...(date ? { date } : {}),
       ...(campusId ? { campusId } : {}),
+      ...(useBalance ? { useBalance: true } : {}),
       ...(children === '' || children == null ? {} : { children: Number(children) }),
-      items: items.map(({ session, dishId }) => ({ session, dishId })),
+      items: items.map(({ session, block, dishId }) => ({ session, ...(block ? { block } : {}), dishId })),
     };
     const stats = await client.post('/nutrition/menu-statistics', body);
     return { ...stats, dishes: stats?.dishes || [], ingredients: stats?.ingredients || [] };
@@ -70,6 +71,19 @@ export const createMealPlanApi = ({ client = beClient } = {}) => ({
   /** Công bố cả tuần; còn lỗi chặn thì BE trả 409 (màn nạp lại kế hoạch để hiện `issues`). */
   async publishPlan(weekStart) {
     return toPlan(await client.post(`/nutrition/meal-plans/${weekStart}/publish`));
+  },
+
+  /**
+   * Sửa ngoại lệ cả một ngày của tuần đã công bố (BE NUT-08, P-39): `day` là ngày của bản nháp sau khi sửa (mọi khối).
+   * BE kiểm quyền, giờ chốt, lý do; trả kế hoạch mới (đánh giá, lưu ý tính lại).
+   */
+  async amendDay(weekStart, day, reason) {
+    return toPlan(await client.put(`/nutrition/meal-plans/${weekStart}/days/${day.date}/amend`, toAmendRequest(day, reason)));
+  },
+
+  /** Lịch sử sửa ngoại lệ của tuần, mới nhất trước: [{ menuDate, before, after, reason, issues, changedByName, changedAt }]. */
+  async listRevisions(weekStart) {
+    return (await client.get(`/nutrition/meal-plans/${weekStart}/revisions`)) || [];
   },
 });
 

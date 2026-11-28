@@ -10,7 +10,9 @@ ARG VITE_API_BASE_URL=/api
 ARG VITE_USE_MOCK=true
 # Auth tách khỏi dữ liệu: gateway = đăng nhập qua /api/auth của BE (BE đã bật gateway), còn lại mock
 ARG VITE_AUTH_MODE=mock
-ENV VITE_API_BASE_URL=$VITE_API_BASE_URL VITE_USE_MOCK=$VITE_USE_MOCK VITE_AUTH_MODE=$VITE_AUTH_MODE
+# Dev Mode giả lập ngày giờ (chỉ bản dev); production build mặc định tắt
+ARG VITE_DEV_TOOLS=false
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL VITE_USE_MOCK=$VITE_USE_MOCK VITE_AUTH_MODE=$VITE_AUTH_MODE VITE_DEV_TOOLS=$VITE_DEV_TOOLS
 RUN npm run build
 
 # Runtime stage: chỉ phục vụ file tĩnh; /api do nginx trên host proxy sang BE

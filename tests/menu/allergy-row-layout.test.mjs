@@ -60,7 +60,7 @@ test('bảng tuần gom theo bữa: mỗi bữa một nhóm có tên bữa; bữ
 
 test('lưu ý cả tuần gom theo nội dung, kèm các ngày bị ảnh hưởng; lỗi nặng lên trước', async () => {
   const { groupIssues } = await import('@/utils/menu-planning/menuChecks');
-  const milk = 'Có món chứa sữa bò (12 trẻ dị ứng), chưa có suất thay thế';
+  const milk = 'Có món chứa sữa bò (12 trẻ dị ứng), cần trao đổi với phụ huynh';
   const grouped = groupIssues([
     { date: '2026-10-26', tone: 'warn', text: 'Ít chất béo, nhiều tinh bột' },
     { date: '2026-10-26', tone: 'warn', text: milk },
@@ -73,7 +73,7 @@ test('lưu ý cả tuần gom theo nội dung, kèm các ngày bị ảnh hưở
   assert.equal(grouped.length, 3);
 });
 
-test('ghi chú dị ứng gom theo ngày và bữa: số trẻ, món gốc, suất thay thế hoặc "chưa có suất thay thế"', async () => {
+test('ghi chú dị ứng gom theo ngày và bữa: số trẻ và món gốc, không có suất thay thế (NUT-23)', async () => {
   const catalog = await loadCatalog();
   const menu = catalog.menus.find((m) => m.ageGroupId === 'ag-4' && m.meals.length);
   const dishes = menu.meals.flatMap((m) => m.items.map((i) => ({ session: m.session, dish: catalog.dishById[i.dishId] })));
@@ -83,22 +83,11 @@ test('ghi chú dị ứng gom theo ngày và bữa: số trẻ, món gốc, su�
   const day = { date: '2026-10-26', menuId: menu.id, meals: menu.meals };
   const allergyRows = [{ allergen, childCount: 7 }];
 
-  const none = dayAllergyNotes({ day, session: hit.session, catalog, allergyRows, allergyMenus: [] });
-  assert.ok(none.some((n) => n.dish === hit.dish.name && n.text === `7 trẻ ${allergen.toLowerCase()} · chưa có suất thay thế`));
+  const notes = dayAllergyNotes({ day, session: hit.session, catalog, allergyRows });
+  assert.ok(notes.some((n) => n.dish === hit.dish.name && n.text === `7 trẻ ${allergen.toLowerCase()}`));
 
-  const swap = catalog.dishes.find((d) => d.id !== hit.dish.id);
-  const allergyMenus = [
-    {
-      baseMenuId: menu.id,
-      restrictions: [allergen],
-      replacements: [{ session: hit.session, originalDishId: hit.dish.id, replacementDishId: swap.id }],
-    },
-  ];
-  const withSwap = dayAllergyNotes({ day, session: hit.session, catalog, allergyRows, allergyMenus });
-  assert.ok(withSwap.some((n) => n.dish === hit.dish.name && n.text === `7 trẻ ${allergen.toLowerCase()} → ${swap.name}`));
-
-  assert.deepEqual(dayAllergyNotes({ day, session: hit.session, catalog, allergyRows: [], allergyMenus }), []);
-  assert.deepEqual(dayAllergyNotes({ day: { ...day, holiday: true }, session: hit.session, catalog, allergyRows, allergyMenus }), []);
+  assert.deepEqual(dayAllergyNotes({ day, session: hit.session, catalog, allergyRows: [] }), []);
+  assert.deepEqual(dayAllergyNotes({ day: { ...day, holiday: true }, session: hit.session, catalog, allergyRows }), []);
 });
 
 const dishAllergensOf = (dish, catalog) => [

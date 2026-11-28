@@ -30,6 +30,16 @@ export const VP_TASK_AREAS = [
       { code: 'PARENT_ACCOUNT_MANAGE', place: VP_PLACE.CAMPUS },
     ],
   },
+  // BE EDU-108, EDU-110 (7) (Tiền 24/11/2026): soạn/duyệt theo cột PHT ở tab Mặc định, không bật/tắt từng mã ở đây;
+  // "Phụ trách chuyên môn" (EDU_ACADEMIC_DUTY, mặc định bật) tắt ⇒ PHT chỉ xem kế hoạch giáo dục đã ban hành
+  {
+    key: 'education',
+    label: 'Kế hoạch giáo dục',
+    tasks: [
+      { code: 'EDU_ACADEMIC_DUTY', place: VP_PLACE.SCHOOL },
+      { code: 'EDU_PLAN_CONFIG', place: VP_PLACE.SCHOOL },
+    ],
+  },
   {
     key: 'staff',
     label: 'Nhân sự',
@@ -48,6 +58,7 @@ export const VP_OTHER_AREA = { key: 'other', label: 'Việc khác' };
 export const VP_VIEW_CODE = 'CHILD_PROFILE_VIEW';
 
 export const VP_TASK_PRESETS = [
-  { key: 'nutrition', label: 'Phụ trách dinh dưỡng', areas: ['meals'] },
-  { key: 'academic', label: 'Phụ trách chuyên môn', areas: ['children'] },
+  // PHT dinh dưỡng: kế hoạch giáo dục chỉ xem (thu hồi "Phụ trách chuyên môn", Tiền 24/11/2026)
+  { key: 'nutrition', label: 'Phụ trách dinh dưỡng', areas: ['meals'], offAreas: ['education'] },
+  { key: 'academic', label: 'Phụ trách chuyên môn', areas: ['children', 'education'] },
 ];

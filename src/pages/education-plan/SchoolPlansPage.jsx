@@ -5,17 +5,26 @@ import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { useEducationPlan, useGoalDetails } from '@/hooks/education-plan/useEducationPlan';
 import { Card, EduStatusBadge, EmptyState, PageHead, YearPlanStatusBadge, fmtDate, fmtDateTime } from '@/components/education-plan/eduUi';
 import { Tabs } from '@/components/ui/Tabs';
-import { AGE_GROUPS, EDU_STATUS, EDU_STATUS_LABELS, allGoalItems } from '@/models/education-plan/educationPlanConstants';
+import {
+  AGE_GROUPS,
+  EDU_STATUS,
+  EDU_STATUS_LABELS,
+  allGoalItems,
+  ageRangeOptions,
+  sameAgeRange,
+} from '@/models/education-plan/educationPlanConstants';
 import { themeNumber, themeWeeksOf, yearWeeks } from '@/models/education-plan/classPlan';
 import { StatCard } from '@/components/ui/StatCard';
 import { clickableRowProps } from '@/utils/clickableRow';
+import { useAsync } from '@/hooks/useAsync';
+import { getAllClassDocSummaries } from '@/services/education-plan/educationPlanService';
 
 const ageName = (id) => AGE_GROUPS.find((a) => a.id === id)?.name || '—';
 
 const TABS = [
   { key: 'goals', label: 'Mục tiêu năm học' },
   { key: 'branches', label: 'Chủ đề nhánh' },
-  { key: 'themes', label: 'Hồ sơ chủ đề' },
+  { key: 'themes', label: 'Kế hoạch giáo dục ngày' },
 ];
 
 const isShared = (status) => status === EDU_STATUS.APPROVED || status === 'REPLACED';
@@ -23,11 +32,18 @@ const isShared = (status) => status === EDU_STATUS.APPROVED || status === 'REPLA
 const sentEntry = (doc) => [...(doc.history || [])].reverse().find((h) => !h.tone);
 
 /**
- * Hiệu trưởng: xem kế hoạch giáo dục toàn trường (kế hoạch năm theo nhóm tuổi, chủ đề nhánh và hồ sơ chủ đề của các lớp),
+ * Hiệu trưởng: xem kế hoạch giáo dục toàn trường (kế hoạch năm theo nhóm tuổi, chủ đề nhánh và kế hoạch giáo dục ngày của các lớp),
  * chỉ xem; duyệt theo chuỗi người ký ở trang Duyệt kế hoạch giáo dục.
  */
 export default function SchoolPlansPage() {
-  const { goals, branchPlans, classThemePlans, schoolYear, classes } = useEducationPlan();
+  const { goals, classes, schoolYearId, user } = useEducationPlan();
+  // Bản gọn (không nội dung soạn) của chủ đề nhánh + kế hoạch chủ đề toàn trường, thay vì tải cả gói tài liệu lớp
+  const docs = useAsync(() => getAllClassDocSummaries(schoolYearId, user, ['branch', 'theme']), [schoolYearId, user.id], {
+    enabled: !!schoolYearId,
+    refreshOnDataChange: true,
+  });
+  const branchPlans = useMemo(() => (docs.data || []).filter((d) => d.kind === 'branch'), [docs.data]);
+  const classThemePlans = useMemo(() => (docs.data || []).filter((d) => d.kind === 'theme'), [docs.data]);
   // Tên chủ đề, số tuần của tài liệu lớp lấy từ kế hoạch tổ ⇒ tải chi tiết các kế hoạch tổ được tài liệu lớp tham chiếu
   useGoalDetails([...branchPlans, ...classThemePlans].map((d) => d.yearPlanId));
   const navigate = useNavigate();
@@ -37,7 +53,7 @@ export default function SchoolPlansPage() {
   const [q, setQ] = useState('');
 
   const data = useMemo(() => {
-    const yearGoals = goals.filter((g) => g.schoolYear === schoolYear);
+    const yearGoals = goals;
     const planOf = (doc) => yearGoals.find((g) => g.id === doc.yearPlanId);
     const classOf = (id) => classes.find((c) => c.id === id);
     const classDoc = (doc) => {
@@ -51,6 +67,7 @@ export default function SchoolPlansPage() {
         by: sentEntry(doc)?.by,
         at: last ? fmtDateTime(last.at) : '—',
         status: doc.status,
+        doc,
       };
     };
     return {
@@ -67,6 +84,7 @@ export default function SchoolPlansPage() {
           by: g.owner?.name || g.createdBy,
           at: fmtDate(g.sentAt),
           status: g.status,
+          doc: g,
           year: true,
         })),
       branches: branchPlans
@@ -93,12 +111,12 @@ export default function SchoolPlansPage() {
           };
         }),
     };
-  }, [goals, branchPlans, classThemePlans, classes, schoolYear]);
+  }, [goals, branchPlans, classThemePlans, classes]);
 
   const all = data[tab];
   const rows = all.filter(
     (r) =>
-      (!age || r.ageGroupId === age) &&
+      (!age || sameAgeRange(r.ageGroupId, age)) &&
       (!status || r.status === status) &&
       (!q || `${r.title} ${r.code} ${r.by || ''}`.toLowerCase().includes(q.toLowerCase())),
   );
@@ -108,7 +126,7 @@ export default function SchoolPlansPage() {
   const stats = [
     { label: 'Kế hoạch năm đã ban hành', value: count(data.goals, EDU_STATUS.APPROVED), tone: 'blue', tab: 'goals' },
     { label: 'Chủ đề nhánh đã duyệt', value: count(data.branches, EDU_STATUS.APPROVED), tone: 'green', tab: 'branches' },
-    { label: 'Hồ sơ chủ đề đã duyệt', value: count(data.themes, EDU_STATUS.APPROVED), tone: 'purple', tab: 'themes' },
+    { label: 'Kế hoạch giáo dục ngày đã duyệt', value: count(data.themes, EDU_STATUS.APPROVED), tone: 'purple', tab: 'themes' },
   ];
 
   const switchTab = (key) => {
@@ -141,7 +159,7 @@ export default function SchoolPlansPage() {
           <SearchSubmit value={q} placeholder="Tìm tên, mã, người lập" label="Tìm kế hoạch" onSearch={setQ} />
           <select className="select" value={age} onChange={(e) => setAge(e.target.value)} aria-label="Lọc theo nhóm tuổi">
             <option value="">Tất cả nhóm tuổi</option>
-            {AGE_GROUPS.map((a) => (
+            {ageRangeOptions().map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name}
               </option>
@@ -187,7 +205,9 @@ export default function SchoolPlansPage() {
                     <td>{r.detail}</td>
                     <td>{r.by || '—'}</td>
                     <td>{r.at}</td>
-                    <td className="center">{r.year ? <YearPlanStatusBadge status={r.status} /> : <EduStatusBadge status={r.status} />}</td>
+                    <td className="center">
+                      {r.year ? <YearPlanStatusBadge status={r.status} doc={r.doc} /> : <EduStatusBadge status={r.status} doc={r.doc} />}
+                    </td>
                   </tr>
                 ))}
               </tbody>

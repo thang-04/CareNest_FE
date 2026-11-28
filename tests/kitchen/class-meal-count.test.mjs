@@ -18,14 +18,19 @@ const meal = (over = {}) => ({
 });
 
 test('AC-11: ô từng bữa lấy nguyên số suất BE trả, không cộng trừ lại', () => {
-  const rows = classMealRows({ meals: [meal(), meal({ session: 'AFTERNOON', normal: 20, substitute: 0 })] });
+  const rows = classMealRows({ meals: [meal({ normal: 20, substitute: 0 }), meal({ session: 'AFTERNOON', normal: 20, substitute: 0 })] });
   assert.deepEqual(
-    rows.map((r) => [r.title, r.normal, r.substitute, r.status, r.tone]),
+    rows.map((r) => [r.title, r.normal, r.status, r.tone]),
     [
-      ['Bữa trưa', 18, 2, 'Đang nhận báo ăn', 'blue'],
-      ['Bữa chiều', 20, 0, 'Đang nhận báo ăn', 'blue'],
+      ['Bữa trưa', 20, 'Đang nhận báo ăn', 'blue'],
+      ['Bữa chiều', 20, 'Đang nhận báo ăn', 'blue'],
     ],
   );
+});
+
+test('thẻ suất ăn lớp hiện cả suất thay thế của trẻ dị ứng, giữ nguyên số BE trả', () => {
+  const [row] = classMealRows({ meals: [meal({ normal: 18, substitute: 2 })] });
+  assert.deepEqual([row.normal, row.substitute], [18, 2]);
 });
 
 test('AC-11: đã xác nhận có ổ khóa và giờ; cần xác nhận lại ưu tiên hơn trạng thái', () => {

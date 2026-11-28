@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDryStock, useDryStockItem } from '@/hooks/kitchen/useKitchen';
-import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
+import { Breadcrumb, Button, EmptyState, ErrorState, LoadingState } from '@/components';
 import { fmtQty } from '@/components/kitchen/KitchenFilters';
 import { StockLevelBadge } from '@/components/kitchen/KitchenBadges';
 import { canManageStock } from '@/utils/kitchen/kitchenPermissions';
@@ -91,9 +91,9 @@ function LotPanel({ foodId, onClose }) {
         <h2 className="card__title">
           <Package size={18} /> {data?.name || 'Thực phẩm'}
         </h2>
-        <button type="button" className="icon-btn" aria-label="Đóng" onClick={onClose}>
+        <Button variant="icon" aria-label="Đóng" onClick={onClose}>
           <X size={18} />
-        </button>
+        </Button>
       </div>
       <div className="card__body kb-stack">
         {loading && !data ? (
@@ -179,9 +179,17 @@ export default function DryStockPage() {
         </div>
         <div className="page__actions">
           {canManageStock(user) && (
-            <Link className="btn btn--primary" to="/kitchen/stock-receipts/new">
-              <Plus size={16} /> Tạo phiếu nhập
-            </Link>
+            <>
+              <Link className="btn" to="/kitchen/stock-returns/new">
+                <PackageX size={16} /> Xuất kho cho NCC
+              </Link>
+              <Link className="btn" to="/kitchen/stock-write-offs/new">
+                <PackageX size={16} /> Xuất kho
+              </Link>
+              <Link className="btn btn--primary" to="/kitchen/stock-receipts/new">
+                <Plus size={16} /> Tạo phiếu nhập
+              </Link>
+            </>
           )}
         </div>
       </div>

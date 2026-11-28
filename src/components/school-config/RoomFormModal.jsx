@@ -25,7 +25,7 @@ const empty = (campusId) => ({
 });
 
 /** Room Form (PROPOSED, outside SRS). Campus and type are locked once the room is in use. */
-export function RoomFormModal({ open, onClose, room, defaultCampusId, campuses, users, existing }) {
+export function RoomFormModal({ open, onClose, room, defaultCampusId, campuses, users, existing, schoolYearId }) {
   const { user } = useAuth();
   const toast = useToast();
   const [form, setForm] = useState(() => empty());
@@ -65,7 +65,7 @@ export function RoomFormModal({ open, onClose, room, defaultCampusId, campuses, 
     if (hasErrors(e)) return;
     setSaving(true);
     try {
-      await saveRoom(room?.id || null, form, user);
+      await saveRoom(room?.id || null, form, user, schoolYearId);
       toast.success('Đã lưu thay đổi.', room ? 'Cập nhật phòng' : 'Thêm phòng');
       onClose(true);
     } catch (err) {
@@ -135,7 +135,9 @@ export function RoomFormModal({ open, onClose, room, defaultCampusId, campuses, 
             <input
               className="input"
               disabled
-              value={users.find((u) => u.id === room?.managerUserId)?.fullName || 'Chưa có (phòng chưa có lớp / lớp chưa có chủ nhiệm)'}
+              value={
+                users.find((u) => u.id === room?.managerUserId)?.fullName || 'Chưa có (phòng chưa có lớp / lớp chưa có GV phụ trách chính)'
+              }
             />
           </FormField>
         ) : (

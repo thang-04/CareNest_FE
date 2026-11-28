@@ -4,6 +4,7 @@ import { AllergenChips } from '@/components/menu-planning/MenuBadges';
 import { dishAllergens, dishTotals } from '@/utils/menu-planning/menuCalculations';
 import { normalizeText } from '@/utils/format';
 import { DISH_TYPE_LABELS, RECORD_STATUS } from '@/models/menu-planning/menuPlanningConstants';
+import { Button, SelectField, TextField } from '@/components';
 
 /** Thư viện món của trường bên phải trang sửa thực đơn mẫu: tìm và thêm nhanh món vào bữa đang chọn. */
 export function DishQuickAdd({ catalog, ageGroupId, meals, mealOptions, target, onTarget, onAdd }) {
@@ -26,26 +27,26 @@ export function DishQuickAdd({ catalog, ageGroupId, meals, mealOptions, target, 
       <div className="card__body td-quick-add__body">
         <label className="field">
           <span className="field__label">Thêm vào</span>
-          <select className="select" value={target} onChange={(e) => onTarget(e.target.value)}>
+          <SelectField className="select" value={target} onChange={(e) => onTarget(e.target.value)}>
             {mealOptions.map((m) => (
               <option key={m.code} value={m.code}>
                 {m.name}
               </option>
             ))}
-          </select>
+          </SelectField>
         </label>
         <label className="search-box">
           <Search size={17} className="muted" />
-          <input placeholder="Tìm món…" value={keyword} onChange={(e) => setKeyword(e.target.value)} aria-label="Tìm món để thêm" />
+          <TextField placeholder="Tìm món…" value={keyword} onChange={(e) => setKeyword(e.target.value)} aria-label="Tìm món để thêm" />
         </label>
-        <select className="select" value={type} onChange={(e) => setType(e.target.value)} aria-label="Loại món">
+        <SelectField className="select" value={type} onChange={(e) => setType(e.target.value)} aria-label="Loại món">
           <option value="">Tất cả loại món</option>
           {Object.entries(DISH_TYPE_LABELS).map(([k, v]) => (
             <option key={k} value={k}>
               {v}
             </option>
           ))}
-        </select>
+        </SelectField>
         <ul className="td-quick-add__list">
           {list.map((d) => {
             const t = ageGroupId ? dishTotals(d, catalog.foodById, 1, ageGroupId) : null;
@@ -59,9 +60,9 @@ export function DishQuickAdd({ catalog, ageGroupId, meals, mealOptions, target, 
                   </span>
                   <AllergenChips allergens={dishAllergens(d, catalog.foodById)} empty="" />
                 </span>
-                <button type="button" className="icon-btn" aria-label={`Thêm ${d.name}`} onClick={() => onAdd(d.id)}>
+                <Button variant="icon" aria-label={`Thêm ${d.name}`} onClick={() => onAdd(d.id)}>
                   <Plus size={18} />
-                </button>
+                </Button>
               </li>
             );
           })}

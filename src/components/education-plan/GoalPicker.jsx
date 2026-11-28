@@ -1,3 +1,4 @@
+import { SelectField } from '@/components/form/Field';
 import { useId, useMemo, useState } from 'react';
 import { Search } from '@/components/ui/icons';
 
@@ -49,6 +50,7 @@ export function GoalPicker({
   disabled = false,
   kindLabels = KIND_LABELS,
   readOnly = false,
+  showSearch = true,
   contentPicked,
   onToggleContent,
   droppedSubs,
@@ -59,7 +61,7 @@ export function GoalPicker({
   const pickContents = !readOnly && contentPicked instanceof Set && typeof onToggleContent === 'function';
   const [query, setQuery] = useState('');
   const [domainPick, setDomainPick] = useState('');
-  const q = fold(query.trim());
+  const q = showSearch ? fold(query.trim()) : '';
   const shown = useMemo(
     () =>
       tree
@@ -89,18 +91,34 @@ export function GoalPicker({
   return (
     <>
       <div className="ga-cur-toolbar">
-        <label className="ga-cur-search">
-          <Search size={16} aria-hidden />
-          <input
-            type="search"
-            className="input"
-            placeholder="Tìm mục tiêu"
-            aria-label="Tìm mục tiêu"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </label>
-        {tree.length > 1 && (
+        {showSearch && (
+          <label className="ga-cur-search">
+            <Search size={16} aria-hidden />
+            <input
+              type="search"
+              className="input"
+              placeholder="Tìm mục tiêu"
+              aria-label="Tìm mục tiêu"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </label>
+        )}
+        {readOnly && tree.length > 0 && (
+          <div className="field ga-cur-domain-filter">
+            <label className="field__label" htmlFor={`${scopeId}-domain`}>
+              Lĩnh vực
+            </label>
+            <SelectField id={`${scopeId}-domain`} value={domainPick} onChange={(e) => setDomainPick(e.target.value)}>
+              {chips.map((d) => (
+                <option key={d.name} value={d.name}>
+                  {d.label} ({d.n})
+                </option>
+              ))}
+            </SelectField>
+          </div>
+        )}
+        {!readOnly && tree.length > 1 && (
           <div className="ga-cur-chips" role="group" aria-label="Lọc theo lĩnh vực">
             {chips.map((d) => (
               <button

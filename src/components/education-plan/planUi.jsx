@@ -1,16 +1,17 @@
-import { adaptCalendar, calendarPlan, seedTeamBranchTemplates } from '@/models/education-plan/branchCalendar.mjs';
+import { adaptCalendar, calendarPlan, publishedBranchCalendar, seedTeamBranchTemplates } from '@/models/education-plan/branchCalendar.mjs';
 import { Tabs } from '@/components/ui/Tabs';
 import { useId, useMemo, useRef } from 'react';
 import { EmptyCard, PageHead } from '@/components/education-plan/eduUi';
 import { useSearchParams } from 'react-router-dom';
 import { SIGNER_SHORT } from '@/components/education-plan/reviewUi';
 import { ROLES } from '@/models/User';
-import { AGE_GROUPS, EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
+import { AGE_GROUPS, EDU_STATUS, ageRangeOptions, sameAgeRange, rangeOptionId } from '@/models/education-plan/educationPlanConstants';
 import { useEducationPlan, useGoalDetails } from '@/hooks/education-plan/useEducationPlan';
 import { toRows } from '@/models/education-plan/goalTable';
 import { ddmm, emptyBranchPlan, themeBranchGroups, yearWeeks } from '@/models/education-plan/classPlan';
 import { PENDING_OF } from '@/models/education-plan/eduConfig';
-import { currentPlanOf, previousPlanOf } from '@/models/education-plan/planVersions.mjs';
+import { canPrincipalPublish } from '@/utils/education-plan/eduPermissions';
+import { classTeamPlanSelection } from '@/models/education-plan/planVersions.mjs';
 import { SelectField } from '@/components';
 
 /** Bước còn thiếu khi tài liệu chưa thể bắt đầu (lock = kết quả createBlocker). */
@@ -27,23 +28,10 @@ export { Cell, focusCell } from '@/components/ui/TableCell';
 /** Dữ liệu dùng chung của màn lớp. Kế hoạch năm chỉ dùng bản đã được Phó HT ban hành. */
 export function useClassPlanContext(classId) {
   // Lớp, giáo viên, tổ trưởng nạp cùng tài liệu của lớp (theo phạm vi người xem)
-  const { user, goals, schoolYear, classes, branchPlans, creationCapabilities, staff: users } = useEducationPlan();
+  const { user, goals, schoolYearId, classes, branchPlans, semesterPackages = [], creationCapabilities, staff: users } = useEducationPlan();
   const cls = classes.find((c) => c.id === classId) || null;
-  // Phiên bản hiện hành = bản đã ban hành mới nhất (BE:EDU-25); phiên bản trước để chép tài liệu cũ
-  const current = cls ? currentPlanOf(goals, cls.ageGroupId, schoolYear) : null;
-  // ?plan=<id>: xem tài liệu của một phiên bản cũ đã ban hành cùng nhóm tuổi (chỉ xem, BE:EDU-26)
   const [params] = useSearchParams();
-  const pinned =
-    current &&
-    goals.find(
-      (g) =>
-        g.id === params.get('plan') &&
-        (!g.planLevel || g.planLevel === 'TEAM') &&
-        g.status === EDU_STATUS.APPROVED &&
-        g.ageGroupId === current.ageGroupId,
-    );
-  const listed = pinned || current;
-  const listedPrevious = listed ? previousPlanOf(goals, listed) : null;
+  const { current, listed, previous: listedPrevious, pending } = classTeamPlanSelection(goals, cls, schoolYearId, params.get('plan'));
   // Danh sách chỉ có bản tóm tắt ⇒ tải chi tiết kế hoạch tổ của lớp (và phiên bản trước để chép) khi vào trang; đang tải lại
   // (kế hoạch vừa đổi) thì dùng tạm chi tiết đã có để trang đang sửa không bị dựng lại
   const details = useGoalDetails([listed?.id, listedPrevious?.id]);
@@ -56,33 +44,44 @@ export function useClassPlanContext(classId) {
   const raw = full(listed);
   const rawPrevious = full(listedPrevious);
   const waiting = (!!raw && raw.summary) || (!!rawPrevious && rawPrevious.summary);
+  const isClassTeacher = !!cls && (cls.teacherIds || []).some((id) => String(id) === String(user.id));
+  const isHomeroomTeacher = isClassTeacher && String(cls.homeroomTeacherId) === String(user.id);
+  // BE EDU-110 (12): người soạn hồ sơ lớp theo vai trò soạn đã cấu hình (GV chủ nhiệm / tổ trưởng / PHT / HT) — dùng cờ
+  // BE trả (năm chỉ xem vẫn là người soạn để thấy bản đang soạn); chưa có cờ (mock) thì coi GV chủ nhiệm là người soạn
+  const capOf = (kind) => creationCapabilities.find((cap) => String(cap.classId) === String(classId) && cap.kind === kind);
+  const authorOf = (kind) => (capOf(kind) ? capOf(kind).reasonCode !== 'AUTHOR_FORBIDDEN' : isHomeroomTeacher);
+  const branchAuthor = authorOf('branch');
+  const dossierAuthor = authorOf('theme');
   const asRows = (p) =>
     p ? { ...p, domains: p.domains.map((d) => ({ ...d, rows: toRows(d, () => Math.random().toString(36).slice(2, 9)) })) } : null;
   const branchPlan = useMemo(() => {
     // Chưa có chi tiết: không dựng từ bản tóm tắt (thiếu chủ đề ⇒ trang dựng bản nháp sai, mất tên nhánh)
     if (!raw || waiting) return null;
     const source = asRows(raw);
+    if (!branchAuthor) {
+      return publishedBranchCalendar(
+        source,
+        semesterPackages.filter((pkg) => pkg.classId === classId && pkg.yearPlanId === raw.id),
+      );
+    }
     const saved = branchPlans.find((b) => b.classId === classId && b.yearPlanId === raw.id);
     const base = adaptCalendar(saved || emptyBranchPlan({ classId, yearPlanId: raw.id }), source);
     return seedTeamBranchTemplates(base, source);
-  }, [raw, branchPlans, classId, waiting]);
+  }, [raw, branchPlans, semesterPackages, classId, waiting, branchAuthor]);
   // Kế hoạch năm dạng hàng của bảng (giống trang mục tiêu năm)
   const yearPlan = useMemo(() => {
-    const approved = branchPlans.find((b) => b.classId === classId && b.yearPlanId === raw?.id && b.status === EDU_STATUS.APPROVED);
+    const approved = branchAuthor
+      ? branchPlans.find((b) => b.classId === classId && b.yearPlanId === raw?.id && b.status === EDU_STATUS.APPROVED)
+      : branchPlan;
     return raw && !waiting ? calendarPlan(asRows(raw), approved) : null;
-  }, [raw, branchPlans, classId, waiting]);
+  }, [raw, branchPlans, branchPlan, classId, waiting, branchAuthor]);
   const previousPlan = useMemo(() => (waiting ? null : asRows(rawPrevious)), [rawPrevious, waiting]);
-  const pending = cls
-    ? goals.find((g) => (!g.planLevel || g.planLevel === 'TEAM') && g.ageGroupId === cls.ageGroupId && g.schoolYear === schoolYear)
-    : null;
   const teachers = cls ? (cls.teacherIds || []).map((id) => users.find((u) => u.id === id)).filter(Boolean) : [];
   const leaders = cls ? users.filter((u) => u.role === ROLES.TEAM_LEADER && u.ageGroupId === cls.ageGroupId) : [];
-  const isClassTeacher = !!cls && (cls.teacherIds || []).some((id) => String(id) === String(user.id));
-  const isHomeroomTeacher = isClassTeacher && String(cls.homeroomTeacherId) === String(user.id);
   // Danh sách lớp do BE giới hạn theo phạm vi (EDU-64): HT/PHT mọi lớp, tổ trưởng lớp cùng nhóm tuổi, GV chỉ lớp mình
   const canPickClass = classes.length > 1;
   const isGroupLeader = leaders.some((leader) => String(leader.id) === String(user.id));
-  const canComposeClassDocs = isHomeroomTeacher;
+  const canComposeClassDocs = branchAuthor || dossierAuthor;
   const isVp = user.role === ROLES.VICE_PRINCIPAL;
   // Chỉ để hiển thị chuỗi duyệt dự kiến; bước thật do service quyết định khi gửi
   const skipLeader = !leaders.length || leaders.some((u) => (cls?.teacherIds || []).includes(u.id));
@@ -102,6 +101,7 @@ export function useClassPlanContext(classId) {
     isHomeroomTeacher,
     canCreate: (kind) =>
       canComposeClassDocs &&
+      raw?.id === current?.id &&
       creationCapabilities.some((cap) => String(cap.classId) === String(classId) && cap.kind === kind && cap.canCreate),
     canComposeClassDocs,
     canPickClass,
@@ -128,7 +128,7 @@ const isOpen = (doc) => !doc?.status || doc.status === EDU_STATUS.DRAFT || doc.s
 
 /**
  * Quyền hiển thị nút gửi / duyệt tài liệu của lớp theo mẫu chung (reviewUi) và người duyệt đầu tiên của chuỗi:
- * chủ đề nhánh theo eduConfig.signers.branch, hồ sơ chủ đề theo signers.week; bỏ Tổ trưởng khi ctx.skipLeader.
+ * chủ đề nhánh theo eduConfig.signers.branch, kế hoạch giáo dục ngày theo signers.week; bỏ Tổ trưởng khi ctx.skipLeader.
  * Chỉ là UX, service quyết định khi gửi.
  */
 export function docReview(kind, doc, ctx, user, eduConfig) {
@@ -137,26 +137,44 @@ export function docReview(kind, doc, ctx, user, eduConfig) {
     (r) => r !== ROLES.TEAM_LEADER || !ctx.skipLeader,
   );
   const myTurn = isMyReviewTurn(doc, ctx, user);
+  const send = doc?.permissions ? doc.permissions.canSubmit : ctx.canComposeClassDocs && !!doc && isOpen(doc);
+  const approve = doc?.permissions ? (doc.permissions.canApprove ?? doc.permissions.canIssue) : myTurn;
+  // EDU-110 (8), (10), (11): HT soạn loại này, chuỗi duyệt rỗng ⇒ "Ban hành" (action principal_publish) thay "Gửi duyệt"
+  const principalPublish =
+    !!doc &&
+    !approve &&
+    canPrincipalPublish({ user, policy, status: doc.status, author: !!(doc.permissions?.canEdit || doc.permissions?.canSubmit) });
   return {
     can: {
-      send: doc?.permissions ? doc.permissions.canSubmit : ctx.canComposeClassDocs && !!doc && isOpen(doc),
+      send: send && !principalPublish,
       reject: doc?.permissions ? (doc.permissions.canReject ?? doc.permissions.canReturn) : myTurn,
-      approve: doc?.permissions ? (doc.permissions.canApprove ?? doc.permissions.canIssue) : myTurn,
+      approve: approve || principalPublish,
     },
+    principalPublish,
+    approveLabel: principalPublish ? 'Ban hành' : undefined,
+    approveAction: principalPublish ? 'principal_publish' : undefined,
     sendTo: chain.length ? SIGNER_SHORT[chain[0]] || chain[0] : 'đi',
   };
 }
 
 /** Lọc nhóm tuổi trước rồi chọn lớp (spec 005 FR-022); đổi nhóm tuổi ⇒ mở lớp đầu tiên của nhóm đó. */
-export function ClassPicker({ classes, classId, onPick }) {
+export const classFilterPath = (base, classId, ageGroupId) =>
+  classId ? `${base}/${classId}` : `${base}/no-class?ageGroup=${encodeURIComponent(ageGroupId)}`;
+
+export function ClassPicker({ classes, classId, onPick, showAllAges = false }) {
+  const [params] = useSearchParams();
   const id = useId();
   const current = classes.find((c) => c.id === classId);
-  const groups = AGE_GROUPS.filter((g) => classes.some((c) => c.ageGroupId === g.id));
-  const inGroup = classes.filter((c) => c.ageGroupId === current?.ageGroupId);
+  const groups = ageRangeOptions(
+    showAllAges ? AGE_GROUPS : AGE_GROUPS.filter((g) => classes.some((c) => sameAgeRange(c.ageGroupId, g.id))),
+    { includeIncomplete: showAllAges },
+  );
+  const selectedAge = rangeOptionId(current?.ageGroupId ?? (showAllAges ? params.get('ageGroup') : null), groups);
+  const inGroup = selectedAge ? classes.filter((c) => sameAgeRange(c.ageGroupId, selectedAge)) : classes;
   return (
     <>
       {/* Chỉ một nhóm tuổi: hiện dạng chữ, không ô chọn bị khóa (Tiền 12/11/2026) */}
-      {groups.length < 2 ? (
+      {!showAllAges && groups.length < 2 ? (
         <FilterText label="Nhóm tuổi" value={groups[0]?.name} />
       ) : (
         <div className="field">
@@ -165,15 +183,22 @@ export function ClassPicker({ classes, classId, onPick }) {
           </label>
           <SelectField
             id={`${id}-age`}
-            value={current?.ageGroupId || ''}
+            value={selectedAge}
             onChange={(e) => {
-              const first = classes.find((c) => c.ageGroupId === e.target.value);
+              const first = classes.find((c) => sameAgeRange(c.ageGroupId, e.target.value));
               if (first) onPick(first.id);
+              else if (showAllAges && e.target.value) onPick(null, e.target.value);
             }}
           >
+            {showAllAges && !selectedAge && (
+              <option value="" disabled>
+                Chọn nhóm tuổi
+              </option>
+            )}
             {groups.map((g) => (
-              <option key={g.id} value={g.id}>
+              <option key={g.id} value={g.id} disabled={g.missingRange}>
                 {g.name}
+                {g.missingRange ? ' (thiếu khoảng tháng)' : ''}
               </option>
             ))}
           </SelectField>
@@ -184,8 +209,8 @@ export function ClassPicker({ classes, classId, onPick }) {
           Lớp
         </label>
         <SelectField id={`${id}-class`} value={current ? classId : ''} onChange={(e) => e.target.value && onPick(e.target.value)}>
-          {!current && <option value="">Chọn lớp</option>}
-          {(inGroup.length ? inGroup : classes).map((c) => (
+          {!current && <option value="">{inGroup.length ? 'Chọn lớp' : 'Chưa có lớp'}</option>}
+          {inGroup.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
             </option>
@@ -200,12 +225,22 @@ export function ClassPicker({ classes, classId, onPick }) {
  * Khung trang khi lớp / kế hoạch đang lọc không có dữ liệu: giữ đầu trang và hàng lọc (ghim), chỉ phần nội dung báo trống
  * để người dùng chọn lại ngay trên trang (Tiền 11/11/2026).
  */
-export function ClassPageEmpty({ crumbs, title, classes, classId, onPick, canPick = classes.length > 1, emptyTitle, children }) {
+export function ClassPageEmpty({
+  crumbs,
+  title,
+  classes,
+  classId,
+  onPick,
+  canPick = classes.length > 1,
+  showAllAges = false,
+  emptyTitle,
+  children,
+}) {
   return (
     <div className="page ga-page">
       <div className="ga-sticky-head">
         <PageHead crumbs={crumbs} title={title} />
-        <ClassFilterBar classes={classes} classId={classId} canPick={canPick} onPick={onPick}>
+        <ClassFilterBar classes={classes} classId={classId} canPick={canPick} showAllAges={showAllAges} onPick={onPick}>
           {children}
         </ClassFilterBar>
       </div>
@@ -215,13 +250,15 @@ export function ClassPageEmpty({ crumbs, title, classes, classId, onPick, canPic
 }
 
 /** Hàng lọc chung của các màn tài liệu lớp: Nhóm tuổi → Lớp rồi các ô lọc riêng của màn; ô chọn cùng cỡ (FR-022a). */
-export function ClassFilterBar({ classes, classId, onPick, canPick = true, children, footer = null }) {
+export function ClassFilterBar({ classes, classId, onPick, canPick = true, showAllAges = false, children, footer = null, filters = true }) {
+  // Trang chi tiết không có hàng lọc (chỉ trang danh sách có); giữ phần footer (tên chủ đề, tab) nếu có
+  if (!filters) return footer ? <div className="card mb-16">{footer}</div> : null;
   const current = classes.find((c) => c.id === classId);
   return (
     <div className="card mb-16">
       <div className="filter-bar">
-        {canPick ? (
-          <ClassPicker classes={classes} classId={classId} onPick={onPick} />
+        {canPick || showAllAges ? (
+          <ClassPicker classes={classes} classId={classId} onPick={onPick} showAllAges={showAllAges} />
         ) : (
           // Không chọn được lớp (giáo viên một lớp): vẫn giữ hàng lọc, hiện lớp dạng chữ để các trang cùng khung (Tiền 12/11/2026)
           current && (

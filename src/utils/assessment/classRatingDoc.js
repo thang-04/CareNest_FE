@@ -1,11 +1,14 @@
 import { DEFAULT_PRINT_TEMPLATE } from '@/config/printTemplate';
 import { signerCell } from '@/utils/assessment/docSignatures';
+import { contentWidth, gridOpen, pageCss, share } from '@/utils/assessment/docLayout';
 
 const esc = (v = '') =>
   String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 // Cột STT, tên lớp, ghi chú rộng hơn; các cột xếp loại chia đều phần còn lại
-const colgroup = (n) =>
-  `<colgroup><col style="width:4%"/><col style="width:18%"/>${'<col/>'.repeat(Math.max(n - 3, 0))}<col style="width:16%"/></colgroup>`;
+const widthsOf = (n) => {
+  const levels = Math.max(n - 3, 1);
+  return [30, 150, ...Array(levels).fill(share(contentWidth('landscape', 34, 34) - 300, levels)), 120];
+};
 const place = (DEFAULT_PRINT_TEMPLATE.address.match(/xã ([^,]+)/i) || [])[1] || '';
 
 // Mọi người ký cùng một hàng (Cần yêu cầu 10/11/2026): người ký thêm bên trái, Hiệu trưởng (người ký đầu) bên phải dưới dòng ngày
@@ -28,7 +31,9 @@ const signRow = (lead, rest) => {
  */
 export function classRatingHtml({ title, headers, rows }, signers) {
   const [lead, ...rest] = signers;
-  const head = headers.map((h) => `<th>${esc(h)}</th>`).join('');
+  const widths = widthsOf(headers.length);
+  // Word chia lại cột theo chữ nếu ô tiêu đề không khai độ rộng
+  const head = headers.map((h, i) => `<th style="width:${widths[i]}pt">${esc(h)}</th>`).join('');
   const body = rows
     .map((r) => `<tr>${r.map((v, i) => `<td${i === 1 ? ' class="name"' : ' class="n"'}>${esc(v)}</td>`).join('')}</tr>`)
     .join('');
@@ -36,7 +41,7 @@ export function classRatingHtml({ title, headers, rows }, signers) {
 <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
 <head><meta charset="utf-8"/><title>${esc(title)}</title>
 <style>
-@page { size: A4 landscape; margin: 1.5cm 1.2cm; }
+${pageCss('landscape', '1.5cm 1.2cm')}
 body { font-family: 'Times New Roman', serif; font-size: 12pt; color: black; }
 p { margin: 0 0 2pt; }
 .c { text-align: center; }
@@ -47,15 +52,15 @@ table.grid th { text-align: center; vertical-align: middle; }
 table.grid td.n { text-align: center; }
 table.plain td { border: none; vertical-align: top; text-align: center; }
 .approve { margin-top: 12pt; page-break-inside: avoid; }
-.sign { height: 56px; }
 thead { display: table-header-group; }
 tr { page-break-inside: avoid; }
 </style></head>
-<body>
+<body><div class="Section1">
 <h1>${esc(title.toUpperCase())}</h1>
-<table class="grid">${colgroup(headers.length)}<thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>
+${gridOpen(widths)}<thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>
+<p>&nbsp;</p>
 <div class="approve">${signRow(lead, rest)}</div>
-</body></html>`;
+</div></body></html>`;
 }
 
 /** Tài liệu cho hộp xem trước: người ký mặc định Hiệu trưởng (ký trên) và Phó hiệu trưởng; tên người đang đăng nhập điền sẵn đúng vai trò. */

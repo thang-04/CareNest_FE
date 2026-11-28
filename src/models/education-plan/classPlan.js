@@ -5,6 +5,7 @@
 import { DOMAINS } from '@/models/education-plan/educationPlanConstants';
 import { getEduConfig } from '@/models/education-plan/eduConfig';
 import { weekBreaks } from '@/models/education-plan/goalTable';
+import { devNow } from '@/utils/devClock';
 
 /** Loại tài liệu của lớp (khóa collection trong service). */
 export const CLASS_DOC = { BRANCH: 'branch', THEME: 'theme', WEEK: 'week' };
@@ -19,32 +20,9 @@ export const CLASS_DOC_LABELS = {
 /** Các dòng của bảng tổ chức hoạt động trong tuần theo cấu hình của trường; canMerge = được gộp một ô cả tuần, allWeek = mặc định gộp. */
 export const weekRows = () => getEduConfig().weekRows;
 
-/** 4 mục cố định của giáo án ngày (spec 005 FR-001); row = dòng bảng tuần cấp tên hoạt động và MT. */
-export const DAY_SECTIONS = [
-  { key: 'hoc', row: 'hoc', label: '1. Hoạt động học' },
-  { key: 'ngoai_troi', row: 'ngoai_troi', label: '2. Hoạt động ngoài trời' },
-  { key: 'goc', row: 'goc', label: '3. Hoạt động góc' },
-  { key: 'chieu', row: 'chieu', label: '4. Hoạt động chiều' },
-];
-
-/** Dòng gợi ý của Tiến hành ở mục Hoạt động học: không đánh chữ, xóa/đổi tên được (FR-004). */
-export const HOC_SUGGESTED_ROWS = ['Ổn định tổ chức, gây hứng thú', 'Nội dung trọng tâm', 'Kết thúc'];
-/** Dòng gợi ý của mục ngoài trời theo file "Chủ đề gia đình": ba phần của một buổi ngoài trời; xóa/đổi tên được. */
-export const NGOAI_TROI_SUGGESTED_ROWS = ['Hoạt động có mục đích', 'Trò chơi vận động', 'Chơi theo ý thích'];
+import { DAY_SECTIONS, HOC_SUGGESTED_ROWS, NGOAI_TROI_SUGGESTED_ROWS, DAY_REVIEW, PREP_TARGETS } from './dayTemplate.js';
+export { DAY_SECTIONS, HOC_SUGGESTED_ROWS, NGOAI_TROI_SUGGESTED_ROWS, DAY_REVIEW, PREP_TARGETS };
 const SUGGESTED_ROWS = { hoc: HOC_SUGGESTED_ROWS, ngoai_troi: NGOAI_TROI_SUGGESTED_ROWS };
-
-/** Phần II của giáo án ngày, nhận xét chung cả lớp (FR-008). */
-export const DAY_REVIEW = [
-  { key: 'health', label: '1. Tình trạng sức khỏe của trẻ' },
-  { key: 'knowledge', label: '2. Kiến thức, kỹ năng, nhận thức của trẻ' },
-  { key: 'attitude', label: '3. Thái độ, cảm xúc, hành vi của trẻ' },
-];
-
-export const PREP_TARGETS = [
-  { key: 'teacher', label: '1. Đối với cô' },
-  { key: 'child', label: '2. Đối với trẻ' },
-  { key: 'parent', label: '3. Đối với phụ huynh' },
-];
 
 /** Giới hạn ô văn bản giáo án (spec 005: 4000 ký tự/ô, tên góc 200). */
 export const TEXT_MAX = 4000;
@@ -93,7 +71,7 @@ const firstTeachingMonday = (iso) => {
 export const ddmm = (iso) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : '');
 export const monthOf = (iso) => Number(iso.slice(5, 7));
 export const todayIso = () => {
-  const d = new Date();
+  const d = devNow();
   const p = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 };
@@ -336,7 +314,7 @@ export const themeWeeksOf = (plan, themeId) => yearWeeks(plan).filter((w) => w.t
 /** Tuần học đầu tiên của chủ đề. */
 export const firstWeekOfTheme = (plan, themeId) => themeWeeksOf(plan, themeId)[0] || null;
 
-/** Giáo án các tuần của hồ sơ chủ đề (tuần chưa soạn là null). */
+/** Giáo án các tuần của kế hoạch giáo dục ngày (tuần chưa soạn là null). */
 export const dossierWeekDocs = (themeDoc, plan, weekPlans = []) =>
   themeWeeksOf(plan, themeDoc.themeId).map((w) => ({
     week: w,
@@ -344,7 +322,7 @@ export const dossierWeekDocs = (themeDoc, plan, weekPlans = []) =>
   }));
 
 /*
- * Hồ sơ chủ đề theo file MN Thái Dương: giáo viên soạn kế hoạch chủ đề + giáo án tất cả các nhánh rồi gửi MỘT lần;
+ * Kế hoạch giáo dục ngày theo file MN Thái Dương: giáo viên soạn kế hoạch chủ đề + giáo án tất cả các nhánh rồi gửi MỘT lần;
  * duyệt / trả lại cả hồ sơ. Chủ đề nhánh đi kèm hồ sơ này, không có vòng duyệt riêng.
  * Dùng chung cho màn hình (UX) và mock service (BE thật phải tự kiểm).
  */
@@ -352,7 +330,7 @@ export function submitBlocker(kind, doc, { branchPlans = [], weekPlans = [], cla
   if (!doc || kind === CLASS_DOC.BRANCH) return null;
   const branch = branchPlans.find((b) => b.classId === doc.classId && b.yearPlanId === doc.yearPlanId);
   const unnamed = !branch || themeWeeksOf(yearPlan, doc.themeId).some((week) => !branch.names?.[week.start]?.trim());
-  if (unnamed) return 'Cần tạo đủ chủ đề nhánh của chủ đề này trước khi gửi hồ sơ chủ đề.';
+  if (unnamed) return 'Cần tạo đủ chủ đề nhánh của chủ đề này trước khi gửi kế hoạch giáo dục ngày.';
   if (kind === CLASS_DOC.WEEK) {
     const theme = classThemePlans.find((t) => t.classId === doc.classId && t.yearPlanId === doc.yearPlanId && t.themeId === doc.themeId);
     if (!theme || theme.status === 'DRAFT') return 'Kế hoạch tuần được gửi cùng kế hoạch chủ đề.';
@@ -367,7 +345,7 @@ export function submitBlocker(kind, doc, { branchPlans = [], weekPlans = [], cla
 }
 
 /**
- * Trình tự lập kế hoạch lớp: có thể soạn nhánh và kế hoạch chủ đề song song; giáo án cần hồ sơ chủ đề đã lưu.
+ * Trình tự lập kế hoạch lớp: có thể soạn nhánh và kế hoạch chủ đề song song; giáo án cần kế hoạch giáo dục ngày đã lưu.
  * Chỉ chặn tạo mới; các nhánh trong một chủ đề soạn song song. Trả { need: 'branch' | 'theme', message } hoặc null.
  */
 export function createBlocker(
@@ -388,7 +366,7 @@ export function createBlocker(
 }
 
 /**
- * Nhắc hạn gửi (chỉ nhắc, không chặn): hồ sơ chủ đề trước ngày bắt đầu chủ đề.
+ * Nhắc hạn gửi (chỉ nhắc, không chặn): kế hoạch giáo dục ngày trước ngày bắt đầu chủ đề.
  * Trả null khi đã gửi / đã duyệt hoặc còn xa hạn.
  */
 export function dueState(doc, dueIso, today = todayIso()) {
@@ -496,7 +474,7 @@ function legacyCards(content, goalIds) {
 export const normalizeTheme = (content, goalIds = null) =>
   Array.isArray(content?.activities) ? content.activities : legacyCards(content, goalIds && new Set([...goalIds].map(String)));
 
-/** Thẻ dùng ở tuần: thẻ của kế hoạch chủ đề + thẻ bổ sung theo hồ sơ chủ đề (day.content.week.cards, FR-014). */
+/** Thẻ dùng ở tuần: thẻ của kế hoạch chủ đề + thẻ bổ sung theo kế hoạch giáo dục ngày (day.content.week.cards, FR-014). */
 export const cardsOf = (themeContent, dayWeek = null, goalIds = null) => {
   const own = normalizeTheme(themeContent, goalIds);
   const ids = new Set(own.map((c) => c.id));
@@ -884,7 +862,7 @@ export function weekDiff(a, b) {
   return out;
 }
 
-/** Phần lịch của tuần lưu làm mốc khi bắt đầu sửa theo hồ sơ chủ đề (BE research R5). */
+/** Phần lịch của tuần lưu làm mốc khi bắt đầu sửa theo kế hoạch giáo dục ngày (BE research R5). */
 export const weekBaseOf = (doc) => ({
   grid: structuredClone(doc?.grid || {}),
   picks: structuredClone(doc?.picks || {}),
@@ -1038,7 +1016,7 @@ export function themeBranchGroups(yearPlan, branchDoc, themeId) {
 
 /**
  * Học kỳ để lọc trang kế hoạch lớp (Tiền 13/11/2026): có đủ ngày học kỳ của năm học thì luôn có Học kỳ 1, 2, không chờ BE
- * tạo gói học kỳ (gói chỉ có sau lần lưu đầu và gắn một phiên bản kế hoạch tổ). Gói đã có thì dùng danh sách chủ đề và hạn
+ * tạo kế hoạch giáo dục chủ đề (gói chỉ có sau lần lưu đầu và gắn một phiên bản kế hoạch tổ). Gói đã có thì dùng danh sách chủ đề và hạn
  * của gói; chưa có thì xếp chủ đề theo ngày bắt đầu như BE (EduSemesters.of: nghỉ giữa kỳ tính vào học kỳ sau).
  * Trả [{ semesterNo, pkg, themeIds, deadline }].
  */

@@ -1,45 +1,51 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Save, CheckCircle2, KeyRound, Eye, Plus, AlertTriangle, RotateCcw, Pencil } from '@/components/ui/icons';
-import { ChildAvatar } from '@/components/ChildAvatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useMasterData } from '@/hooks/useMasterData';
-import { useCitizenIdAccounts, useClassOptions, usePlacementClasses } from '@/hooks/children/useChildRecords';
+import { useCitizenIdAccounts, useClassOptions, usePlacementClasses, useYearHolidays } from '@/hooks/children/useChildRecords';
 import { sameId } from '@/services/http/idStrings';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Stepper } from '@/components/ui/Stepper';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { Spinner } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
-import { ActiveYearNotice } from '@/components/children/ActiveYearNotice';
+import { IntakeStartFields } from '@/components/children/IntakeStartFields';
 import { ChildInfoFields } from '@/components/children/ChildInfoFields';
 import { PortraitImage } from '@/components/PortraitImage';
 import { ChildProfileSummary } from '@/components/children/ChildProfileSummary';
+import { ChildCardHead } from '@/components/children/ChildBrief';
 import { ClassPlacementFields } from '@/components/children/ClassPlacementFields';
 import { HealthDeclarationFields } from '@/components/children/HealthDeclarationFields';
 import { DeclarationSummary } from '@/components/children/DeclarationSummary';
 import { IntakeSheet, IntakeSheetValueRow } from '@/components/children/IntakeSheet';
 import { checkDuplicateChild, checkGuardianConflicts, enrollChild, readmitChild } from '@/services/children/childrenService';
 import { FormField } from '@/components/form/FormField';
+import { SelectField } from '@/components/form/Field';
 import { GENDER_LABELS, ageLabel } from '@/models/School';
-import { formatDate } from '@/utils/format';
+import { formatDate, todayInput } from '@/utils/format';
+import { classFullness } from '@/utils/children/placementClasses';
 import { hasErrors, validateChildInfo, validateDeclaration } from '@/utils/children/childrenValidation';
 import { canActivateParentsAt, canEnrollChild, childCampusesOf } from '@/utils/children/childrenPermissions';
 import {
   defaultCampusId,
   emptyChildInfo,
   emptyDeclaration,
+  keepCampusPick,
+  plannedAdmissionNotice,
   suggestAgeGroupId,
   withGuardianAccounts,
 } from '@/utils/children/childrenHelpers';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
+import { defaultStartDate, startDateError } from '@/utils/children/startDate';
+import { defaultReadmitCampus } from '@/utils/children/readmit';
 import '@/styles/modules/children.css';
 
-const STEPS = ['Thông tin trẻ & phụ huynh', 'Xếp lớp', 'Khai báo sức khỏe', 'Xem lại & xác nhận'];
+const STEPS = ['Thông tin trẻ & phụ huynh', 'Xếp lớp', 'Báo ăn và sức khỏe', 'Xem lại & xác nhận'];
 
-const PLACEMENT_FIELDS = ['classId', 'campusId'];
+const PLACEMENT_FIELDS = ['classId', 'campusId', 'schoolYearId', 'startDate'];
 
 const stepOfField = (field) => (field.startsWith('declaration.') ? 2 : PLACEMENT_FIELDS.includes(field) ? 1 : 0);
 
@@ -72,23 +78,10 @@ function ReviewGroup({ title, onEdit, children }) {
 /** Đầu thẻ bước 2–4: tên bước bên trái, trẻ đang tiếp nhận bên phải để chọn lớp, khai báo đúng trẻ. */
 function StepHead({ title, info }) {
   return (
-    <div className="tr-step-head">
-      <div className="stack gap-1">
-        <h2 className="card__title">{title}</h2>
-      </div>
-      {info && (
-        <div className="tr-child-brief">
-          <ChildAvatar child={{ fullName: info.fullName, photoUrl: info.photoFile }} size="lg" />
-          <span className="stack gap-0">
-            <span className="fw-600">{info.fullName}</span>
-            <span className="muted text-xs">
-              {formatDate(info.dateOfBirth)} · {ageLabel(info.dateOfBirth)}
-              {GENDER_LABELS[info.gender] ? ` · ${GENDER_LABELS[info.gender]}` : ''}
-            </span>
-          </span>
-        </div>
-      )}
-    </div>
+    <ChildCardHead
+      title={title}
+      child={info && { fullName: info.fullName, photoUrl: info.photoFile, dateOfBirth: info.dateOfBirth, gender: info.gender }}
+    />
   );
 }
 
@@ -96,11 +89,15 @@ export default function EnrollChildPage() {
   const { user } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
-  const { schoolYear, activeYear, yearReadOnly } = useSchoolYear();
-  const md = useMasterData();
-  const { classes, loading: classesLoading } = usePlacementClasses();
-  // Nhóm tuổi của năm học đang hoạt động (BE /school-structure hoặc mock) cho gợi ý nhóm tuổi, tên nhóm của lớp
-  const { ageGroups } = useClassOptions(activeYear?.id || schoolYear);
+  const { schoolYear, schoolYears, activeYear } = useSchoolYear();
+  // G94-180/CHD-14 (user chốt 2026-11-22): năm học tiếp nhận bắt buộc, không chọn sẵn, không theo năm ở header
+  const [intakeYearId, setIntakeYearId] = useState('');
+  const chosenYear = schoolYears.find((y) => sameId(y.id, intakeYearId)) || null;
+  const intakeYear = chosenYear || activeYear || null;
+  const { holidays } = useYearHolidays(chosenYear?.id);
+  // Điểm trường của năm tiếp nhận (G94-180/CHD-02, user chốt 2026-11-22); BE chặn 2125 nếu gửi điểm trường ngoài năm
+  const md = useMasterData(intakeYear?.id ?? null);
+  const { ageGroups, loading: ageGroupsLoading } = useClassOptions(intakeYear?.id || activeYear?.id || schoolYear);
 
   const [step, setStep] = useState(0);
   const [maxReached, setMaxReached] = useState(0);
@@ -109,12 +106,43 @@ export default function EnrollChildPage() {
   const [classId, setClassId] = useState('');
   // null = chưa chọn: dùng điểm trường mặc định; giữ lựa chọn khi tiếp nhận trẻ khác.
   const [campusPick, setCampusPick] = useState(null);
+  const [startDate, setStartDate] = useState('');
+  // Ngày bắt đầu còn là ngày mặc định ⇒ tính lại khi ngày nghỉ của năm tải xong
+  const [startTouched, setStartTouched] = useState(false);
+  const [readmitYearId, setReadmitYearId] = useState('');
+  const [readmitStart, setReadmitStart] = useState('');
+  const [readmitDateErrors, setReadmitDateErrors] = useState({});
+  const readmitYear = schoolYears.find((y) => sameId(y.id, readmitYearId)) || null;
+  const { holidays: readmitHolidays } = useYearHolidays(readmitYear?.id);
+  // Điểm trường của năm tiếp nhận lại (G94-180/CHD-04): thêm 1 lần tải danh mục, chấp nhận theo plan
+  const readmitMd = useMasterData(readmitYear?.id ?? null);
+  const readmitCampusOptions = childCampusesOf(user, readmitMd.campuses);
   const [declaration, setDeclaration] = useState(emptyDeclaration());
   const [errors, setErrors] = useState({ info: {}, placement: {}, declaration: {} });
+  // Sĩ số tính theo ngày bắt đầu đi học (G94-180/CHD-14)
+  const { classes, loading: classesLoading, from: classesFrom } = usePlacementClasses(intakeYear?.id, { from: startDate });
+
+  // Lớp đang chọn thành đã đủ sau khi đổi ngày ⇒ bỏ chọn, báo ở ô Lớp
+  useEffect(() => {
+    const picked = classes.find((c) => c.id === classId);
+    if (!picked || !classFullness(picked).full) return;
+    setClassId('');
+    setErrors((e) => ({
+      ...e,
+      placement: {
+        ...e.placement,
+        classId: `${picked.name} đã đủ từ ${classesFrom ? formatDate(classesFrom) : 'hôm nay'}. Chọn lớp khác.`,
+      },
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ khi số lớp tải lại
+  }, [classes]);
   const [duplicate, setDuplicate] = useState(null);
   const [readmitOpen, setReadmitOpen] = useState(false);
   const [readmitReason, setReadmitReason] = useState('');
   const [readmitError, setReadmitError] = useState('');
+  // Tiếp nhận lại: mặc định điểm trường của trẻ nếu có trong năm đã chọn, không thì trống và bắt chọn (G94-180/CHD-04)
+  const [readmitCampusId, setReadmitCampusId] = useState('');
+  const [readmitCampusError, setReadmitCampusError] = useState('');
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
@@ -123,6 +151,23 @@ export default function EnrollChildPage() {
     info.guardians.map((g) => g.idNumber),
     { enabled: canEnrollChild(user) },
   );
+
+  // Mở hộp, đổi năm tiếp nhận lại hoặc danh sách điểm trường của năm tải xong ⇒ đặt lại điểm trường mặc định của trẻ
+  useEffect(() => {
+    if (readmitOpen && !readmitMd.loading) setReadmitCampusId(defaultReadmitCampus(duplicate, readmitCampusOptions));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- danh sách tính lại mỗi lần render, chỉ chạy khi các mốc này đổi
+  }, [readmitOpen, readmitYearId, readmitMd.loading, duplicate]);
+
+  useEffect(() => {
+    if (chosenYear && !startTouched) setStartDate(defaultStartDate(chosenYear, todayInput(), holidays));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ tính lại khi đổi năm hoặc ngày nghỉ của năm tải xong
+  }, [intakeYearId, holidays]);
+
+  // Có ngày sinh: nhóm tuổi theo năm tiếp nhận đang chọn; đổi năm ⇒ tính lại khi nhóm tuổi của năm đó tải xong (lỗi A8)
+  const dobAgeGroupId = suggestAgeGroupId(info.dateOfBirth, intakeYear?.startDate || intakeYear?.id || activeYear?.startDate, ageGroups);
+  useEffect(() => {
+    if (info.dateOfBirth && !ageGroupsLoading) setAgeGroupId(dobAgeGroupId);
+  }, [info.dateOfBirth, ageGroupsLoading, dobAgeGroupId]);
 
   if (!canEnrollChild(user)) {
     return (
@@ -138,16 +183,18 @@ export default function EnrollChildPage() {
     );
   }
 
-  // Xếp lớp khi tiếp nhận luôn vào năm học đang hoạt động (user chốt 2026-10-28, Y-3).
-  const yearId = activeYear?.id || schoolYear;
-  const yearLabel = activeYear?.label || schoolYear;
-  const suggested = suggestAgeGroupId(info.dateOfBirth, activeYear?.startDate || yearId, ageGroups);
+  const yearId = intakeYear?.id || activeYear?.id || schoolYear;
+  const yearLabel = intakeYear?.label || activeYear?.label || schoolYear;
+  const suggested = suggestAgeGroupId(info.dateOfBirth, intakeYear?.startDate || yearId, ageGroups);
   const selectedClass = classes.find((c) => c.id === classId);
   const selectedGroup = ageGroups.find((g) => sameId(g.id, selectedClass?.ageGroupId));
   // Hiệu trưởng, PHT toàn trường chọn điểm trường: trẻ chưa xếp lớp thuộc điểm trường này (BE kiểm lại).
   const campusOptions = childCampusesOf(user, md.campuses);
   const pickCampus = campusOptions.length > 1;
-  const campusId = campusPick ?? defaultCampusId(campusOptions, user);
+  // Đổi năm tiếp nhận: điểm trường đã chọn không có trong năm ⇒ về mặc định; danh sách đang tải thì giữ lựa chọn
+  const pickInYear = md.loading ? campusPick : keepCampusPick(campusPick, campusOptions);
+  const campusId = pickInYear ?? defaultCampusId(campusOptions, user);
+  const noCampusInYear = !md.loading && campusOptions.length === 0;
   // Không có quyền kích hoạt tài khoản phụ huynh ở điểm trường nhận trẻ ⇒ vẫn lưu, phụ huynh mới chờ kích hoạt; phụ huynh đã có
   // tài khoản chỉ liên kết, thông tin theo tài khoản (P-18 A, user chốt 2026-10-28; BE kiểm lại).
   const manageAccounts = canActivateParentsAt(selectedClass?.campusId || campusId, user);
@@ -169,7 +216,7 @@ export default function EnrollChildPage() {
   const waitingNames = effectiveInfo.guardians
     .filter((g) => (effectiveInfo.guardians.length === 1 || g.accountRecipient) && !accountOf(g.idNumber))
     .map((g) => g.fullName);
-  const validateInfo = (value) => validateChildInfo(value);
+  const validateInfo = (value) => validateChildInfo(value, { intakeDate: todayInput() });
 
   const goTo = (i) => {
     setStep(i);
@@ -188,6 +235,10 @@ export default function EnrollChildPage() {
   };
 
   const changeInfo = (value) => {
+    if (value.dateOfBirth !== info.dateOfBirth) {
+      setAgeGroupId(suggestAgeGroupId(value.dateOfBirth, intakeYear?.startDate || intakeYear?.id || activeYear?.startDate, ageGroups));
+      setClassId('');
+    }
     setInfo(value);
     setDuplicate(null);
     // Clear errors as soon as the user fixes them; new errors only appear on blur / next.
@@ -201,16 +252,38 @@ export default function EnrollChildPage() {
   };
 
   const readmit = async () => {
+    // G94-180/CHD-14: mở lại hồ sơ cũng chọn năm học và ngày bắt đầu đi học
+    const dateErrors = {
+      schoolYearId: readmitYear ? '' : 'Chọn năm học tiếp nhận',
+      startDate: readmitYear ? startDateError(readmitStart, readmitYear, todayInput(), readmitHolidays) : '',
+    };
+    if (!readmitCampusId) setReadmitCampusError('Chọn điểm trường');
+    if (dateErrors.schoolYearId || dateErrors.startDate || !readmitCampusId) {
+      setReadmitDateErrors(dateErrors);
+      return;
+    }
     try {
-      const child = await readmitChild(duplicate.id, { reason: readmitReason }, user);
+      const child = await readmitChild(
+        duplicate.id,
+        {
+          reason: readmitReason,
+          schoolYearId: readmitYear?.id,
+          startDate: readmitStart,
+          campusId: readmitCampusId,
+        },
+        user,
+      );
       toast.success(
-        `Đã mở lại hồ sơ ${child.fullName} (${child.code}): trẻ ở trạng thái Chờ xếp lớp. Cập nhật hồ sơ, khai báo sức khỏe nếu có thay đổi rồi xếp lớp.`,
+        `Đã mở lại hồ sơ ${child.fullName} (${child.code}): trẻ ở trạng thái Chờ xếp lớp. Cập nhật hồ sơ, khai báo ăn và sức khỏe nếu có thay đổi rồi xếp lớp.`,
         'Tiếp nhận lại',
       );
       navigate(`/children/${child.id}`);
     } catch (err) {
-      if (err.details?.reason) setReadmitError(err.details.reason);
-      else setReadmitOpen(false);
+      if (err.details?.reason || err.details?.campusId || err.details?.startDate || err.details?.schoolYearId) {
+        setReadmitError(err.details.reason || '');
+        setReadmitCampusError(err.details?.campusId || '');
+        setReadmitDateErrors({ schoolYearId: err.details?.schoolYearId, startDate: err.details?.startDate });
+      } else setReadmitOpen(false);
       toast.error(err, 'Không mở lại được hồ sơ');
     }
   };
@@ -251,6 +324,13 @@ export default function EnrollChildPage() {
         setErrors((e) => ({ ...e, placement: { campusId: 'Chọn điểm trường tiếp nhận trẻ' } }));
         return;
       }
+      // G94-180/CHD-14: chọn năm và ngày bắt đầu đi học (ngày học); BE kiểm lại
+      const yearError = chosenYear ? '' : 'Chọn năm học tiếp nhận';
+      const startError = chosenYear ? startDateError(startDate, chosenYear, todayInput(), holidays) : '';
+      if (yearError || startError) {
+        setErrors((e) => ({ ...e, placement: { ...e.placement, schoolYearId: yearError, startDate: startError } }));
+        return;
+      }
       goTo(2);
     } else if (step === 2) {
       const errs = validateDeclaration(declaration, { dateOfBirth: info.dateOfBirth });
@@ -262,14 +342,26 @@ export default function EnrollChildPage() {
   const save = async () => {
     setBusy(true);
     try {
-      const child = await enrollChild({ child: effectiveInfo, classId, campusId: campusId || undefined, declaration }, user);
+      const child = await enrollChild(
+        {
+          child: effectiveInfo,
+          classId,
+          campusId: campusId || undefined,
+          schoolYearId: intakeYear?.id,
+          startDate,
+          declaration,
+        },
+        user,
+      );
       setSaved(child);
       toast.success(`Đã lưu hồ sơ ${child.fullName} (${child.code}).`, 'Tiếp nhận thành công');
     } catch (err) {
-      // 409 trùng CCCD/SĐT với phụ huynh khác cũng trả lỗi theo ô (details).
-      if ([400, 422, 409].includes(err.status) && err.details) {
+      // 409 trùng CCCD/SĐT với phụ huynh khác cũng trả lỗi theo ô (details). Lỗi chung không gắn ô (_form) ⇒ ở lại bước xác nhận,
+      // dữ liệu giữ nguyên, chỉ báo một lần (G94-435)
+      const fields = Object.keys(err.details || {}).filter((k) => k !== '_form');
+      if ([400, 422, 409].includes(err.status) && fields.length) {
         setErrors(splitServerErrors(err.details));
-        goTo(Math.min(...Object.keys(err.details).map(stepOfField)));
+        goTo(Math.min(...fields.map(stepOfField)));
       }
       toast.error(err, 'Không lưu được hồ sơ');
     } finally {
@@ -307,6 +399,7 @@ export default function EnrollChildPage() {
               <div>
                 Mã trẻ <b>{saved.code}</b>.
               </div>
+              {saved.plannedAdmission && <div>{plannedAdmissionNotice(saved.plannedAdmission)}</div>}
               {smsSent.length > 0 && <div>Đã tạo tài khoản phụ huynh, mật khẩu tạm gửi qua SMS tới {phones(smsSent)}.</div>}
               {renamedSent.length > 0 && (
                 <div>Tài khoản có sẵn đổi tên đăng nhập sang {phones(renamedSent)}; mật khẩu tạm mới đã gửi qua SMS tới số mới.</div>
@@ -351,15 +444,6 @@ export default function EnrollChildPage() {
     );
   }
 
-  if (yearReadOnly)
-    return (
-      <div className="page">
-        <Breadcrumb items={childrenCrumbs('Tiếp nhận trẻ')} />
-        <h1 className="page__title">Tiếp nhận trẻ</h1>
-        <ActiveYearNotice action="Tiếp nhận trẻ" />
-      </div>
-    );
-
   return (
     <div className="page">
       <Breadcrumb items={childrenCrumbs('Tiếp nhận trẻ')} />
@@ -371,7 +455,6 @@ export default function EnrollChildPage() {
           Nhập nhiều trẻ từ Excel
         </Link>
       </div>
-      <ActiveYearNotice action="Tiếp nhận trẻ" />
       <div className="card stepper-card">
         <Stepper steps={STEPS} current={step} maxReached={maxReached} onStepClick={goTo} />
       </div>
@@ -428,6 +511,7 @@ export default function EnrollChildPage() {
                       onClick={() => {
                         setReadmitReason('');
                         setReadmitError('');
+                        setReadmitCampusError('');
                         setReadmitOpen(true);
                       }}
                     >
@@ -453,7 +537,34 @@ export default function EnrollChildPage() {
       {step === 1 && (
         <section className="card wizard-card">
           <StepHead title={`Xếp lớp năm học ${yearLabel}`} info={info} />
-          {classesLoading ? (
+          <div className="tr-placement-filters mb-16">
+            <IntakeStartFields
+              className="tr-placement-filters__start"
+              schoolYears={schoolYears}
+              yearId={intakeYearId}
+              onYearChange={(nextYear) => {
+                setIntakeYearId(nextYear?.id || '');
+                setStartTouched(false);
+                setStartDate(defaultStartDate(nextYear, todayInput()));
+                setClassId('');
+                setAgeGroupId('');
+                setErrors((current) => ({ ...current, placement: {} }));
+              }}
+              startDate={startDate}
+              onStartDateChange={(value) => {
+                setStartDate(value);
+                setStartTouched(true);
+                setErrors((current) => ({ ...current, placement: { ...current.placement, startDate: undefined } }));
+              }}
+              errors={errors.placement}
+            />
+          </div>
+          {noCampusInYear && (
+            <div className="alert alert--warning mb-16" role="status">
+              <div>Điểm trường của bạn không có trong năm học {yearLabel}. Chọn năm học khác hoặc báo Hiệu trưởng.</div>
+            </div>
+          )}
+          {classesLoading && classes.length === 0 ? (
             <Spinner deferred />
           ) : (
             <ClassPlacementFields
@@ -481,6 +592,7 @@ export default function EnrollChildPage() {
                 setErrors((e) => ({ ...e, placement: {} }));
               }}
               campusError={errors.placement.campusId}
+              yearLabel={yearLabel}
             />
           )}
         </section>
@@ -488,7 +600,7 @@ export default function EnrollChildPage() {
 
       {step === 2 && (
         <section className="card wizard-card">
-          <StepHead title="Khai báo sức khỏe khi tiếp nhận" info={info} />
+          <StepHead title="Báo ăn và sức khỏe khi tiếp nhận" info={info} />
           <HealthDeclarationFields
             sheet
             dateOfBirth={info.dateOfBirth}
@@ -568,6 +680,7 @@ export default function EnrollChildPage() {
             <div className="tr-intake-cols">
               <ReviewGroup title="Xếp lớp" onEdit={() => goTo(1)}>
                 <IntakeSheet title={`IV. Xếp lớp năm học ${yearLabel}`}>
+                  <IntakeSheetValueRow label="Ngày bắt đầu đi học">{formatDate(startDate)}</IntakeSheetValueRow>
                   {pickCampus && (
                     <IntakeSheetValueRow label="Điểm trường">{campusLabel(selectedClass?.campusId || campusId)}</IntakeSheetValueRow>
                   )}
@@ -583,8 +696,8 @@ export default function EnrollChildPage() {
                   </IntakeSheetValueRow>
                 </IntakeSheet>
               </ReviewGroup>
-              <ReviewGroup title="Khai báo sức khỏe" onEdit={() => goTo(2)}>
-                <DeclarationSummary sheet title="V. Khai báo sức khỏe" declaration={declaration} />
+              <ReviewGroup title="Báo ăn và sức khỏe" onEdit={() => goTo(2)}>
+                <DeclarationSummary sheet title="V. Báo ăn và sức khỏe" declaration={declaration} />
               </ReviewGroup>
             </div>
           </div>
@@ -638,6 +751,34 @@ export default function EnrollChildPage() {
               placeholder="Ví dụ: Gia đình chuyển về lại địa phương, xin cho trẻ học tiếp"
             />
           </FormField>
+          <IntakeStartFields
+            schoolYears={schoolYears}
+            yearId={readmitYearId}
+            onYearChange={(year) => {
+              setReadmitYearId(year?.id || '');
+              setReadmitStart(defaultStartDate(year, todayInput()));
+              setReadmitDateErrors({});
+              setReadmitCampusError('');
+            }}
+            startDate={readmitStart}
+            onStartDateChange={(value) => {
+              setReadmitStart(value);
+              setReadmitDateErrors((current) => ({ ...current, startDate: undefined }));
+            }}
+            errors={readmitDateErrors}
+          />
+          <SelectField
+            label="Điểm trường"
+            required
+            placeholder="Chọn điểm trường"
+            error={readmitCampusError}
+            value={readmitCampusId}
+            options={readmitCampusOptions.map((c) => ({ value: c.id, label: c.name }))}
+            onChange={(e) => {
+              setReadmitCampusId(e.target.value);
+              setReadmitCampusError('');
+            }}
+          />
         </div>
       </ConfirmationModal>
 

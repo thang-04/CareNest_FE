@@ -28,7 +28,7 @@ test('kiểm tra tự động: lời thường, số liệu để riêng; thiế
   const menu = catalog.menus.find((m) => m.ageGroupId === 'ag-4');
   const full = checkDayMenu({ meals: menu.meals, ageGroupId: 'ag-4', catalog, date: TODAY });
   assert.ok(full.checks.some((c) => /năng lượng/i.test(c.text)));
-  assert.ok(full.checks.some((c) => /tiền ăn/.test(c.text)));
+  assert.ok(full.checks.some((c) => /ngân sách thực phẩm/.test(c.text)));
   // Không còn ký hiệu kỹ thuật kiểu "Đạm : béo : bột 14,9 : 24,5" hay khoảng kcal trong lời nhắn
   assert.ok(full.checks.every((c) => !/ : |–/.test(c.text)));
   assert.deepEqual(
@@ -53,22 +53,14 @@ test('kiểm tra tự động: lời thường, số liệu để riêng; thiế
   assert.equal(half.checks[0].tone, 'bad');
 });
 
-test('món có chất trẻ dị ứng: báo số trẻ và đã/chưa có suất thay thế', async () => {
+test('món có chất trẻ dị ứng: chỉ cảnh báo số trẻ, không nhắc suất thay thế (NUT-23)', async () => {
   const catalog = await catalogOf();
   const fishDish = catalog.dishes.find((d) => d.name === 'Cá basa sốt cà chua');
   const meals = [{ session: 'LUNCH', items: [{ dishId: fishDish.id, portion: 1 }] }];
   const rows = [{ allergen: 'Cá', childCount: 2 }];
-  const without = checkDayMenu({ meals, ageGroupId: 'ag-4', catalog, date: TODAY, allergyRows: rows });
-  assert.ok(without.problems.some((c) => c.text === 'Có món chứa cá (2 trẻ dị ứng), chưa có suất thay thế' && c.tone === 'warn'));
-  const withSub = checkDayMenu({
-    meals,
-    ageGroupId: 'ag-4',
-    catalog,
-    date: TODAY,
-    allergyRows: rows,
-    allergyMenus: [{ restrictions: ['Cá'] }],
-  });
-  assert.ok(withSub.checks.some((c) => /đã có suất thay thế/.test(c.text) && c.tone === 'ok'));
+  const result = checkDayMenu({ meals, ageGroupId: 'ag-4', catalog, date: TODAY, allergyRows: rows });
+  assert.ok(result.problems.some((c) => c.text === 'Có món chứa cá (2 trẻ dị ứng), cần trao đổi với phụ huynh' && c.tone === 'warn'));
+  assert.ok(result.checks.every((c) => !/suất thay thế/.test(c.text)));
 });
 
 test('AI soạn mẫu trả bản nháp có lý do và điều kiện gửi kèm', async () => {

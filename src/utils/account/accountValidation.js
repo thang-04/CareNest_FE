@@ -7,11 +7,17 @@ const PHONE_RE = /^0\d{9}$/;
 export const normalizePhone = (phone) => String(phone || '').replace(/[\s.-]/g, '');
 
 /** Each policy rule, for the live checklist under the new-password field. */
-export const passwordRules = (password = '') => [
+export const passwordRules = (password = '', username = null) => [
   {
     key: 'length',
     label: `Từ ${PASSWORD_MIN_LENGTH} đến ${PASSWORD_MAX_LENGTH} ký tự`,
     ok: password.length >= PASSWORD_MIN_LENGTH && password.length <= PASSWORD_MAX_LENGTH,
+  },
+  {
+    // BE trả 1021 nếu trùng tên đăng nhập; ở màn đổi mật khẩu biết SĐT nên tick được, màn quên mật khẩu chỉ hiện dòng
+    key: 'notUsername',
+    label: 'Không trùng tên đăng nhập (số điện thoại)',
+    ok: username != null && password.toLowerCase() !== username.toLowerCase(),
   },
   ...(AUTH_USE_MOCK
     ? [
@@ -43,7 +49,13 @@ export const validatePasswordChange = ({ currentPassword, newPassword, confirmPa
   const e = {};
   if (requireCurrent && !currentPassword) e.currentPassword = 'Vui lòng nhập mật khẩu hiện tại';
   if (!newPassword) e.newPassword = 'Vui lòng nhập mật khẩu mới';
-  else if (passwordRules(newPassword).some((r) => !r.ok)) e.newPassword = 'Mật khẩu mới chưa đạt yêu cầu bên dưới';
+  // "Không trùng tên đăng nhập" là dòng thông tin (màn quên mật khẩu không biết SĐT) ⇒ BE 1021 chặn; không chặn gửi ở FE
+  else if (
+    passwordRules(newPassword)
+      .filter((r) => r.key !== 'notUsername')
+      .some((r) => !r.ok)
+  )
+    e.newPassword = 'Mật khẩu mới chưa đạt yêu cầu bên dưới';
   else if (AUTH_USE_MOCK && requireCurrent && currentPassword && newPassword === currentPassword)
     e.newPassword = 'Mật khẩu mới phải khác mật khẩu hiện tại';
   if (!confirmPassword) e.confirmPassword = 'Vui lòng nhập lại mật khẩu mới';

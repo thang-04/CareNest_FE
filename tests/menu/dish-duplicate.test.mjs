@@ -37,6 +37,37 @@ test('BA 03 nhân bản: form bản sao độc lập với món gốc, tên "(b�
   assert.equal(dish.ingredients[0].portions['ag-3'], 40, 'sửa bản sao không đổi món gốc');
 });
 
+test('nhân bản món giữ đúng nhóm tuổi đã chọn', () => {
+  const source = {
+    name: 'Cháo bí',
+    type: 'MAIN',
+    ageGroupIds: ['ag-2', 'ag-5'],
+    ingredients: [{ foodId: 'f1', portions: { 'ag-2': 40, 'ag-5': 60 } }],
+  };
+  const copy = duplicateDishForm(source, AGES, 'DRAFT');
+  assert.deepEqual(copy.ageGroupIds, ['ag-2', 'ag-5']);
+  assert.deepEqual(copy.ingredients[0].portions, { 'ag-2': '40', 'ag-5': '60' });
+});
+
+test('món chỉ chọn hai nhóm tuổi lưu và kích hoạt mà không đòi định lượng nhóm còn lại', async () => {
+  const [food] = await repo.listFoods({}, VP);
+  const data = {
+    name: 'Món chỉ cho NT và MG lớn',
+    type: 'MAIN',
+    status: 'ACTIVE',
+    ageGroupIds: ['ag-2', 'ag-5'],
+    ingredients: [{ foodId: food.id, portions: { 'ag-2': 40, 'ag-3': null, 'ag-4': null, 'ag-5': 60 } }],
+  };
+  const saved = await repo.saveDish(null, data, VP);
+  assert.deepEqual(saved.ageGroupIds, ['ag-2', 'ag-5']);
+  assert.deepEqual((await repo.getDish(saved.id, VP)).ageGroupIds, ['ag-2', 'ag-5']);
+  await rejects(
+    repo.saveDish(null, { ...data, name: 'Món thiếu nhóm đã chọn', ingredients: [{ foodId: food.id, portions: { 'ag-2': 40 } }] }, VP),
+    422,
+    /định lượng/,
+  );
+});
+
 test('BA 03 chép định lượng: chép nguyên cột; đếm ô đã nhập sẽ bị thay để hỏi trước', () => {
   const rows = [
     { foodId: 'f1', portions: { 'ag-3': '40', 'ag-4': '50' } },

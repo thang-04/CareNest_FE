@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-const { dayReasons, replaceDish } = await import('@/utils/menu-planning/mealPlanGrid');
+const { addDish, removeDish, replaceDish, setDayNote, sharedSessions, syncSharedMeals } = await import(
+  '@/utils/menu-planning/mealPlanGrid'
+);
 
 const DAY = '2026-11-09';
 const draft = {
@@ -32,32 +34,40 @@ test('NUT-18: Thay bằng món đã có trong ô thì không đổi gì', () => 
   assert.deepEqual(next.days[0], draft.days[0]);
 });
 
-test('NUT-08: Lý do ngắn đầu cột — lỗi chặn trước, tối đa 2 nhãn, phần còn lại đếm vào more', () => {
-  const plan = {
-    issues: [
-      { severity: 'WARNING', code: 'OVER_BUDGET', date: DAY, message: 'Tiền ăn vượt giá suất 2.000 đ' },
-      { severity: 'BLOCKING', code: 'NOT_BALANCED', date: DAY, message: 'Hơi ít năng lượng' },
-      { severity: 'BLOCKING', code: 'NOT_BALANCED', date: DAY, message: 'Béo thấp' },
-      { severity: 'WARNING', code: 'DISH_REPEATED', date: DAY, message: 'Món lặp trong tuần' },
-      { severity: 'INFO', code: 'MICRONUTRIENT_OFF', date: DAY, message: 'bỏ qua mức INFO' },
-      { severity: 'BLOCKING', code: 'NOT_BALANCED', date: '2026-11-10', message: 'ngày khác' },
-    ],
-  };
-  const why = dayReasons(plan, DAY);
-  assert.deepEqual(
-    why.reasons.map((r) => [r.label, r.tone]),
-    [
-      ['Chưa cân đối', 'red'],
-      ['Vượt giá suất', 'orange'],
-    ],
-  );
-  assert.equal(why.reasons[0].title, 'Hơi ít năng lượng\nBéo thấp');
-  assert.equal(why.more, 1);
-  assert.equal(why.all.length, 3);
+const plan = {
+  blocks: [
+    { block: 'NURSERY', sessions: ['MORNING', 'LUNCH', 'AFTERNOON'] },
+    { block: 'KINDERGARTEN', sessions: ['LUNCH', 'AFTERNOON'] },
+  ],
+};
+const dishIds = (d, block, session) => d.days[0].items.filter((i) => i.block === block && i.session === session).map((i) => i.dishId);
+const synced = (fn, block, from = draft) => syncSharedMeals(from, fn(from), plan, block);
+
+test('bữa chung là bữa cả hai khối cùng ăn', () => {
+  assert.deepEqual(sharedSessions(plan, 'NURSERY', 'KINDERGARTEN'), ['LUNCH', 'AFTERNOON']);
 });
 
-test('NUT-08: Mã lạ hiện "Lưu ý khác"; ngày không có lưu ý trả null', () => {
-  const why = dayReasons({ issues: [{ severity: 'WARNING', code: 'NEW_CODE', date: DAY, message: 'Câu BE mới' }] }, DAY);
-  assert.deepEqual(why.reasons, [{ label: 'Lưu ý khác', tone: 'orange', messages: ['Câu BE mới'], title: 'Câu BE mới' }]);
-  assert.equal(dayReasons({ issues: [] }, DAY), null);
+test('đồng bộ: thêm món bữa chung ở một khối ghi đè ô cùng bữa của khối kia', () => {
+  const next = synced((d) => addDish(d, DAY, 'NURSERY', 'LUNCH', { id: 3, name: 'Trứng', type: 'MAIN' }), 'NURSERY');
+  assert.deepEqual(dishIds(next, 'NURSERY', 'LUNCH'), ['1', '3']);
+  assert.deepEqual(dishIds(next, 'KINDERGARTEN', 'LUNCH'), ['1', '3'], 'món riêng của khối kia (Canh bí) bị ghi đè');
+});
+
+test('đồng bộ: đổi và xóa món cũng chép sang khối kia', () => {
+  const replaced = synced(
+    (d) => replaceDish(d, DAY, 'KINDERGARTEN', 'LUNCH', '2', { id: 9, name: 'Canh rau', type: 'SOUP' }),
+    'KINDERGARTEN',
+  );
+  assert.deepEqual(dishIds(replaced, 'NURSERY', 'LUNCH'), ['1', '9']);
+  const removed = synced((d) => removeDish(d, DAY, 'KINDERGARTEN', 'LUNCH', '1'), 'KINDERGARTEN');
+  assert.deepEqual(dishIds(removed, 'NURSERY', 'LUNCH'), ['2']);
+});
+
+test('đồng bộ: bữa chỉ một khối ăn không chép; sửa không đổi món thì giữ nguyên khối kia', () => {
+  const morning = synced((d) => addDish(d, DAY, 'NURSERY', 'MORNING', { id: 4, name: 'Cháo', type: 'OTHER' }), 'NURSERY');
+  assert.deepEqual(dishIds(morning, 'KINDERGARTEN', 'MORNING'), []);
+  assert.deepEqual(dishIds(morning, 'KINDERGARTEN', 'LUNCH'), ['1', '2']);
+  const noted = synced((d) => setDayNote(d, DAY, 'ghi chú'), 'NURSERY');
+  assert.deepEqual(noted.days[0].items, draft.days[0].items);
+  assert.equal(noted.days[0].note, 'ghi chú');
 });

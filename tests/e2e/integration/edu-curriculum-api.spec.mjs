@@ -29,8 +29,9 @@ test('IT-17 nguồn và danh mục của Bộ: mọi vai trò kế hoạch đọ
     expect(contents.status, contents.desc).toBe(200);
     counts[code] = [goals.data.length, contents.data.length];
   }
-  // Khớp BE:EduCurriculumServiceIntegrationTest (bộ dữ liệu Bộ sau khi sửa tách mục)
-  expect(counts).toEqual({ 'ag-2': [41, 82], 'ag-3': [84, 119], 'ag-4': [99, 143], 'ag-5': [107, 150] });
+  // Khớp BE:EduCurriculumServiceIntegrationTest. EDU-98: ghép chính xác khoảng tháng ⇒ nhóm chuẩn 25–36 (ag-2, V176)
+  // không tự ghép nguồn nhà trẻ 24–36 của Bộ
+  expect(counts).toEqual({ 'ag-2': [0, 0], 'ag-3': [84, 119], 'ag-4': [99, 143], 'ag-5': [107, 150] });
   const unknown = await api(USERS.vp, 'GET', `${CUR}/goals?ageGroupId=999999`);
   expect(unknown.status).toBe(404);
 });

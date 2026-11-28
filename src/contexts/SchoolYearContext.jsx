@@ -1,9 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { DEFAULT_SCHOOL_YEAR, SCHOOL_YEARS } from '@/config/app';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSchoolYears } from '@/services/school-config/schoolConfigService';
 import { readPickedSchoolYear, savePickedSchoolYear } from '@/services/school-config/schoolYearPick';
 import { DB_CHANGED_EVENT } from '@/mocks/dbEvents';
+import { lockedYearOf, preparingYearOf } from '@/utils/schoolYearPrep';
 
 const SchoolYearContext = createContext(null);
 
@@ -17,7 +17,8 @@ const savePicked = (user, id) => savePickedSchoolYear(user?.id, id);
 
 const toOption = (y) => ({
   id: y.id,
-  label: (y.name || y.id).replace('-', ' - '),
+  beId: y.beId,
+  label: String(y.name || y.id).replace('-', ' - '),
   status: y.status,
   // BE CFG-YR-05: năm sắp diễn ra đã tới ngày mở chuẩn bị
   preparing: !!y.preparing,
@@ -34,12 +35,12 @@ const toOption = (y) => ({
 /**
  * Current school year chosen in the header, shared by every page.
  * Use: const { schoolYear, setSchoolYear, schoolYears } = useSchoolYear();
- * The list comes from school configuration (#16); the static list in config/app.js is the fallback.
+ * The list comes from school configuration (#16); the service supplies the available years.
  */
 export function SchoolYearProvider({ children }) {
   const { user } = useAuth();
-  const [schoolYears, setSchoolYears] = useState(SCHOOL_YEARS);
-  const [schoolYear, setChosenYear] = useState(DEFAULT_SCHOOL_YEAR);
+  const [schoolYears, setSchoolYears] = useState([]);
+  const [schoolYear, setChosenYear] = useState('');
   // Người dùng tự chọn năm ở header thì giữ; chưa chọn thì luôn theo năm đang hoạt động (kể cả sau khi chuyển năm)
   const picked = useRef(false);
   const optionsRef = useRef(schoolYears);
@@ -82,7 +83,10 @@ export function SchoolYearProvider({ children }) {
           });
         })
         .catch(() => {
-          /* role without access to the configuration: keep the static list */
+          if (alive) {
+            setSchoolYears([]);
+            setChosenYear('');
+          }
         });
     load();
     window.addEventListener(DB_CHANGED_EVENT, load);
@@ -96,9 +100,14 @@ export function SchoolYearProvider({ children }) {
   const yearReadOnly = schoolYears.find((o) => o.id === schoolYear)?.status === 'CLOSED';
   // Việc trong ngày, tiếp nhận, xếp lớp luôn theo năm đang hoạt động dù header chọn năm khác (user chốt 2026-10-28, Y-1, Y-3)
   const activeYear = schoolYears.find((o) => o.status === 'ACTIVE') || null;
+  // CFG-YR-05/CHD-12: header ở năm sắp diễn ra chưa tới ngày mở chuẩn bị ⇒ màn trẻ, sức khỏe, đón trẻ chỉ xem
+  const lockedYear = lockedYearOf(schoolYears, schoolYear);
+  const yearLocked = !!lockedYear;
+  // CHD-11: đã tới ngày mở chuẩn bị ⇒ được tiếp nhận, xếp lớp cho năm đó
+  const preparingYear = preparingYearOf(schoolYears, schoolYear);
   const value = useMemo(
-    () => ({ schoolYear, setSchoolYear, schoolYears, yearReadOnly, activeYear }),
-    [schoolYear, setSchoolYear, schoolYears, yearReadOnly, activeYear],
+    () => ({ schoolYear, setSchoolYear, schoolYears, yearReadOnly, activeYear, yearLocked, lockedYear, preparingYear }),
+    [schoolYear, setSchoolYear, schoolYears, yearReadOnly, activeYear, yearLocked, lockedYear, preparingYear],
   );
   return <SchoolYearContext.Provider value={value}>{children}</SchoolYearContext.Provider>;
 }

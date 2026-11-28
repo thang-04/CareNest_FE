@@ -58,7 +58,8 @@ import { transformWithOxc } from 'vite';
 const pickerSource = await readFile(new URL('../../src/components/education-plan/DatePickerCell.jsx', import.meta.url), 'utf8');
 const pickerStubs = `import React,{useState,useRef,useEffect} from ${JSON.stringify(import.meta.resolve('react'))};
 const fmtDate=value=>value.split('-').reverse().join('/');
-const CalendarDays=()=> <i data-icon="calendar"/>, ChevronLeft=()=>null, ChevronRight=()=>null, FloatingPanel=({children})=>children;`;
+const CalendarDays=()=> <i data-icon="calendar"/>, ChevronLeft=()=>null, ChevronRight=()=>null, FloatingPanel=({children})=>children;
+const devNow=()=>new Date();`;
 const pickerCode = await transformWithOxc(
   pickerStubs + pickerSource.replace(/^import [\s\S]*? from '[^']+';\r?\n/gm, ''),
   'DatePickerCell.jsx',

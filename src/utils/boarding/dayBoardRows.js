@@ -28,6 +28,8 @@ const menuRow = (campus) => {
   return {
     key: 'menu',
     title: 'Thực đơn tuần',
+    // Một thực đơn chung cho mọi điểm trường (NUT-13): bảng gộp một ô, tiến độ đếm một lần
+    shared: true,
     tone,
     status,
     detail: `Tuần này: ${thisWeek[1]} · Tuần sau: ${nextWeek[1]}`,
@@ -79,7 +81,9 @@ const DRY_STOCK_STATUS = {
 
 const dryStockRow = (campus) => {
   const stock = campus.dryStock || {};
-  const [tone, statusOf, detailOf] = DRY_STOCK_STATUS[stock.status] || ['gray', () => UNKNOWN[1], () => ''];
+  const [baseTone, statusOf, detailOf] = DRY_STOCK_STATUS[stock.status] || ['gray', () => UNKNOWN[1], () => ''];
+  // Đã trừ đủ hôm nay nhưng còn phần thiếu từ ngày cũ chưa bù: không báo xanh "xong"
+  const tone = stock.status === 'DEDUCTED' && stock.openShortfallCount > 0 ? 'orange' : baseTone;
   const shortfall = stock.status === 'SHORTFALL';
   const link = shortfall
     ? { label: 'Phần thiếu', to: withQuery('/kitchen/stock-shortfalls', { campusId: campus.campusId }) }
@@ -90,14 +94,19 @@ const dryStockRow = (campus) => {
     ? `Sắp thiếu ${stock.upcomingShortFoodCount} thực phẩm khô từ ${formatWeekdayDate(stock.upcomingShortFrom)} — đặt thêm theo bản dự trù.`
     : '';
   const links = upcoming ? [link, { label: 'Bản dự trù', to: withQuery('/kitchen/forecast', { campusId: campus.campusId }) }] : [link];
+  // INS-03: M1 kho khô đã ký thì BE chặn đồng bộ tay (mọi trạng thái kho); muốn đồng bộ phải Sửa lại biên bản M1 khô
+  const signedText = stock.m1DrySigned ? 'Biên bản M1 kho khô đã ký — đồng bộ kho bị khóa (Sửa lại biên bản để đồng bộ).' : '';
   return {
     key: 'dryStock',
     title: 'Kho khô',
     tone,
     status: statusOf(stock),
-    detail: [detailOf(stock), upcomingText].filter(Boolean).join(' '),
-    // NOT_SYNCED: nút gọi BE trừ lại (BE kiểm quyền), không phải link
-    actions: stock.status === 'NOT_SYNCED' ? [{ key: 'syncStock', label: 'Đồng bộ kho', syncStock: true }, ...links] : links,
+    detail: [detailOf(stock), upcomingText, signedText].filter(Boolean).join(' '),
+    // NOT_SYNCED: nút gọi BE trừ lại; BE trả cờ canSync theo quyền (BE cũ chưa có cờ thì vẫn hiện, BE kiểm quyền khi bấm)
+    actions:
+      stock.status === 'NOT_SYNCED' && !stock.m1DrySigned && stock.canSync !== false
+        ? [{ key: 'syncStock', label: 'Đồng bộ kho', syncStock: true }, ...links]
+        : links,
   };
 };
 
@@ -113,16 +122,19 @@ const FRESH_STATUS = {
 const freshReceiptRow = (campus, date) => {
   const [tone, status, detail] = FRESH_STATUS[campus.freshReceiptStatus] || [...UNKNOWN, ''];
   const noForecast = campus.freshReceiptStatus === 'NO_FORECAST';
+  // INS-03: M1 hàng tươi đã ký thì BE khóa kiểm nhận cả hai lần tới khi Sửa lại biên bản
+  const signed = !!campus.m1FreshSigned;
+  const signedText = signed ? 'Biên bản M1 hàng tươi đã ký — kiểm nhận bị khóa (Sửa lại biên bản để sửa).' : '';
   return {
     key: 'freshReceipt',
     title: 'Hàng tươi lần 1/2',
     tone,
     status,
-    detail,
+    detail: [detail, signedText].filter(Boolean).join(' '),
     actions: [
       noForecast
         ? { label: 'Lập bản dự trù', to: withQuery('/kitchen/forecast', { campusId: campus.campusId }) }
-        : { label: 'Kiểm nhận', to: withQuery('/kitchen/fresh-receipts', { campusId: campus.campusId, date }) },
+        : { label: signed ? 'Xem kiểm nhận' : 'Kiểm nhận', to: withQuery('/kitchen/fresh-receipts', { campusId: campus.campusId, date }) },
     ],
   };
 };
@@ -163,13 +175,15 @@ export const buildDayBoardRows = (campus, { date } = {}) => [
   foodSampleRow(campus || {}, date),
 ];
 
-// Nhóm hiển thị của tông trạng thái cho dải số liệu đầu trang (chỉ đếm số việc theo tông BE đã trả, không đánh giá lại)
-const TONE_BUCKET = { red: 'attention', orange: 'waiting', purple: 'waiting', blue: 'waiting', green: 'done', gray: 'idle' };
+// Nhóm hiển thị của tông trạng thái cho dải số liệu đầu trang (chỉ đếm số việc theo tông BE đã trả, không đánh giá lại).
+// Đỏ, cam, tím là việc người dùng cần làm (cùng tập với dòng "Việc tiếp theo"); xanh dương là chờ bước khác.
+const TONE_BUCKET = { red: 'attention', orange: 'attention', purple: 'attention', blue: 'waiting', green: 'done', gray: 'idle' };
 
-/** Đếm số việc của mọi điểm trường theo nhóm: cần xử lý · đang chờ · hoàn tất · chưa có thông tin hoặc ngày nghỉ. */
+/** Đếm số việc của mọi điểm trường theo nhóm: cần xử lý · chờ bước khác · hoàn tất · chưa có thông tin hoặc ngày nghỉ. */
 export const summarizeBoardRows = (rowsPerCampus) => {
   const total = { attention: 0, waiting: 0, done: 0, idle: 0 };
-  rowsPerCampus.flat().forEach((row) => {
+  const counted = rowsPerCampus.flatMap((rows, i) => (i ? rows.filter((row) => !row.shared) : rows));
+  counted.forEach((row) => {
     total[TONE_BUCKET[row.tone] || 'idle'] += 1;
   });
   return total;
@@ -180,7 +194,8 @@ const NEXT_TONES = [['red'], ['orange', 'purple']];
 
 /**
  * Chọn việc hiển thị ở dòng "Việc tiếp theo": việc đầu tiên theo thứ tự hàng cố định (thực đơn tuần → … → lưu mẫu), điểm trường
- * theo thứ tự BE trả, có tông BE đã gán là đỏ, nếu không có thì cam/tím. Không có ⇒ null. Chỉ chọn để hiển thị, không đánh giá lại.
+ * theo thứ tự BE trả, có tông BE đã gán là đỏ, nếu không có thì cam/tím. Không có ⇒ null. Việc chung cả trường trả campus null.
+ * Chỉ chọn để hiển thị, không đánh giá lại.
  */
 export const nextBoardTask = (rowsPerCampus, campuses) => {
   const taskCount = rowsPerCampus[0]?.length || 0;
@@ -188,7 +203,7 @@ export const nextBoardTask = (rowsPerCampus, campuses) => {
     for (let t = 0; t < taskCount; t += 1)
       for (let c = 0; c < rowsPerCampus.length; c += 1) {
         const row = rowsPerCampus[c][t];
-        if (row && tones.includes(row.tone)) return { row, campus: campuses[c], action: row.actions[0] };
+        if (row && tones.includes(row.tone)) return { row, campus: row.shared ? null : campuses[c], action: row.actions[0] };
       }
   return null;
 };

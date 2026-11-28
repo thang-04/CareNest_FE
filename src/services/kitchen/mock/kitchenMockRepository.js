@@ -35,6 +35,7 @@ import {
   PREP_STATUS,
   PREP_STATUS_LABELS,
   MEAL_SESSION_LABELS,
+  DISPOSAL_KIND,
 } from '@/models/kitchen/kitchenConstants';
 import {
   canAccessCampus,
@@ -59,6 +60,7 @@ import {
   validateForecastCells,
   validateFreshReceipt,
   validateStockReceipt,
+  validateStockDisposal,
   validateSupplier,
   validatePreparationUpdate,
 } from '@/utils/kitchen/kitchenValidation';
@@ -304,7 +306,8 @@ const publishedAllergyChanges = (db, cat, menu, date, campusId, published) => {
       if (!replacements.length) return [];
       const restrictions = a.restrictions || [];
       const children = (db.children || [])
-        .filter((c) => c.status === 'ACTIVE' && classById[c.classId])
+        // NUT-07/CHD-13: bếp không đếm dị ứng của trẻ không báo ăn
+        .filter((c) => c.status === 'ACTIVE' && classById[c.classId] && c.mealRegistered !== false)
         .map((c) => ({
           id: c.id,
           fullName: c.fullName,
@@ -566,6 +569,7 @@ const COLLECTIONS = [
   'stockReceipts',
   'stockTransactions',
   'stockIssues',
+  'stockDisposals',
   'freshReceipts',
   'foodSamples',
   'weeklyForecasts',
@@ -716,6 +720,7 @@ const ensureSeeded = (db) => {
   if (!Array.isArray(db.stockTransactions)) db.stockTransactions = [];
   if (!Array.isArray(db.stockLots)) db.stockLots = buildStockLots(db);
   if (!Array.isArray(db.stockIssues)) db.stockIssues = [];
+  if (!Array.isArray(db.stockDisposals)) db.stockDisposals = [];
   if (!Array.isArray(db.freshReceipts)) db.freshReceipts = [];
   if (!Array.isArray(db.foodSamples)) db.foodSamples = [];
   if (!Array.isArray(db.weeklyForecasts)) db.weeklyForecasts = seedWeeklyForecasts(db, campusIds, vpByCampus);
@@ -810,6 +815,60 @@ const lotFromReceipt = (r, it, qty) => ({
 });
 
 const isExpiredLot = (lot, date) => !!lot.expiryDate && lot.expiryDate < date;
+
+/*
+ * Lô demo cho phiếu xuất kho khô: điểm trường chưa có lô hết hạn hoặc chưa có lô còn hạn (vd. mã điểm trường của BE thật
+ * không trùng mã mock) được dựng thêm vài lô để thao tác được. `expiresInDays` âm = đã quá hạn; NCC lấy từ danh mục mock.
+ */
+const DEMO_LOT_PLAN = [
+  { expiresInDays: -25, qty: 6, supplier: 0 },
+  { expiresInDays: -3, qty: 4, supplier: 1 },
+  { expiresInDays: 60, qty: 8, supplier: 0 },
+  { expiresInDays: 120, qty: 5, supplier: 1 },
+];
+
+const missingDemoLots = (db, campusId) => {
+  const today = todayInput();
+  const lots = db.stockLots.filter((l) => l.campusId === campusId && l.qty > 0);
+  const hasExpired = lots.some((l) => isExpiredLot(l, today));
+  const hasValid = lots.some((l) => !isExpiredLot(l, today));
+  return DEMO_LOT_PLAN.map((plan, idx) => ({ ...plan, idx })).filter(
+    (plan) => (plan.expiresInDays < 0 ? !hasExpired : !hasValid) && !db.stockLots.some((l) => l.id === `klot_demo_${campusId}_${plan.idx}`),
+  );
+};
+
+/** Dựng lô demo còn thiếu và cộng tồn tổng tương ứng (để trừ kho không âm). Trả true khi có thay đổi. */
+const ensureDemoDisposalLots = (db, campusId) => {
+  const missing = missingDemoLots(db, campusId);
+  const dryFoods = (db.foods || []).filter((f) => storageOf(f) === 'DRY');
+  const suppliers = (db.suppliers || []).filter((s) => s.status === SUPPLIER_STATUS.ACTIVE);
+  if (!missing.length || !dryFoods.length || !suppliers.length) return false;
+  const today = todayInput();
+  missing.forEach((plan) => {
+    const food = dryFoods[plan.idx % dryFoods.length];
+    db.stockLots.push({
+      id: `klot_demo_${campusId}_${plan.idx}`,
+      campusId,
+      foodId: food.id,
+      receiptId: null,
+      receiptCode: null,
+      lotNo: `DEMO-${plan.idx + 1}`,
+      mfgDate: addDays(today, -90),
+      expiryDate: addDays(today, plan.expiresInDays),
+      unitPrice: typeof food.unitPrice === 'number' ? food.unitPrice : null,
+      supplierName: suppliers[plan.supplier % suppliers.length].name,
+      receivedDate: addDays(today, -60),
+      qty: plan.qty,
+    });
+    let stock = db.foodStock.find((s) => s.campusId === campusId && s.foodId === food.id);
+    if (!stock) {
+      stock = { campusId, foodId: food.id, quantity: 0 };
+      db.foodStock.push(stock);
+    }
+    stock.quantity = r3(stock.quantity + plan.qty);
+  });
+  return true;
+};
 
 /** Lô còn tồn của một thực phẩm, hạn gần trước; `usable` = chưa hết hạn tại `date`. */
 const lotsOf = (db, campusId, foodId, date = todayInput()) =>
@@ -1187,7 +1246,14 @@ const stockCellOf = (db, campusId, foodId) => {
 };
 
 // ADJUST chỉ còn trong dữ liệu demo cũ: BA không làm kiểm kê kho thực phẩm
-const TX_LABEL = { IN: 'Nhập kho', OUT: 'Xuất tự động', RETURN: 'Hoàn kho', ADJUST: 'Điều chỉnh (dữ liệu cũ)' };
+const TX_LABEL = {
+  IN: 'Nhập kho',
+  OUT: 'Xuất tự động',
+  RETURN: 'Hoàn kho',
+  ADJUST: 'Điều chỉnh (dữ liệu cũ)',
+  [DISPOSAL_KIND.SUPPLIER_RETURN]: 'Xuất trả NCC',
+  [DISPOSAL_KIND.WRITE_OFF]: 'Xuất hủy (hết hạn)',
+};
 
 /** Giao dịch gần đây gộp theo chứng từ (phiếu nhập, phiếu xuất). */
 const transactionGroups = (db, cat, { campusIds, foodId = null, limit = 10 }) => {
@@ -1206,7 +1272,8 @@ const transactionGroups = (db, cat, { campusIds, foodId = null, limit = 10 }) =>
       const receipt = g.type === 'IN' ? db.stockReceipts.find((r) => r.id === g.refId) : null;
       const issue = g.type === 'OUT' || g.type === 'RETURN' ? db.stockIssues.find((i) => i.id === g.refId) : null;
       const count = g.type === 'ADJUST' ? (db.stockCounts || []).find((c) => c.id === g.refId) : null;
-      const code = receipt?.code || issue?.code || count?.code || '';
+      const disposal = DISPOSAL_KIND[g.type] ? (db.stockDisposals || []).find((d) => d.id === g.refId) : null;
+      const code = receipt?.code || issue?.code || count?.code || disposal?.code || '';
       const amount = receipt
         ? receipt.items.reduce((n, it) => n + (typeof it.unitPrice === 'number' ? it.unitPrice * it.acceptedQty : 0), 0)
         : 0;
@@ -1217,7 +1284,7 @@ const transactionGroups = (db, cat, { campusIds, foodId = null, limit = 10 }) =>
         campusId: g.campusId,
         at: g.at,
         code,
-        supplierName: receipt?.supplierName || '',
+        supplierName: receipt?.supplierName || disposal?.supplierName || '',
         items: g.lines.length,
         amount: amount || null,
         quantity: single,
@@ -1622,6 +1689,91 @@ const kitchenRepository = {
   },
 
   /* ---- Nhà cung cấp (BA 01): danh mục dùng chung hai cơ sở; HT quản lý, PHT xem và chọn khi nhập kho ---- */
+  /** Lô còn tồn của một điểm trường để lập phiếu xuất kho (trả NCC / xuất hủy); `expired` theo hôm nay. */
+  async getStockLots({ campusId }, user) {
+    await delay();
+    guard(canWriteStock(user, campusId));
+    guardCampus(user, campusId);
+    if (missingDemoLots(readSeeded(), campusId).length) writeDb((d) => (ensureSeeded(d), ensureDemoDisposalLots(d, campusId), d));
+    const db = readSeeded();
+    const cat = getCatalog(db);
+    const today = todayInput();
+    return clone(
+      db.stockLots
+        .filter((l) => l.campusId === campusId && l.qty > 0)
+        .sort((a, b) => (a.expiryDate || '9999').localeCompare(b.expiryDate || '9999'))
+        .map((l) => ({
+          id: l.id,
+          foodId: l.foodId,
+          foodName: cat.foodById[l.foodId]?.name || l.foodId,
+          unit: foodUnits(cat.foodById[l.foodId]).stockUnit,
+          lotNo: l.lotNo,
+          expiryDate: l.expiryDate,
+          receivedDate: l.receivedDate,
+          supplierName: l.supplierName || '',
+          unitPrice: l.unitPrice ?? null,
+          qty: l.qty,
+          expired: isExpiredLot(l, today),
+        })),
+    );
+  },
+
+  /*
+   * Xuất kho khô ngoài xuất tự động theo suất (đề xuất BA 24/11/2026, chưa có trong BE ⇒ BE cần endpoint thật):
+   * SUPPLIER_RETURN = trả NCC, chỉ lô còn hạn và đúng NCC đã giao; WRITE_OFF = xuất hủy, chỉ lô hết hạn. Cả hai bắt buộc
+   * lý do, trừ từng lô và tồn tổng, ghi lịch sử nhập/trừ; phiếu không sửa sau khi tạo.
+   */
+  async createStockDisposal({ kind, campusId, supplierId = '', reason, lines = [] }, user) {
+    await delay();
+    guard(canWriteStock(user, campusId) && !!DISPOSAL_KIND[kind]);
+    guardCampus(user, campusId);
+    return writeDb((db) => {
+      ensureSeeded(db);
+      const isReturn = kind === DISPOSAL_KIND.SUPPLIER_RETURN;
+      const supplier = isReturn ? (db.suppliers || []).find((s) => s.id === supplierId) : null;
+      if (isReturn && !supplier) invalid({ supplierId: 'Chọn nhà cung cấp nhận hàng trả.' });
+      const lotById = Object.fromEntries(db.stockLots.filter((l) => l.campusId === campusId).map((l) => [l.id, l]));
+      const date = todayInput();
+      invalid(validateStockDisposal({ kind, supplierId, reason, lines }, { lotById, today: date, supplierName: supplier?.name || '' }));
+      const at = nowIso();
+      const id = uid('ksd');
+      const seq = db.stockDisposals.filter((d) => d.campusId === campusId && d.date === date && d.kind === kind).length + 1;
+      const code = `${isReturn ? 'XT' : 'XH'}-${ymd(date)}-${campusCode(db, campusId)}-${String(seq).padStart(2, '0')}`;
+      const done = lines.map((line) => {
+        const lot = lotById[line.lotId];
+        const qty = r3(Number(line.qty));
+        lot.qty = r3(lot.qty - qty);
+        changeStock(db, {
+          campusId,
+          foodId: lot.foodId,
+          delta: -qty,
+          type: kind,
+          date,
+          refId: id,
+          userId: user.id,
+          expiryDate: lot.expiryDate,
+          at,
+        });
+        return { lotId: lot.id, lotNo: lot.lotNo, foodId: lot.foodId, expiryDate: lot.expiryDate, qty };
+      });
+      const record = {
+        id,
+        code,
+        kind,
+        campusId,
+        date,
+        supplierId: supplier?.id || null,
+        supplierName: supplier?.name || '',
+        reason: String(reason).trim(),
+        lines: done,
+        createdBy: user.id,
+        createdAt: at,
+      };
+      db.stockDisposals.unshift(record);
+      return clone(record);
+    });
+  },
+
   async getSuppliers({ keyword = '', status = '' } = {}, user) {
     await delay();
     guard(canViewSuppliers(user));

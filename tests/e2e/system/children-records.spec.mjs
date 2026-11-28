@@ -103,12 +103,12 @@ test.describe.serial('Hồ sơ trẻ, sức khỏe trên BE thật', () => {
     const [id, name, campusId] = sql(
       `SELECT c.id, c.name, c.campus_id FROM staff_assignments s JOIN classrooms c ON c.id = s.classroom_id
        JOIN school_years y ON y.id = c.school_year_id AND y.status = 'ACTIVE'
-       JOIN user_accounts u ON u.id = s.user_id WHERE u.email = 'lan.nguyenkim@thuonghong.carenest.edu.vn' AND s.staff_role = 'TEACHER' ORDER BY c.id LIMIT 1`,
+       JOIN user_accounts u ON u.id = s.user_id WHERE u.username = 'teacher1' AND s.staff_role = 'TEACHER' ORDER BY c.id LIMIT 1`,
     ).split('|');
     klass = { id, name, campusId };
     const [fullName, phone, idNumber] = sql(
       `SELECT u.full_name, u.username, u.citizen_id FROM user_accounts u WHERE u.primary_role = 'PARENT' AND u.status = 'ACTIVE'
-       AND u.citizen_id IS NOT NULL AND u.username ~ '^0[0-9]{9}$' AND EXISTS (SELECT 1 FROM guardian_child_links l JOIN children c ON c.id = l.child_id
+       AND u.citizen_id IS NOT NULL AND u.username ~ '^0[0-9]{9}$' AND EXISTS (SELECT 1 FROM child_guardians l JOIN children c ON c.id = l.child_id
        WHERE l.user_id = u.id AND c.status = 'ACTIVE' AND c.full_name <> ${quote(CHILD_NAME)}) ORDER BY u.id LIMIT 1`,
     ).split('|');
     GUARDIAN = { fullName, phone, idNumber };
@@ -230,7 +230,7 @@ test.describe.serial('Hồ sơ trẻ, sức khỏe trên BE thật', () => {
     // trẻ" khi module trẻ còn dữ liệu demo). Chỉ mở trang sửa, không lưu.
     const [seedId, seedName] = sql(
       `SELECT c.id, c.full_name FROM children c WHERE c.status = 'ACTIVE' AND c.full_name <> ${quote(CHILD_NAME)}
-       AND NOT EXISTS (SELECT 1 FROM guardian_child_links l WHERE l.child_id = c.id) ORDER BY c.id LIMIT 1`,
+       AND NOT EXISTS (SELECT 1 FROM child_guardians l WHERE l.child_id = c.id AND l.user_id IS NOT NULL) ORDER BY c.id LIMIT 1`,
     ).split('|');
     await page.goto(`/children/activation?childId=${seedId}`);
     await expect(page.getByRole('dialog')).toContainText(`Phụ huynh của bé ${seedName}`);

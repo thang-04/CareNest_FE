@@ -365,6 +365,10 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+/* Nút thao tác của dòng người (vd. Gỡ PHT) nằm sát phải */
+.sc-person__action {
+  margin-left: auto;
+}
 
 /* ---------- Roles & permissions ---------- */
 .sc-role-grid {
@@ -841,6 +845,50 @@
   .sc-plc-page .sc-plc__main {
     padding-top: var(--space-3);
   }
+  /* Tab trẻ mới tiếp nhận chiếm phần dưới hàng lọc như bảng lớp; danh sách cuộn bên trong */
+  .sc-plc-page > .sc-plc-new {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .sc-plc-page .sc-plc-new > * {
+    flex-shrink: 0;
+  }
+  .sc-plc-page .sc-plc-new > .sc-plc-new__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+  }
+}
+.sc-plc-page .sc-plc__tabs {
+  margin-bottom: var(--space-3);
+}
+.sc-plc-new__group + .sc-plc-new__group {
+  margin-top: var(--space-4);
+}
+.sc-plc-new__group .sc-plc__group-name {
+  margin: 0 0 var(--space-2);
+}
+/* Mỗi nhóm tuổi một bảng: cùng tỉ lệ cột để các bảng thẳng hàng */
+.sc-plc-new__table {
+  table-layout: fixed;
+  width: 100%;
+  min-width: calc(var(--space-16) * 14);
+}
+.sc-plc-new__c-child {
+  width: 24%;
+}
+.sc-plc-new__c-group,
+.sc-plc-new__c-campus,
+.sc-plc-new__c-date {
+  width: 16%;
+}
+.sc-plc-new__c-class {
+  width: 28%;
+}
+.sc-plc-new__group td {
+  overflow-wrap: anywhere;
 }
 .sc-plc__toolbar .select,
 .sc-plc__bulk .select {
@@ -1168,6 +1216,12 @@
 /* Cột danh sách lớp rộng hơn để trạng thái và nút xếp cả nhóm không bị cắt */
 .sc-plc-page .sc-plc {
   grid-template-columns: minmax(calc(var(--space-16) * 4.5), 1.15fr) 3fr;
+}
+/* Dưới 1024px xếp dọc 1 cột; rule trên có độ ưu tiên cao hơn nên phải đặt lại ở đây */
+@media (max-width: 1023px) {
+  .sc-plc-page .sc-plc {
+    grid-template-columns: 1fr;
+  }
 }
 .sc-plc__group-auto {
   width: 100%;

@@ -1,4 +1,8 @@
-import { Fragment } from 'react';
+import { Fragment, useRef, useState } from 'react';
+import { FileDown } from '@/components/ui/icons';
+import { Button } from '@/components/ui/Button';
+import { useToast } from '@/contexts/ToastContext';
+import { examSheetFileName, exportExamSheetPdf } from '@/utils/children/examSheetPdf';
 import {
   CLINICAL_GROUPS,
   COMPANION_OPTIONS,
@@ -41,6 +45,9 @@ const choiceRows = (items, values) =>
  * reference: khoảng tham khảo BE trả theo tuổi ở ngày khám, hiện dưới số sinh tồn.
  */
 export function ExamSummary({ measurement: m, child, campaign, reference, framed = true }) {
+  const sheetRef = useRef(null);
+  const toast = useToast();
+  const [exporting, setExporting] = useState(false);
   const e = m.exam;
   const a = e.admin;
   const h = e.history;
@@ -170,10 +177,28 @@ export function ExamSummary({ measurement: m, child, campaign, reference, framed
     </ExamSheetTable>
   );
   if (!framed) return sheet;
+
+  // Xuất PDF A4 giữ bố cục phiếu để lưu, in (G94-399)
+  const exportPdf = async () => {
+    setExporting(true);
+    try {
+      await exportExamSheetPdf(sheetRef.current, examSheetFileName(child, m.date));
+      toast.success('Đã xuất file phiếu kiểm tra sức khỏe.');
+    } catch (err) {
+      toast.error(err, 'Không xuất được file');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
-    <section className="card">
+    <section className="card" ref={sheetRef}>
       <div className="card__header">
         <h2 className="card__title">Phiếu kiểm tra sức khỏe</h2>
+        {/* data-html2canvas-ignore: nút không vào file */}
+        <Button icon={FileDown} loading={exporting} onClick={exportPdf} data-html2canvas-ignore="true">
+          Xuất file
+        </Button>
       </div>
       <div className="card__body">{sheet}</div>
     </section>

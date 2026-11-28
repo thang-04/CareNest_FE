@@ -80,7 +80,18 @@ test('bảng điểm danh từ BE: đơn nghỉ phụ huynh thành nhãn "Phụ 
       ]),
   };
   const sheet = await createAttendanceBeApi(client).getClassAttendance(1, '2026-10-28');
-  assert.deepEqual(sheet.children[0].leaveRequest, { id: '7', fromDate: '2026-10-28', toDate: '2026-10-29', reason: 'Bé ốm' });
+  assert.deepEqual(sheet.children[0].leaveRequest, {
+    id: '7',
+    fromDate: '2026-10-28',
+    toDate: '2026-10-29',
+    reason: 'Bé ốm',
+    // BE cũ chưa trả part/eats ⇒ đơn cả ngày, công tắc ăn không áp dụng (ATT-12)
+    part: 'FULL_DAY',
+    eats: null,
+    eatsMeals: [],
+    // Đơn báo nghỉ chiều sau giờ chốt chỉ là thông báo (ATT-05b); BE cũ không trả ⇒ false
+    noticeOnly: false,
+  });
   assert.equal(sheet.children[1].leaveRequest, null);
 });
 

@@ -172,14 +172,19 @@ export function computeMarket(db, { date, counts, classById }) {
       const reference = sessions.includes('LUNCH') ? 'LUNCH' : sessions[0];
       const lunch = servings[ag][reference];
       if (!lunch) return [];
-      const price = priceOn(db.mealPrices, ag, date)?.price ?? null;
+      const rec = priceOn(db.mealPrices, ag, date);
+      const price = rec?.price ?? null;
       if (price == null) {
         noPrice.push(groupName(ag));
         return [];
       }
-      return [{ ageGroupId: ag, name: groupName(ag), servings: lunch.normal + lunch.substitute, price }];
+      return [
+        { ageGroupId: ag, name: groupName(ag), servings: lunch.normal + lunch.substitute, price, serviceFee: Number(rec.serviceFee) || 0 },
+      ];
     });
   const revenue = parts.reduce((s, p) => s + p.servings * p.price, 0);
+  // Ngân sách thực phẩm = số suất × (giá suất − phí dịch vụ) (NUT-19); thừa thiếu so với khoản này
+  const foodBudget = parts.reduce((s, p) => s + p.servings * (p.price - p.serviceFee), 0);
   const cost = foods.reduce((s, f) => s + (f.amount || 0), 0);
   const missingPrice = foods.filter((f) => f.unitPrice == null).map((f) => f.name);
 
@@ -200,7 +205,8 @@ export function computeMarket(db, { date, counts, classById }) {
   if (noQuantity.size) checks.push({ tone: 'warn', text: `Món chưa có định lượng cho nhóm tuổi: ${[...noQuantity].join(', ')}` });
   if (missingPrice.length) checks.push({ tone: 'warn', text: `${missingPrice.join(', ')} chưa có đơn giá` });
   if (noPrice.length) checks.push({ tone: 'warn', text: `Chưa có giá suất ăn: ${noPrice.join(', ')}` });
-  if (cost > revenue && revenue > 0) checks.push({ tone: 'warn', text: `Chi vượt thu ${formatMoney(cost - revenue)}` });
+  if (cost > foodBudget && revenue > 0)
+    checks.push({ tone: 'warn', text: `Chi vượt ngân sách thực phẩm ${formatMoney(cost - foodBudget)}` });
 
   const hasMenu = (db.weeklyMenus || []).some((w) => publishedDay([w], w.ageGroupId, date)?.meals?.some((m) => m.items?.length));
   const anyConfirmed = COUNTED.some((s) => confirmed[s]);
@@ -208,9 +214,9 @@ export function computeMarket(db, { date, counts, classById }) {
     date,
     status: !hasMenu ? 'NO_MENU' : !anyConfirmed ? 'WAITING_MEAL_COUNT' : 'READY',
     foods,
-    revenue: { total: revenue, parts },
+    revenue: { total: revenue, foodBudget, parts },
     cost: { total: cost, missingPrice },
-    balance: revenue - cost,
+    balance: foodBudget - cost,
     substitutes: Object.values(subs),
     meals,
     checks,

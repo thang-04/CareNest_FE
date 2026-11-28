@@ -19,6 +19,7 @@ import { formatDateTime } from '@/utils/format';
 import { ChildAvatar } from '@/components/ChildAvatar';
 import { useToast } from '@/contexts/ToastContext';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
+import { devNow } from '@/utils/devClock';
 
 const blank = () => ({
   temperature: '',
@@ -29,7 +30,7 @@ const blank = () => ({
   referral: { place: '', time: '', escort: '' },
 });
 // Giờ hiện tại hh:mm (giờ máy) để điền sẵn giờ đón / giờ chuyển
-const nowTime = () => new Date().toTimeString().slice(0, 5);
+const nowTime = () => devNow().toTimeString().slice(0, 5);
 
 export function DailyHealthPanel({
   child,
@@ -230,7 +231,7 @@ export function DailyHealthPanel({
             >
               {busy && <SubmitOverlay state="sending" />}
               <fieldset disabled={busy || parentBusy || !editable} className="dd-health__fields">
-                <FormField label="Thân nhiệt (°C)" error={errors.temperature}>
+                <FormField label="Thân nhiệt (°C)" required error={errors.temperature}>
                   <input
                     className="input"
                     inputMode="decimal"

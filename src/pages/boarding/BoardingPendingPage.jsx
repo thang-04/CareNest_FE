@@ -7,7 +7,7 @@ const CONTENT = {
     title: 'Kiểm thực ba bước',
     description: 'Biểu mẫu kiểm thực ba bước chưa lưu vào hệ thống. Chưa dùng màn này để kiểm thử ký hoặc đối chiếu vận hành.',
     links: [
-      { to: '/kitchen/fresh-receipts', label: 'Kiểm nhận hàng tươi' },
+      { to: '/kitchen/fresh-receipts', label: 'Kiểm nhận hàng hôm nay' },
       { to: '/kitchen/food-samples', label: 'Lưu mẫu thực phẩm' },
     ],
   },

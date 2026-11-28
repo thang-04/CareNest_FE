@@ -97,8 +97,12 @@ test('dòng Excel chép đúng số của bảng', async () => {
   const day = await readyDay();
   const rows = dayMarketCsvRows(day);
   assert.equal(rows[1].length, 7 + day.groups.length * 2);
-  const first = rows[2];
-  assert.deepEqual([first[1], first[2], first[6]], [day.lines[0].name, day.lines[0].unit, day.lines[0].amount ?? '']);
+  // Dòng 2 là tiêu đề nhóm NCC, thực phẩm đầu tiên của nhóm ở dòng 3
+  assert.equal(rows[2][0], '');
+  const first = rows[3];
+  const firstLine = day.lines.find((l) => l.name === first[1]);
+  assert.deepEqual([first[0], first[2], first[6]], [1, firstLine.unit, firstLine.amount ?? '']);
+  assert.equal(rows.filter((r) => typeof r[0] === 'number').length, day.lines.length);
   const total = rows.find((r) => r[1] === 'Tổng chi');
   assert.equal(total[6], day.totals.cost);
   assert.ok(rows.some((r) => r[0] === 'Tổng thu' && r[3] === day.totals.revenue));

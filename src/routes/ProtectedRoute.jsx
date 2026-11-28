@@ -4,9 +4,11 @@ import { ErrorState } from '@/components/ui/States';
 import { AppSplash } from '@/components/ui/AppSplash';
 import { StandaloneStatus } from '@/components/ui/StandaloneStatus';
 import { ROLE_LABELS } from '@/models/User';
+import { ReauthModal } from '@/components/auth/ReauthModal';
+import { SessionTakeoverModal } from '@/components/auth/SessionTakeoverModal';
 
 export function ProtectedRoute() {
-  const { status, user, sessionError, retrySession, logout } = useAuth();
+  const { status, user, sessionError, retrySession, logout, pendingTakeover } = useAuth();
   const location = useLocation();
   if (status === 'loading') return <AppSplash />;
   if (status === 'unavailable')
@@ -18,8 +20,8 @@ export function ProtectedRoute() {
         </div>
       </StandaloneStatus>
     );
-  if (status !== 'authenticated') return <Navigate to="/login" replace state={{ from: location }} />;
-  // ADMIN đăng nhập Web được nhưng chưa có màn riêng (ROLE_LABELS chỉ gồm vai trò có màn hình)
+  if (status !== 'authenticated' && status !== 'reauth') return <Navigate to="/login" replace state={{ from: location }} />;
+  // Chỉ vai trò có màn Web (ROLE_LABELS, gồm cả ADMIN) mới vào được; vai trò khác thấy màn chặn
   if (!ROLE_LABELS[user.role])
     return (
       <StandaloneStatus
@@ -34,7 +36,14 @@ export function ProtectedRoute() {
         }
       />
     );
-  return <Outlet key={user.id} />;
+  // Cùng một cây khi 'reauth' để React giữ nguyên state của màn (dữ liệu chưa lưu); chỉ thêm hộp đăng nhập lại
+  return (
+    <>
+      <Outlet key={user.id} />
+      {status === 'reauth' && <ReauthModal />}
+      {status === 'authenticated' && pendingTakeover && <SessionTakeoverModal />}
+    </>
+  );
 }
 
 /** Link người khác gửi: sau đăng nhập quay về đúng trang, giữ cả bộ lọc trên URL. */

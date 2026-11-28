@@ -8,19 +8,29 @@ import { renderToStaticMarkup } from 'react-dom/server';
 const source = await readFile(new URL('../../src/pages/education-plan/GoalListPage.jsx', import.meta.url), 'utf8');
 const isolated = source.replace(/^import [\s\S]*? from '[^']+';\r?\n/gm, '');
 const stubs = `
-import React, {useMemo, useState} from 'react';
+import React, {useEffect, useMemo, useState} from 'react';
 import {planLevel, planLevel as levelOf, planRoute, inheritAnnual} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/planLevel.mjs'))};
-import {currentPlanOf, versionOf} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/planVersions.mjs'))};
-export const context={goals:[],schoolYear:'2026',role:'vp',user:{id:'test'},classes:[]};
-const useGoalDetails=()=>({loading:false});const useSchoolYear=()=>({schoolYears:context.schoolYears||[]});const useEducationPlan=()=>context, useNavigate=()=>()=>{};
-const ROLES={VICE_PRINCIPAL:'vp', PRINCIPAL:'principal', TEAM_LEADER:'leader'}, AGE_GROUPS=[], EDU_STATUS={APPROVED:'APPROVED',SENT:'SENT',PENDING_VP:'PENDING_VP'};
+import {currentPlanInYear, currentPlanOf, versionOf} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/planVersions.mjs'))};
+import {isReviewTurn} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/reviewTurn.mjs'))};
+import {sameSchoolYearId} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/schoolYearScope.mjs'))};
+export const context={goals:[],schoolYear:'2026',schoolYearId:1,yearOption:{id:1,status:'ACTIVE'},role:'vp',user:{id:'test'},classes:[]};
+const useGoalDetails=()=>({loading:false});const useEducationPlan=()=>context, useNavigate=()=>()=>{};
+const ROLES={VICE_PRINCIPAL:'vp', PRINCIPAL:'principal', TEAM_LEADER:'leader'}, AGE_GROUPS=[], ageRangeOptions=()=>AGE_GROUPS, ageRangeKey=(g)=>g?.rangeKey, sameAgeRange=(a,b)=>a===b, EDU_STATUS={APPROVED:'APPROVED',SENT:'SENT',PENDING_VP:'PENDING_VP'};
+const isEduVicePrincipal=()=>context.role===ROLES.VICE_PRINCIPAL, canEduApprove=()=>true;
+const DEFAULT_WORKFLOW_POLICY={schoolYear:{creators:['vp'],reviewers:['principal']},year:{creators:['leader'],reviewers:['vp']}};
 const allGoalItems=()=>[], clickableRowProps=()=>({}), fmtDate=(value)=>value || '—';
-const Card=({children})=><section>{children}</section>, PageHead=({actions})=><header>{actions}</header>, StatCard=({label})=><span>{label}</span>, SearchSubmit=()=>null, EmptyState=()=>null;
+const Card=({children})=><section>{children}</section>, PageHead=({actions})=><header>{actions}</header>, StatCard=({label,value})=><span data-value={value}>{label}</span>, SearchSubmit=()=>null, EmptyState=()=>null;
 const Link=({children,to})=><a href={to}>{children}</a>, Plus=()=>null, RotateCcw=()=>null;
 const YearPlanStatusBadge=({status})=><span data-status={status}>{status}</span>;
 const VersionBadge=()=> <span className="chip">Phiên bản màu</span>;
-const useAsync=()=>({data:context.queue ?? context.goals ?? null,loading:false,reload:()=>{}}), usePolling=()=>{}, getReviewQueue=async()=>[];
+const useAsync=(fn)=>{ const r=fn(); return {data:r instanceof Promise ? (context.queue ?? null) : r,loading:false,reload:()=>{}}; }, usePolling=()=>{}, getReviewQueue=async()=>[];
+// BE giả của danh sách phân trang + số liệu (edu-list-paging): ẩn bản ban hành có bản ban hành mới hơn cùng năm, nhóm tuổi
+const levelGoals=(f)=>(context.goals||[]).filter((g)=>levelOf(g)===f.planLevel);
+const isReplaced=(g)=>g.status==='APPROVED'&&(context.goals||[]).some((x)=>x.status==='APPROVED'&&x.ageGroupId===g.ageGroupId&&x.schoolYearId===g.schoolYearId&&x.versionNo>g.versionNo);
+const getGoalPage=(u,f)=>{ const items=levelGoals(f).filter((g)=>!f.currentOnly||!isReplaced(g)); return {items:items.slice(f.page*f.size,(f.page+1)*f.size),totalElements:items.length}; };
+const getGoalStats=(u,f)=>{ const lv=levelGoals(f); return {total:lv.length,issued:lv.filter((g)=>g.status==='APPROVED'||g.status==='SENT').length,replaced:lv.filter(isReplaced).length,ageGroupIdsWithPlan:[...new Set(lv.map((g)=>g.ageGroupId))]}; };
 const submitEntryOf=(d)=>[...(d?.history||[])].reverse().find((h)=>h.code==='SUBMIT'||h.action==='submit')||null;
+const paginate=(items,page,size)=>items.slice((page-1)*size,page*size), Pagination=()=>null;
 `;
 const { code } = await transformWithOxc(stubs + isolated, 'GoalListPage.jsx', { lang: 'jsx', jsx: { runtime: 'classic' } });
 const { default: GoalListPage, context } = await import(
@@ -34,6 +44,7 @@ const plan = (id, versionNo, status = 'APPROVED', extra = {}) => ({
   code: `KHNH-${id}`,
   ageGroupId: 'ag-2',
   schoolYear: '2026',
+  schoolYearId: 1,
   ...extra,
 });
 const render = (goals) => {
@@ -88,7 +99,7 @@ test('ưu tiên current của BE khi bản hiện hành không nằm trong danh 
   html = render([
     plan('current', 4, 'APPROVED', { current: true }),
     plan('other-age', 9, 'APPROVED', { ageGroupId: 'ag-5' }),
-    plan('other-year', 8, 'APPROVED', { schoolYear: '2025' }),
+    plan('other-year', 8, 'APPROVED', { schoolYear: '2025', schoolYearId: 2 }),
   ]);
   assert.doesNotMatch(html, /data-status="REPLACED"/);
 });
@@ -148,14 +159,14 @@ test('EDU-89: chỉ lập kế hoạch khi năm đang hoạt động hoặc đã
     context.goals = [];
     context.role = 'vp';
     context.schoolYear = '2026-2027';
-    const year = (status, preparing = false) => [{ id: 1, label: '2026 - 2027', status, preparing }];
-    context.schoolYears = year('ACTIVE');
+    const year = (status, preparing = false) => ({ id: 1, label: '2026 - 2027', status, preparing });
+    context.yearOption = year('ACTIVE');
     assert.match(html(), /school-year-plans\/new/);
-    context.schoolYears = year('PLANNED', true);
+    context.yearOption = year('PLANNED', true);
     assert.match(html(), /school-year-plans\/new/);
-    context.schoolYears = year('PLANNED');
+    context.yearOption = year('PLANNED');
     assert.doesNotMatch(html(), /school-year-plans\/new/);
-    context.schoolYears = year('CLOSED');
+    context.yearOption = year('CLOSED');
     assert.doesNotMatch(html(), /school-year-plans\/new/);
   } finally {
     Object.keys(context).forEach((key) => delete context[key]);
@@ -187,20 +198,45 @@ test('TEAM ngày gửi ưu tiên sentAt, tương thích sentBy.at và chưa gử
   assert.match(html, /<td>—<\/td>/);
 });
 
+test('EDU-93: thẻ "Chờ bạn duyệt" chỉ đếm hồ sơ đúng lượt, bỏ hồ sơ của bước khác trong hàng chờ', () => {
+  const previous = { ...context };
+  try {
+    context.role = 'vp';
+    context.queue = [
+      plan('dung-luot', 1, 'REVIEW', { planLevel: 'TEAM', permissions: { canApprove: true } }),
+      plan('buoc-khac', 1, 'REVIEW', { planLevel: 'TEAM', permissions: { canApprove: false, canReturn: false } }),
+      plan('du-lieu-cu', 1, 'REVIEW', { planLevel: 'TEAM' }),
+    ];
+    const html = renderToStaticMarkup(React.createElement(GoalListPage, { planLevel: 'TEAM' }));
+    assert.match(html, /data-value="2">Chờ bạn duyệt</);
+  } finally {
+    Object.keys(context).forEach((key) => delete context[key]);
+    Object.assign(context, previous);
+  }
+});
+
 const queueSource = await readFile(new URL('../../src/pages/education-plan/PlanReviewQueuePage.jsx', import.meta.url), 'utf8');
 // Trang gọi như hàm thường (không render React): hook trạng thái bộ lọc thay bằng giá trị ban đầu
 const queueStubs =
   stubs
     .replace(
-      "import React, {useMemo, useState} from 'react';",
-      "import React, {useMemo} from 'react'; const useState=(v)=>[typeof v==='function'?v():v,()=>{}], useId=()=>'q';",
+      "import React, {useEffect, useMemo, useState} from 'react';",
+      "import React, {useEffect, useMemo} from 'react'; const useState=(v)=>[typeof v==='function'?v():v,()=>{}], useId=()=>'q';",
     )
     .replace('useNavigate=()=>()=>{}', 'useNavigate=()=>to=>context.destination=to')
-    .replace('clickableRowProps=()=>({})', 'clickableRowProps=(onClick)=>({onClick})') +
+    .replace('clickableRowProps=()=>({})', 'clickableRowProps=(onClick)=>({onClick})')
+    // edu-list-paging: lần gọi thứ nhất = hàng chờ năm/tổ, thứ hai = trang tài liệu lớp chờ duyệt từ BE
+    .replace(
+      "const useAsync=(fn)=>{ const r=fn(); return {data:r instanceof Promise ? (context.queue ?? null) : r,loading:false,reload:()=>{}}; }",
+      "let asyncCall=0; const useAsync=()=>{ const docs=[...(context.semesterPackages||[]),...(context.themeDossiers||[])].filter((d)=>d.status==='REVIEW'); return asyncCall++%2===0 ? {data:context.queue ?? context.goals ?? null,loading:false,reload:()=>{}} : {data:{items:docs,total:docs.length},loading:false,reload:()=>{}}; }",
+    ) +
   `
+const LoadingState=()=>null, getClassDocSummaries=async()=>({items:[],totalElements:0});
+import { mixedPage } from ${JSON.stringify(new URL('../../src/models/education-plan/classDocSummary.mjs', import.meta.url).href)};
 const EduStatusBadge=YearPlanStatusBadge, fmtDateTime=(value)=>value, DeadlineBadge=()=>null, Eye=()=>null, FilterText=()=>null;
 const PENDING_OF={}, CLASS_DOC_LABELS={year:'Kế hoạch tổ', branch:'Nhánh', theme:'Chủ đề'};
 const themeNumber=()=>1, themeWeeksOf=()=>[];
+import { isChainReviewer } from ${JSON.stringify(new URL('../../src/models/education-plan/reviewTurn.mjs', import.meta.url).href)};
 `;
 const queueCode = await transformWithOxc(
   queueStubs + queueSource.replace(/^import [\s\S]*? from '[^']+';\r?\n/gm, ''),
@@ -244,4 +280,43 @@ test('review queue uses exact annual/TEAM type, own title, sentBy.at fallback an
   assert.equal(queueContext.destination, '/education/school-year-plans/annual-exact');
   rows[1].props.onClick();
   assert.equal(queueContext.destination, '/education/goals/team-exact');
+});
+
+test('EDU-93: hàng chờ hiện hồ sơ cho người duyệt bước khác (nút Xem) và mở trang xem giáo án ngày của chủ đề', () => {
+  const dossier = (id, permissions) => ({
+    id,
+    classId: 'c1',
+    themeId: 't1',
+    yearPlanId: 'y1',
+    status: 'REVIEW',
+    review: { roles: ['leader', 'vp'], waitingRole: 'leader' },
+    permissions,
+  });
+  Object.assign(queueContext, {
+    user: { role: 'vp' },
+    queue: [],
+    goals: [],
+    branchPlans: [],
+    classThemePlans: [],
+    classes: [{ id: 'c1', name: 'Lớp Lá 1', ageGroupId: 4 }],
+    semesterPackages: [{ id: 'sp1', classId: 'c1', themeIds: ['t1'], semesterNo: 2, status: 'APPROVED', permissions: {} }],
+    themeDossiers: [dossier('ds-other-step', { canApprove: false, canReturn: false })],
+  });
+  try {
+    const tree = PlanReviewQueuePage();
+    const html = renderToStaticMarkup(tree);
+    assert.match(html, /Kế hoạch giáo dục ngày/);
+    assert.match(html, />\s*Xem<\/button>/);
+    assert.doesNotMatch(html, /Mở duyệt/);
+    const nodes = (node) => (!React.isValidElement(node) ? [] : [node, ...React.Children.toArray(node.props.children).flatMap(nodes)]);
+    nodes(tree)
+      .find((node) => node.type === 'tr' && node.props.onClick)
+      .props.onClick();
+    assert.equal(queueContext.destination, '/education/day-plans/c1?theme=t1&plan=y1&review=1');
+
+    queueContext.themeDossiers = [dossier('ds-my-turn', { canApprove: true, canReturn: true })];
+    assert.match(renderToStaticMarkup(PlanReviewQueuePage()), /Mở duyệt/);
+  } finally {
+    for (const key of ['queue', 'classes', 'semesterPackages', 'themeDossiers']) delete queueContext[key];
+  }
 });

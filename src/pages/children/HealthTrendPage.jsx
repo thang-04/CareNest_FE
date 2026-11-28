@@ -4,6 +4,8 @@ import { LineChart, HeartPulse, ArrowLeft, ChevronLeft, ChevronRight } from '@/c
 import { useAuth } from '@/contexts/AuthContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { useChildYearLock } from '@/hooks/children/useChildYearLock';
+import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { useChildRecords, useHealthRecord } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ChildAvatar } from '@/components/ChildAvatar';
@@ -20,7 +22,7 @@ import { NUTRITION_STATUS, NUTRITION_STATUS_OPTIONS, labelOf } from '@/models/ch
 import { formatDate } from '@/utils/format';
 import { formatNumber } from '@/utils/children/childrenHelpers';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
-import { withinTrendPeriod } from '@/utils/children/healthTrend';
+import { oneMeasurementPerDay, withinTrendPeriod } from '@/utils/children/healthTrend';
 import { canReviewHealthTrend, isPrincipal, isVicePrincipal } from '@/utils/children/childrenPermissions';
 import '@/styles/modules/children.css';
 import { CampusFilter } from '@/components/ui/CampusFilter';
@@ -28,11 +30,13 @@ import { CampusFilter } from '@/components/ui/CampusFilter';
 export default function HealthTrendPage() {
   const { user } = useAuth();
   const { schoolYear } = useSchoolYear();
+  // Năm đã kết thúc hoặc năm sắp diễn ra chưa tới ngày mở chuẩn bị (CFG-YR-01, CHD-12): không duyệt nhận xét xu hướng
+  const yearLocked = useChildYearLock();
+  const md = useMasterData(schoolYear);
   const [params, setParams] = useSearchParams();
   const childId = params.get('childId') || '';
   const [period, setPeriod] = useState('ALL');
   const [view, setView] = useState('chart');
-  const md = useMasterData();
   // Hiệu trưởng / Phó hiệu trưởng lọc theo điểm trường + lớp; giáo viên nhiều lớp chọn lớp (danh sách đã theo lớp mình)
   const leader = isPrincipal(user) || isVicePrincipal(user);
   const [campusId, setCampusId] = useState('');
@@ -75,8 +79,8 @@ export default function HealthTrendPage() {
   const prevChild = index > 0 ? ordered[index - 1] : null;
   const nextChild = index >= 0 && index < ordered.length - 1 ? ordered[index + 1] : null;
   const points = useMemo(() => {
-    // HLT-21: cùng khoảng với phân tích AI (tính lùi từ hôm nay như BE)
-    return withinTrendPeriod(record?.measurements || [], period).sort((a, b) => a.date.localeCompare(b.date));
+    // HLT-21: cùng khoảng với phân tích AI (tính lùi từ hôm nay như BE); HLT-01/HLT-08: một điểm mỗi ngày, ưu tiên phiếu khám
+    return oneMeasurementPerDay(withinTrendPeriod(record?.measurements || [], period));
   }, [record, period]);
 
   const child = record?.child;
@@ -95,6 +99,7 @@ export default function HealthTrendPage() {
     <div className="page">
       <Breadcrumb items={childrenCrumbs('Xu hướng sức khỏe')} />
       <h1 className="page__title">Xu hướng sức khỏe</h1>
+      <YearLockedNotice subject="sức khỏe của trẻ" />
 
       {/* Danh sách trẻ bên trái (thu gọn được), biểu đồ của trẻ đang chọn bên phải (user chọn 2026-10-23) */}
       <div className={`tr-trend-layout mt-16 ${listCollapsed ? 'tr-trend-layout--collapsed' : ''}`}>
@@ -278,7 +283,7 @@ export default function HealthTrendPage() {
                 childId={child.id}
                 user={user}
                 period={period}
-                canReview={canReviewHealthTrend(child, user, record?.cls)}
+                canReview={!yearLocked && canReviewHealthTrend(child, user, record?.cls)}
               />
               <div className="page-actions">
                 <Link className="btn" to={`/children/${child.id}`}>

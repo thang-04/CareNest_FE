@@ -14,6 +14,8 @@ import {
   getDishById,
   getDishes,
   getFoodById,
+  getFoodPrices,
+  getActiveSuppliers,
   getFoods,
   getMenuAccess,
   getMenuCatalog,
@@ -45,6 +47,8 @@ const itemHook = (loader) =>
 
 export const useFoods = listHook(getFoods);
 export const useFood = itemHook(getFoodById);
+export const useFoodPrices = itemHook((foodId) => getFoodPrices(foodId));
+export const useActiveSuppliers = listHook((_, user) => getActiveSuppliers(user));
 export const useDishes = listHook(getDishes);
 export const useDish = itemHook(getDishById);
 export const useReferenceDishes = listHook(getReferenceDishes);
@@ -73,9 +77,16 @@ export function useCatalogAccess() {
   const usesApi = catalogUsesApi();
   // Danh mục dùng BE thì quyền lấy từ /accounts/me ⇒ không gọi quyền thực đơn của bản demo
   const menu = useMenuAccess({ enabled: !usesApi });
-  if (!usesApi) return { ...menu, softDelete: false };
+  if (!usesApi) return { ...menu, softDelete: false, canConfigureMeals: menu.canManage };
   // BE chưa có "hay dùng": dấu tim chỉ lưu ở trình duyệt, nên ai xem danh mục cũng đánh dấu riêng cho mình được
-  return { loading: false, softDelete: true, personalFavorite: true, canManage: hasBePermission(user, PERMISSIONS.NUTRITION_MANAGE) };
+  return {
+    loading: false,
+    softDelete: true,
+    personalFavorite: true,
+    canManage: hasBePermission(user, PERMISSIONS.NUTRITION_MANAGE),
+    // Bữa, chuẩn, giá theo nhóm tuổi: mã riêng của HT (NUT-17); PHT có NUTRITION_MANAGE vẫn chỉ xem
+    canConfigureMeals: hasBePermission(user, PERMISSIONS.MEAL_CONFIG_MANAGE),
+  };
 }
 
 const catalogHook = (loader) =>
