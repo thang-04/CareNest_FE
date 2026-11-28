@@ -3,8 +3,34 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { getFoods, saveFoodsBulk } from '@/services/menu-planning/menuPlanningService';
 import { ImportDialog } from '@/components/upload/ImportDialog';
-import { IMPORT_TEMPLATE_URL, importFieldLabel, matchFoodRows, readFoodFile } from '@/utils/menu-planning/foodImport';
-import { FOOD_GROUP_LABELS, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
+import { IMPORT_TEMPLATE_URL, formatImportValue, importFieldLabel, matchFoodRows, readFoodFile } from '@/utils/menu-planning/foodImport';
+import { MICRONUTRIENT_LABELS, MICRONUTRIENT_UNITS, MICRONUTRIENTS, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
+
+// Cột bảng "Thêm mới": mỗi dòng hiện đủ giá trị sẽ được ghi (khớp thứ tự cột file mẫu)
+const CREATE_COLUMNS = [
+  ['group', 'Nhóm'],
+  ['unit', 'Đơn vị gốc'],
+  ['purchaseUnit', 'Đơn vị tính'],
+  ['purchaseUnitSize', 'Quy đổi'],
+  ['unitPrice', 'Đơn giá', (v) => (v ? formatMoney(v) : '—')],
+  ['wastePct', 'Thải bỏ %'],
+  ['kcal', 'Kcal', null, true],
+  ['protein', 'Đạm', null, true],
+  ['lipid', 'Béo', null, true],
+  ['glucid', 'Tinh bột', null, true],
+  ['allergens', 'Dị ứng'],
+  ['storage', 'Bảo quản'],
+  ['origin', 'Nguồn gốc'],
+  ['nutrientSource', 'Nguồn số liệu'],
+];
+const createCell = (data, [key, , fmt, fromNutrition]) => {
+  const value = fromNutrition ? data.nutrition?.[key] : data[key];
+  return fmt ? fmt(value) : formatImportValue(key, value);
+};
+const microsOf = (data) =>
+  MICRONUTRIENTS.filter((k) => data.nutrition?.[k] != null)
+    .map((k) => `${MICRONUTRIENT_LABELS[k]} ${data.nutrition[k]} ${MICRONUTRIENT_UNITS[k]}`)
+    .join('; ') || '—';
 
 /** Nhập thực phẩm từ file .xlsx (hộp ImportDialog): tải tệp mẫu → chọn tệp → xem trước Mới / Cập nhật / Lỗi → ghi các dòng hợp lệ. */
 export function FoodImportPanel({ open, onClose }) {
@@ -15,6 +41,8 @@ export function FoodImportPanel({ open, onClose }) {
   const [reading, setReading] = useState(false);
   const [saving, setSaving] = useState(false);
   const valid = result ? [...result.creates, ...result.updates] : [];
+  // Chỉ mở rộng hộp khi file có dòng để xem trước; chưa chọn file hoặc file rỗng giữ cỡ thường
+  const hasRows = valid.length > 0 || !!result?.errors.length;
 
   const reset = () => {
     setFileName('');
@@ -67,6 +95,7 @@ export function FoodImportPanel({ open, onClose }) {
     <ImportDialog
       open={open}
       title="Nhập thực phẩm từ Excel"
+      size={hasRows ? 'full' : 'xl'}
       guide={
         <>
           Tải xuống <b>tệp mẫu</b>, điền mỗi dòng một thực phẩm rồi tải lên. Mã TP để trống là thực phẩm mới; có mã thì cập nhật các ô đã
@@ -84,7 +113,7 @@ export function FoodImportPanel({ open, onClose }) {
       onClose={close}
     >
       {result && (
-        <div className="import-preview">
+        <div className="import-preview food-import">
           <div className="row td-chips">
             <span className="chip chip--green">Thêm mới {result.creates.length}</span>
             <span className="chip chip--blue">Cập nhật {result.updates.length}</span>
@@ -101,6 +130,7 @@ export function FoodImportPanel({ open, onClose }) {
                   <thead>
                     <tr>
                       <th className="td-num-col">Dòng</th>
+                      <th>Mã TP</th>
                       <th>Thực phẩm</th>
                       <th>Lý do</th>
                     </tr>
@@ -109,6 +139,7 @@ export function FoodImportPanel({ open, onClose }) {
                     {result.errors.map((e) => (
                       <tr key={e.row}>
                         <td className="td-num-col">{e.row}</td>
+                        <td>{e.code || '—'}</td>
                         <td>{e.name || '—'}</td>
                         <td className="td-bad">{e.reason}</td>
                       </tr>
@@ -127,8 +158,10 @@ export function FoodImportPanel({ open, onClose }) {
                     <tr>
                       <th className="td-num-col">Dòng</th>
                       <th>Tên thực phẩm</th>
-                      <th>Nhóm</th>
-                      <th className="money">Đơn giá</th>
+                      {CREATE_COLUMNS.map(([key, label]) => (
+                        <th key={key}>{label}</th>
+                      ))}
+                      <th>Vi chất</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -136,8 +169,10 @@ export function FoodImportPanel({ open, onClose }) {
                       <tr key={c.key}>
                         <td className="td-num-col">{c.row}</td>
                         <td>{c.name}</td>
-                        <td>{FOOD_GROUP_LABELS[c.data.group]}</td>
-                        <td className="money">{c.data.unitPrice ? formatMoney(c.data.unitPrice) : '—'}</td>
+                        {CREATE_COLUMNS.map((column) => (
+                          <td key={column[0]}>{createCell(c.data, column)}</td>
+                        ))}
+                        <td className="text-sm">{microsOf(c.data)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -155,7 +190,7 @@ export function FoodImportPanel({ open, onClose }) {
                       <th className="td-num-col">Dòng</th>
                       <th>Mã</th>
                       <th>Tên thực phẩm</th>
-                      <th>Trường thay đổi</th>
+                      <th>Giá trị thay đổi (cũ → mới)</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -164,7 +199,13 @@ export function FoodImportPanel({ open, onClose }) {
                         <td className="td-num-col">{u.row}</td>
                         <td className="text-primary fw-600">{u.code}</td>
                         <td>{u.name}</td>
-                        <td className="text-sm">{u.changes.map(importFieldLabel).join(', ')}</td>
+                        <td className="text-sm">
+                          {u.diffs.map((d) => (
+                            <div key={d.key}>
+                              <b>{importFieldLabel(d.key)}:</b> {formatImportValue(d.key, d.before)} → {formatImportValue(d.key, d.after)}
+                            </div>
+                          ))}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

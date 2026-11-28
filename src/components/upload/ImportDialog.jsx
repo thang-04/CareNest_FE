@@ -12,6 +12,7 @@ const loadDocumentScan = () => import('@/assets/lottie/document-scan.json');
 /**
  * Hộp nhập từ tệp dùng chung (DESIGN §6.3): hướng dẫn + tải tệp mẫu → tùy chọn (`options`) → kéo thả / chọn tệp → xem trước
  * (children) → Hủy / Xác nhận. Đọc và đối chiếu tệp do màn gọi (`onFile(file)`); hộp chỉ lo bố cục và chọn tệp.
+ * `size`: cỡ hộp (mặc định `xl`; `full` cho bảng xem trước nhiều cột).
  * `maxSize={null}`: màn gọi tự kiểm dung lượng và báo lỗi trong hộp (kèm `hint` nói rõ giới hạn).
  */
 export function ImportDialog({
@@ -23,6 +24,7 @@ export function ImportDialog({
   templateLabel = 'Tải xuống tệp mẫu',
   options,
   accept = '.xlsx',
+  size = 'xl',
   hint,
   maxSize = MAX_SIZE,
   uploadLabel = 'Tải lên tệp Excel',
@@ -54,7 +56,7 @@ export function ImportDialog({
   return (
     <Modal
       open={open}
-      size="xl"
+      size={size}
       title={title}
       onClose={busy ? undefined : onClose}
       closeOnBackdrop={!busy}

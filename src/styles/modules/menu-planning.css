@@ -4447,6 +4447,16 @@
   margin-top: var(--space-3);
 }
 
+/* Xem trước nhập thực phẩm: bảng nhiều cột cuộn trong khung, tiêu đề cột dính trên */
+.food-import .table-wrap {
+  max-height: 45vh;
+  overflow: auto;
+}
+.food-import .table th {
+  position: sticky;
+  top: 0;
+}
+
 /* ---------- Cân đối khẩu phần ngày: cột món + kết luận bên trái, bảng bên phải ---------- */
 .td-bal {
   display: grid;
