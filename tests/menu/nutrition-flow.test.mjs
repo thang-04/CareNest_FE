@@ -17,7 +17,7 @@ test('PHT: khu bán trú gồm Bán trú hôm nay và năm nhóm theo việc', (
   assert.equal(menuGroup(ROLES.VICE_PRINCIPAL, 'boardingToday').to, '/boarding/today');
   assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'nutrition'), ['weeklyMenus', 'nutrition', 'menus']);
   // PHT xem Bếp hôm nay như HT (GET /nutrition/kitchen/day cho HT, PHT)
-  assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'kitchenOps'), ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts']);
+  assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'kitchenOps'), ['mealCount', 'publishedMenu', 'forecast', 'dayMarket', 'freshReceipts']);
   assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'stock'), ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls']);
   assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'foodSafety'), ['inspections', 'foodSamples']);
   assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'catalog'), ['foods', 'dishes', 'nutritionSetup', 'suppliers']);
@@ -28,8 +28,10 @@ test('PHT: khu bán trú gồm Bán trú hôm nay và năm nhóm theo việc', (
 });
 
 test('HT: thực đơn tuần, bộ thực đơn mẫu, sổ suất, kho; bếp không có mục bán trú trên Web', () => {
-  assert.deepEqual(keysOf(ROLES.PRINCIPAL, 'nutrition'), ['weeklyMenus', 'menus']);
-  assert.deepEqual(keysOf(ROLES.PRINCIPAL, 'kitchenOps'), ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts']);
+  assert.deepEqual(keysOf(ROLES.PRINCIPAL, 'nutrition'), ['weeklyMenus', 'nutrition', 'menus']);
+  // Đi chợ theo ngày là mục riêng của Vận hành bếp, đứng sau Bản dự trù
+  assert.equal(menuGroup(ROLES.PRINCIPAL, 'kitchenOps').children.find((c) => c.key === 'dayMarket').to, '/kitchen/market-day');
+  assert.deepEqual(keysOf(ROLES.PRINCIPAL, 'kitchenOps'), ['mealCount', 'publishedMenu', 'forecast', 'dayMarket', 'freshReceipts']);
   assert.deepEqual(keysOf(ROLES.PRINCIPAL, 'stock'), ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls']);
   assert.deepEqual(keysOf(ROLES.PRINCIPAL, 'catalog'), ['foods', 'dishes', 'nutritionSetup', 'suppliers']);
   assert.deepEqual(

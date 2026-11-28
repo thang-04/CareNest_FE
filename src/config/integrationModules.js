@@ -182,7 +182,7 @@ export const INTEGRATION_MODULES = {
   'meal-plan': {
     source: 'api',
     // Cân đối khẩu phần đọc kế hoạch tuần và bản cân đối ngày /nutrition/day-balances
-    routes: ['/menu/weekly', '/menu/statistics', '/menu/nutrition'],
+    routes: ['/menu/weekly', '/menu/nutrition'],
     files: ['src/services/mealPlanApi.js', 'src/services/dayBalanceApi.js'],
   },
   // Mẫu thực đơn một ngày theo khối trên BE /nutrition/menu-templates (NUT-13, đổi 04/11)

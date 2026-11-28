@@ -2179,55 +2179,6 @@
   min-width: 0;
 }
 
-/* Thống kê định lượng một ngày thực đơn */
-.td-stat-filters {
-  display: grid;
-  gap: var(--space-3);
-}
-
-/* Hàng đầu thẻ lọc: chọn tuần bên trái, nút Xuất Excel / Xem trước bản in sát mép phải */
-.td-stat-filters__top {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3);
-}
-.td-stat-filters__top:empty {
-  display: none;
-}
-.td-stat-filters__actions {
-  margin-left: auto;
-}
-
-.td-stat-filters__row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: var(--space-3);
-}
-
-/* 240px: vừa tên điểm trường dài nhất ("Cơ sở 1 – MN Thượng Hồng") trên một dòng */
-.td-stat-filters__row > * {
-  flex: 0 1 240px;
-}
-
-/* Nhóm Tươi/Khô của bảng thực phẩm: dòng tiêu đề nhóm và dòng tổng nhóm */
-.td-stat-table .td-stat-group th {
-  background: var(--color-primary-soft);
-  color: var(--color-text);
-  font-weight: var(--fw-semibold);
-  text-align: left;
-}
-.td-stat-table .td-stat-subtotal td {
-  background: var(--color-surface-muted);
-  font-weight: var(--fw-semibold);
-}
-.td-stat-table th.td-stat-table__session {
-  background: var(--table-header-bg);
-  font-weight: var(--fw-semibold);
-  white-space: nowrap;
-}
-
 /* Nhãn loại món: màu theo biến --dt của lớp td-dt--<loại> */
 .td-dish-type {
   display: inline-flex;

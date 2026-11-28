@@ -338,10 +338,6 @@ const ITEMS = {
     label: 'Kế hoạch tuần & công bố',
     to: '/menu/weekly',
   },
-  menuStatistics: {
-    label: 'Định lượng & đi chợ',
-    to: '/menu/statistics',
-  },
   nutrition: {
     label: 'Cân đối khẩu phần',
     to: '/menu/nutrition',
@@ -389,6 +385,10 @@ const ITEMS = {
   forecast: {
     label: 'Bản dự trù',
     to: '/kitchen/forecast',
+  },
+  dayMarket: {
+    label: 'Đi chợ theo ngày',
+    to: '/kitchen/market-day',
   },
   profile: {
     label: 'Hồ sơ cá nhân',
@@ -478,8 +478,8 @@ const MENUS = {
       'assessDayUnlocks',
     ]),
     ...boardingSection({
-      nutrition: ['weeklyMenus', 'menuStatistics', 'menus'],
-      kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts'],
+      nutrition: ['weeklyMenus', 'nutrition', 'menus'],
+      kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'dayMarket', 'freshReceipts'],
       stock: ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls'],
       foodSafety: ['inspections', 'foodSamples', 'mealPhotos'],
       catalog: ['foods', 'dishes', 'nutritionSetup', 'suppliers'],
@@ -516,8 +516,8 @@ const MENUS = {
       'assessDayUnlocks',
     ]),
     ...boardingSection({
-      nutrition: ['weeklyMenus', 'nutrition', 'menuStatistics', 'menus'],
-      kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts'],
+      nutrition: ['weeklyMenus', 'nutrition', 'menus'],
+      kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'dayMarket', 'freshReceipts'],
       stock: ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls'],
       foodSafety: ['inspections', 'foodSamples', 'mealPhotos'],
       catalog: ['foods', 'dishes', 'nutritionSetup', 'suppliers'],
@@ -709,8 +709,7 @@ const withBePermissions = (menu, user) =>
 // Màn chỉ có khi nối BE (build mock không có route) ⇒ ẩn mục ở build demo
 // Không import demoSource ở đây: nó kéo mockDatabase (cần window) vào menu
 const KITCHEN_RECORDS_API = !USE_MOCK && INTEGRATION_MODULES['kitchen-records']?.source === 'api';
-const MEAL_PLAN_API = !USE_MOCK && INTEGRATION_MODULES['meal-plan']?.source === 'api';
-const API_ONLY_ITEMS = [...(!KITCHEN_RECORDS_API ? ['mealPhotos'] : []), ...(!MEAL_PLAN_API ? ['menuStatistics'] : [])];
+const API_ONLY_ITEMS = !KITCHEN_RECORDS_API ? ['mealPhotos'] : [];
 const withApiOnlyItems = (menu) =>
   API_ONLY_ITEMS.length
     ? menu.map((e) => (e.children ? { ...e, children: e.children.filter((c) => !API_ONLY_ITEMS.includes(c.key)) } : e))

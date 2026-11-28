@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Plus, ShoppingBasket } from '@/components/ui/icons';
+import { useNavigate } from 'react-router-dom';
+import { Plus } from '@/components/ui/icons';
 import { Button, DataTable, EmptyState, ErrorState, LoadingState, PageHeader, StatusBadge } from '@/components';
 import { usePageReadOnly } from '@/contexts/PageReadOnlyContext';
 import { FreshForecastCreateModal } from '@/components/kitchen/FreshForecastCreateModal';
@@ -79,12 +79,7 @@ export function FreshForecastList({ campus, autoOpen = false }) {
       <PageHeader crumbs={kitchenCrumbs(KITCHEN_PAGES.forecast)} title="Bản dự trù" readOnly={!canManage} />
       <div className="kb-toolbar">
         <KbCampusFilter campusId={campus.campusId} onChange={campus.setCampusId} canPick={campus.canPick} />
-        <div className="kb-toolbar__end">
-          <Link className="btn" to={`/kitchen/market-day?campusId=${campus.campusId}`}>
-            <ShoppingBasket size={16} /> Đi chợ theo ngày
-          </Link>
-          {create}
-        </div>
+        <div className="kb-toolbar__end">{create}</div>
       </div>
       <section className="card">{body}</section>
       {creating && (

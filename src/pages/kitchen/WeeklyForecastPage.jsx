@@ -59,8 +59,6 @@ export default function WeeklyForecastPage() {
   const dirty = Object.values(draft).some((byDate) => Object.keys(byDate).length);
   const nextWeek = addDays(weekStart, 7);
   const menuPublished = ready;
-  // Mở bảng đi chợ ở hôm nay nếu hôm nay thuộc tuần đang xem, không thì ở ngày đầu tuần
-  const dayInWeek = today >= weekStart && today <= addDays(weekStart, 4) ? today : weekStart;
 
   const changeCell = (classId, date, value) => {
     setDraft((d) => ({ ...d, [classId]: { ...d[classId], [date]: value } }));
@@ -170,11 +168,6 @@ export default function WeeklyForecastPage() {
       {/* Nút thao tác cùng hàng với ô lọc thay vì nằm riêng phía trên */}
       {(ready || (canEdit && weekStart <= thisWeek)) && (
         <div className="kb-toolbar__end">
-          {ready && (
-            <Link className="btn" to={`/kitchen/market-day?campusId=${campusId}&date=${dayInWeek}`}>
-              <ShoppingBasket size={16} /> Đi chợ theo ngày
-            </Link>
-          )}
           {ready && (
             <Button icon={Download} onClick={() => exportWithPreview(weeklyOrderCsvRows(data), `phieu-dat-hang-tuan-${weekStart}.xlsx`)}>
               Xuất Excel

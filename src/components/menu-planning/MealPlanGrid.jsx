@@ -219,7 +219,7 @@ export function MealPlanGrid({
                     )}
                     <div className="td-week__day-foot">
                       {dayLink && !day.off && (
-                        <Link className="text-xs" to={dayLink(day, i)} aria-label={`Định lượng & đi chợ ${WEEKDAY_LABELS[i]}`}>
+                        <Link className="text-xs" to={dayLink(day, i)} aria-label={`Đi chợ ${WEEKDAY_LABELS[i]}`}>
                           Đi chợ
                         </Link>
                       )}
