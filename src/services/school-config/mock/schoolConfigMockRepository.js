@@ -308,25 +308,25 @@ const buildReadiness = (db, year) => {
         ? `${leaderGroups.length - leaderMissing.length}/${leaderGroups.length} nhóm tuổi có tổ trưởng (toàn trường)`
         : 'Chưa có lớp',
     },
-    // Lớp chưa có giáo viên hoặc chưa có chủ nhiệm chặn kích hoạt; thiếu 1 GV chỉ cảnh báo (Cần chốt 22/10/2026)
+    // SCH-04 (Cần chốt 28/11/2026): mỗi lớp đủ 2 GV và có GV phụ trách chính mới kích hoạt được
     teachers: (() => {
       const empty = classes.filter((c) => !(c.teacherIds || []).length);
       const short = classes.filter((c) => (c.teacherIds || []).length > 0 && c.teacherIds.length < TEACHERS_PER_CLASS);
       const noHomeroom = classes.filter((c) => (c.teacherIds || []).length > 0 && !c.homeroomTeacherId);
-      const ok = classes.length > 0 && !empty.length && !noHomeroom.length;
+      const ok = classes.length > 0 && !empty.length && !short.length && !noHomeroom.length;
       return {
         ok,
-        warning: ok && short.length > 0,
         detail: !classes.length
           ? 'Chưa có lớp'
-          : !ok
-            ? [
+          : ok
+            ? 'Tất cả lớp đủ GV và có GV phụ trách chính'
+            : [
                 empty.length && `${empty.length} lớp chưa có giáo viên`,
+                short.length && `${short.length} lớp thiếu 1 GV`,
                 noHomeroom.length && `${noHomeroom.length} lớp chưa có GV phụ trách chính`,
               ]
                 .filter(Boolean)
-                .join(' · ')
-            : ['Tất cả lớp có GV và GV phụ trách chính', short.length && `${short.length} lớp thiếu 1 GV`].filter(Boolean).join(' · '),
+                .join(' · '),
       };
     })(),
     placement: {

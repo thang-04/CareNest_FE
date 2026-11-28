@@ -152,7 +152,7 @@ export default function ThemeEvaluationPage() {
       [
         ['BẢNG ĐÁNH GIÁ SỰ PHÁT TRIỂN CỦA TRẺ'],
         [`Chủ đề: ${ev.themeName}`],
-        [`(Từ ngày ${formatDate(ev.startDate)} đến ngày ${formatDate(ev.endDate)}) – Lớp ${ev.className}`],
+        [`(Từ ngày ${formatDate(ev.startDate)} đến ngày ${formatDate(ev.endDate)}) – ${ev.className}`],
         head,
         ...ev.rows.map((r, i) => [
           i + 1,

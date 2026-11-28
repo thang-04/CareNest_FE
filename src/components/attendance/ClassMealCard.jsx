@@ -27,6 +27,12 @@ export function ClassMealCard({ data, loading, error, onRetry }) {
             <span className="dd-meal-card__session">{row.title}:</span>
             <span className="dd-meal-card__count">
               <b>{row.normal}</b> suất
+              {row.substitute > 0 && (
+                <>
+                  {' '}
+                  + <b>{row.substitute}</b> suất thay thế
+                </>
+              )}
             </span>
             <span className="dd-meal-card__status">
               {row.locked && <Lock size={14} aria-hidden="true" />}
