@@ -23,6 +23,13 @@ export const HEALTH_ACTION_SHORT = {
 };
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+// Cùng luật với BE (PhoneNumbers): di động 10 số, nhận cả khoảng trắng, dấu chấm, +84
+const isMobile = (raw) =>
+  /^0[35789]\d{8}$/.test(
+    String(raw)
+      .replace(/[\s.\-()]/g, '')
+      .replace(/^\+?84(?=\d{9}$)/, '0'),
+  );
 
 /** "Phòng y tế · Về sớm 10:15" từ các lần ghi nhận (hoặc một lần). */
 export const actionSummary = (entries = []) => {
@@ -72,6 +79,9 @@ export const validateDailyHealth = ({ temperature, observation, symptoms = [], n
     if (!(referral?.place || '').trim()) errors.referral = 'Nhập nơi chuyển trẻ đến.';
     else if (!TIME_RE.test(referral?.time || '')) errors.referral = 'Nhập giờ chuyển theo hh:mm.';
     else if ((referral.place || '').length > 150 || (referral.escort || '').length > 100) errors.referral = 'Nội dung quá dài.';
+    else if ((referral.escort || '').trim() && !(referral.escortPhone || '').trim()) errors.referral = 'Nhập số điện thoại người đi cùng.';
+    else if ((referral.escortPhone || '').trim() && !isMobile(referral.escortPhone))
+      errors.referral = 'Số điện thoại người đi cùng gồm 10 số, bắt đầu bằng 03, 05, 07, 08 hoặc 09.';
   }
   return errors;
 };
