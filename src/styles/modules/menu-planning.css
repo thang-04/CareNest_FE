@@ -4461,15 +4461,129 @@
   gap: var(--space-4);
   min-width: 0;
 }
-/* Hai bảng đầu: món trong ngày và kết quả cân đối xếp dọc, đầy chiều ngang */
 .td-bal__side {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-4);
   min-width: 0;
 }
-.td-bal__meal-name {
-  width: 10rem;
+/* Món trong ngày (6,5) và kết quả cân đối (3,5) chung một hàng; màn hẹp xếp dọc */
+.td-bal__top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+  min-width: 0;
+}
+.td-bal__top--split {
+  grid-template-columns: minmax(0, 6.5fr) minmax(0, 3.5fr);
+}
+.td-bal__top > .card {
+  margin: 0;
+}
+@media (max-width: 1200px) {
+  .td-bal__top--split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.td-bal__verdict-body {
+  display: grid;
+  gap: var(--space-4);
+}
+.td-bal__verdict-body > .td-bal__actions {
+  margin-left: 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+/* Kết quả cân đối: mỗi tiêu chí một thanh đo, vùng xanh = khoảng đạt, vạch = thực tế */
+.td-bal__round-note {
+  flex-basis: 100%;
+  margin: 0;
+}
+.td-verdict {
+  display: grid;
+}
+.td-verdict__row {
+  display: grid;
+  gap: var(--space-2);
+  padding-block: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+.td-verdict__row:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+.td-verdict__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.td-verdict__bar {
+  display: block;
+  width: 100%;
+  height: var(--space-4);
+  overflow: visible;
+}
+.td-verdict__track {
+  fill: var(--color-surface-muted);
+  stroke: var(--color-border);
+}
+.td-verdict__band {
+  fill: var(--color-success-bg);
+  stroke: var(--color-success-border);
+}
+.td-verdict__pin {
+  fill: var(--color-text-muted);
+}
+.td-verdict__pin--ok {
+  fill: var(--color-success);
+}
+.td-verdict__pin--bad {
+  fill: var(--color-danger);
+}
+.td-verdict__text {
+  margin: 0;
+}
+.td-verdict__gap {
+  color: var(--color-danger-fg);
+}
+.td-verdict__parts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.td-verdict__part {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+}
+.td-verdict__part--ok {
+  background: var(--color-success-bg);
+}
+.td-verdict__part--bad {
+  background: var(--color-danger-bg);
+}
+/* Thanh trạng thái dính trên bảng thực phẩm: cuộn xuống sửa gam vẫn thấy kết quả */
+.td-bal-status {
+  position: sticky;
+  top: calc(var(--header-height) + var(--space-3));
+  z-index: var(--z-sticky);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+.td-bal-status__delta {
+  margin-left: auto;
 }
 /* Thẻ dinh dưỡng: bảng, chú giải, bảng tiền ăn cách đều nhau */
 .td-bal__nut {
@@ -4492,10 +4606,6 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-3);
-}
-.td-bal__verdict-head {
-  flex-wrap: wrap;
   gap: var(--space-3);
 }
 .td-bal__actions {
@@ -4521,11 +4631,14 @@
   min-width: 15rem;
   white-space: normal;
 }
+/* Tên thực phẩm trên, các dòng theo bữa luôn xuống dưới (tên ngắn hay dài đều cùng một kiểu) */
 .td-bal__food {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
+  display: grid;
+  gap: var(--space-1);
+}
+.td-bal__meals {
+  margin: 0;
+  padding-left: var(--space-4);
 }
 .td-bal__count {
   display: inline-flex;

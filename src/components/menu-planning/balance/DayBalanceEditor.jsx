@@ -8,6 +8,7 @@ import { BalanceFoodTable } from '@/components/menu-planning/balance/BalanceFood
 import { BalanceNutrition } from '@/components/menu-planning/balance/BalanceNutrition';
 import { BalanceSidebar } from '@/components/menu-planning/balance/BalanceSidebar';
 import { BalanceSummaryTable } from '@/components/menu-planning/balance/BalanceSummaryTable';
+import { BalanceStatusBar } from '@/components/menu-planning/balance/BalanceVerdict';
 import { useDayBalance } from '@/hooks/menu-planning/useDayBalance';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { useToast } from '@/contexts/ToastContext';
@@ -17,25 +18,30 @@ import { mealGroupsOf, toBalanceRequest } from '@/utils/menu-planning/dayBalance
 const SUMMARY = 'summary';
 
 /**
- * Cân đối một ngày: số trẻ, món trong ngày, rồi tab nhóm tuổi của khối và tab tổng hợp mua hàng (tab nằm dưới bảng món để đổi tab không làm bảng món xê dịch). Mỗi lần sửa gọi BE tính thử; "Lưu" ghi cả
+ * Cân đối một ngày: số trẻ, món trong ngày, rồi tab nhóm tuổi của khối và tab tổng hợp mua hàng (tab nằm trên bảng món và kết quả cân đối vì kết quả đổi theo tab). Mỗi lần sửa gọi BE tính thử; "Lưu" ghi cả
  * bản cân đối của ngày. `guardRef` nhận bộ chặn rời màn để trang hỏi trước khi đổi tuần, ngày.
  */
 export function DayBalanceEditor({ date, round = 1, block, day, dishes, guardRef, onChangeDishes, onSaved }) {
   const toast = useToast();
   const query = useDayBalance(date, round);
   const [view, setView] = useState(null);
+  // Bản trước lần tính thử gần nhất, để thanh trạng thái báo lần sửa vừa rồi đổi calo, tiền bao nhiêu
+  const [previous, setPrevious] = useState(null);
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState('');
   useEffect(() => {
     setView(query.data || null);
+    setPrevious(null);
     setDirty(false);
   }, [query.data]);
 
   const recalculate = async (options) => {
     setBusy(true);
     try {
-      setView(await dayBalanceApi.preview(date, round, toBalanceRequest(view, options)));
+      const next = await dayBalanceApi.preview(date, round, toBalanceRequest(view, options));
+      setPrevious(view);
+      setView(next);
       setDirty(true);
     } catch (err) {
       toast.error(err, 'Chưa tính được khẩu phần');
@@ -75,7 +81,8 @@ export function DayBalanceEditor({ date, round = 1, block, day, dishes, guardRef
 
   const groups = view.ageGroups.filter((g) => g.block === block);
   const group = groups.find((g) => String(g.ageGroupId) === tab) || (tab === SUMMARY ? null : groups[0]);
-  const evaluation = group && view.groups.find((g) => String(g.ageGroupId) === String(group.ageGroupId))?.evaluation;
+  const evaluationOf = (v) => group && v?.groups.find((g) => String(g.ageGroupId) === String(group.ageGroupId))?.evaluation;
+  const evaluation = evaluationOf(view);
   const sessions = group?.sessions || [...new Set(groups.flatMap((g) => g.sessions))];
   const editable = view.canEdit;
   const confirmedRound = round === 2;
@@ -133,6 +140,7 @@ export function DayBalanceEditor({ date, round = 1, block, day, dishes, guardRef
           meals={mealGroupsOf(day, block, sessions)}
           dishes={dishes}
           evaluation={evaluation}
+          groupName={group?.name}
           busy={busy}
           locked={dirty ? 'Lưu bản cân đối trước khi đổi món.' : ''}
           onChangeDishes={onChangeDishes}
@@ -143,6 +151,7 @@ export function DayBalanceEditor({ date, round = 1, block, day, dishes, guardRef
         <div className="td-bal__main">
           {group ? (
             <>
+              <BalanceStatusBar groupName={group.name} evaluation={evaluation} previous={evaluationOf(previous)} />
               <BalanceFoodTable
                 view={view}
                 group={group}

@@ -1,22 +1,17 @@
 import { useState } from 'react';
-import { Button, DataTable, SelectField, StatusBadge } from '@/components';
+import { Button, DataTable, SelectField } from '@/components';
 import { Plus, Trash2 } from '@/components/ui/icons';
 import { AddDishesModal } from '@/components/menu-planning/AddDishesModal';
+import { BalanceVerdictList } from '@/components/menu-planning/balance/BalanceVerdict';
 import { MEAL_SESSION_LABELS } from '@/models/menu-planning/menuPlanningConstants';
-import { ROUNDING_STEPS, verdictOf } from '@/utils/menu-planning/dayBalance';
-
-const VERDICTS = [
-  { key: 'quantityStatus', label: 'Lượng', note: 'Calo cả ngày trong khoảng định mức' },
-  { key: 'qualityStatus', label: 'Chất', note: 'Tỷ lệ đạm, béo, đường trong khoảng cho phép' },
-  { key: 'moneyStatus', label: 'Tiền', note: 'Chi phí 1 trẻ nằm trong biên ngân sách', kind: 'money' },
-];
+import { ROUNDING_STEPS } from '@/utils/menu-planning/dayBalance';
 
 /**
- * Hai bảng phía trên chi tiết: "Món trong ngày" theo bữa (đổi món ghi vào kế hoạch tuần nháp) và "Kết quả cân đối" của
- * nhóm tuổi đang xem kèm nút làm tròn, dựng lại từ công thức. `onChangeDishes` / `onRound` / `onReset` không truyền ⇒ ẩn
+ * Tab nhóm tuổi rồi hai bảng chung một hàng phía trên chi tiết: "Món trong ngày" theo bữa (đổi món ghi vào kế hoạch tuần nháp) và "Kết quả
+ * cân đối" (thanh đo từng tiêu chí) của nhóm tuổi đang xem kèm nút làm tròn, dựng lại từ công thức. `onChangeDishes` / `onRound` / `onReset` không truyền ⇒ ẩn
  * thao tác tương ứng.
  */
-export function BalanceSidebar({ meals, dishes, evaluation, busy, locked, tabs, onChangeDishes, onRound, onReset }) {
+export function BalanceSidebar({ meals, dishes, evaluation, groupName, busy, locked, tabs, onChangeDishes, onRound, onReset }) {
   const [adding, setAdding] = useState(null);
   const [step, setStep] = useState(ROUNDING_STEPS[0]);
   const current = meals.find((m) => m.session === adding);
@@ -65,74 +60,78 @@ export function BalanceSidebar({ meals, dishes, evaluation, busy, locked, tabs, 
       : []),
   ];
 
-  const verdictColumns = [
-    { key: 'label', header: 'Tiêu chí', className: 'td-bal__meal-name', render: (r) => <b>{r.label}</b> },
-    { key: 'note', header: 'Điều kiện đạt', render: (r) => <span className="muted">{r.note}</span> },
-    { key: 'status', header: 'Kết quả', className: 'center', render: (r) => <StatusBadge {...verdictOf(evaluation[r.key], r.kind)} /> },
-  ];
-
   return (
     <aside className="td-bal__side">
-      <section className="card">
-        <div className="card__header">
-          <h2 className="card__title">Món trong ngày</h2>
-        </div>
-        <DataTable
-          columns={mealColumns}
-          rows={numbered}
-          groupBy={(r) => r.session}
-          groupLabel={(session, items) => (
-            <span className="td-bal__group">
-              <span>
-                {MEAL_SESSION_LABELS[session] || session} <span className="muted">· {items.filter((r) => !r.empty).length} món</span>
-              </span>
-              {onChangeDishes && (
-                <Button
-                  size="sm"
-                  icon={Plus}
-                  aria-label={`Chọn món ${MEAL_SESSION_LABELS[session]}`}
-                  disabledReason={locked || undefined}
-                  onClick={() => setAdding(session)}
-                >
-                  Chọn món
-                </Button>
-              )}
-            </span>
-          )}
-          empty={{ title: 'Chưa có bữa nào' }}
-        />
-      </section>
+      {/* Tab nhóm tuổi đứng trên vì thẻ kết quả bên cạnh bảng món đổi theo tab */}
       {tabs}
-      {evaluation && (
+      <div className={`td-bal__top${evaluation ? ' td-bal__top--split' : ''}`}>
         <section className="card">
-          <div className="card__header td-bal__verdict-head">
-            <h2 className="card__title">Kết quả cân đối</h2>
-            {onRound && (
-              <div className="td-bal__actions">
-                <label className="td-bal__step text-sm">
-                  Bước làm tròn kg / lít
-                  <SelectField className="select" value={String(step)} onChange={(e) => setStep(Number(e.target.value))}>
-                    {ROUNDING_STEPS.map((value) => (
-                      <option key={value} value={String(value)}>
-                        {value.toLocaleString('vi-VN')}
-                      </option>
-                    ))}
-                  </SelectField>
-                </label>
-                <Button variant="primary" disabled={busy} onClick={() => onRound(step)}>
-                  Làm tròn số
-                </Button>
-                {onReset && (
-                  <Button disabled={busy} onClick={onReset}>
-                    Về công thức món
+          <div className="card__header">
+            <h2 className="card__title">Món trong ngày</h2>
+          </div>
+          <DataTable
+            columns={mealColumns}
+            rows={numbered}
+            groupBy={(r) => r.session}
+            groupLabel={(session, items) => (
+              <span className="td-bal__group">
+                <span>
+                  {MEAL_SESSION_LABELS[session] || session} <span className="muted">· {items.filter((r) => !r.empty).length} món</span>
+                </span>
+                {onChangeDishes && (
+                  <Button
+                    size="sm"
+                    icon={Plus}
+                    aria-label={`Chọn món ${MEAL_SESSION_LABELS[session]}`}
+                    disabledReason={locked || undefined}
+                    onClick={() => setAdding(session)}
+                  >
+                    Chọn món
                   </Button>
                 )}
-              </div>
+              </span>
             )}
-          </div>
-          <DataTable columns={verdictColumns} rows={VERDICTS} rowKey="key" empty={{ title: 'Chưa có kết quả' }} />
+            empty={{ title: 'Chưa có bữa nào' }}
+          />
         </section>
-      )}
+        {evaluation && (
+          <section className="card">
+            <div className="card__header">
+              <h2 className="card__title">Kết quả cân đối{groupName && <span className="muted"> · {groupName}</span>}</h2>
+            </div>
+            <div className="card__body td-bal__verdict-body">
+              <BalanceVerdictList evaluation={evaluation} />
+              {onRound && (
+                <div className="td-bal__actions">
+                  <label className="td-bal__step text-sm">
+                    Bước làm tròn kg / lít
+                    <SelectField className="select" value={String(step)} onChange={(e) => setStep(Number(e.target.value))}>
+                      {ROUNDING_STEPS.map((value) => (
+                        <option key={value} value={String(value)}>
+                          {value.toLocaleString('vi-VN')}
+                        </option>
+                      ))}
+                    </SelectField>
+                  </label>
+                  <Button variant="primary" disabled={busy} onClick={() => onRound(step)}>
+                    Làm tròn số
+                  </Button>
+                  {onReset && (
+                    <Button disabled={busy} onClick={onReset}>
+                      Về công thức món
+                    </Button>
+                  )}
+                  {/* Cách làm tròn theo BE NUT-31; nói rõ để người dùng không tưởng số lẻ ở tab nhóm tuổi là chưa làm tròn */}
+                  <p className="td-bal__round-note text-sm muted">
+                    Làm tròn lên lượng mua toàn trường của hàng tươi (xem tab Tổng hợp mua hàng); hàng khô giữ số lẻ. Lượng mua ở từng nhóm
+                    tuổi là phần chia nên vẫn còn số lẻ.
+                  </p>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+      </div>
       {current && (
         <AddDishesModal
           title="Chọn món"
