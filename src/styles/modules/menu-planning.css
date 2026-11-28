@@ -4379,3 +4379,13 @@
 .td-daynut__budget {
   margin-top: var(--space-3);
 }
+
+/* Xem trước nhập thực phẩm: bảng nhiều cột cuộn trong khung, tiêu đề cột dính trên */
+.food-import .table-wrap {
+  max-height: 45vh;
+  overflow: auto;
+}
+.food-import .table th {
+  position: sticky;
+  top: 0;
+}

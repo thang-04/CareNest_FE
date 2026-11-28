@@ -142,16 +142,21 @@ export function matchFoodRows(rows, foods) {
         problems.push(`${FIELD_LABELS[field] || field}: ${msg}`),
       );
     }
-    if (problems.length) errors.push({ row, name: name || '', reason: problems.join('; ') });
+    if (problems.length) errors.push({ row, name: name || '', code, reason: problems.join('; ') });
     else if (before) {
       // Chỉ liệt kê ô khác dữ liệu đang có (ô điền lại giá trị cũ không tính là thay đổi)
       const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
-      const changes = [
-        ...Object.keys(data).filter((k) => k !== 'nutrition' && !same(data[k], before[k])),
-        ...Object.keys(nutrition).filter((k) => !same(nutrition[k], before.nutrition?.[k])),
+      const diffs = [
+        ...Object.keys(data)
+          .filter((k) => k !== 'nutrition' && !same(data[k], before[k]))
+          .map((k) => ({ key: k, before: before[k], after: data[k] })),
+        ...Object.keys(nutrition)
+          .filter((k) => !same(nutrition[k], before.nutrition?.[k]))
+          .map((k) => ({ key: k, before: before.nutrition?.[k], after: nutrition[k] })),
       ];
+      const changes = diffs.map((d) => d.key);
       // Dòng không đổi gì thì bỏ qua, không ghi lại
-      if (changes.length) updates.push({ key: `r${row}`, id: before.id, data, row, code: before.code, name: before.name, changes });
+      if (changes.length) updates.push({ key: `r${row}`, id: before.id, data, row, code: before.code, name: before.name, changes, diffs });
     } else creates.push({ key: `r${row}`, data, row, name });
   });
   return { creates, updates, errors };
@@ -159,3 +164,12 @@ export function matchFoodRows(rows, foods) {
 
 /** Nhãn cột cho danh sách trường thay đổi ở bảng xem trước. */
 export const importFieldLabel = (key) => FIELD_LABELS[key] || key;
+
+const VALUE_LABELS = { group: FOOD_GROUP_LABELS, origin: FOOD_ORIGIN_LABELS, storage: FOOD_STORAGE_LABELS };
+
+/** Giá trị một ô để hiển thị ở bảng xem trước (nhóm/nguồn gốc/bảo quản đổi sang nhãn, trống là —). */
+export function formatImportValue(key, value) {
+  if (value === null || value === undefined || value === '') return '—';
+  if (Array.isArray(value)) return value.length ? value.join(', ') : '—';
+  return VALUE_LABELS[key]?.[value] ?? String(value);
+}
