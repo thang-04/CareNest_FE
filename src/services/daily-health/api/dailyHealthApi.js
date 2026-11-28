@@ -12,7 +12,7 @@ export const dailyHealthApi = {
   getDailyHealth: ({ classId, childId, date }) =>
     axiosClient.get(`/classes/${classId}/children/${childId}/daily-health`, { params: { date } }),
   // PENDING BE: payload thêm actions[] (MONITOR | MEDICAL_ROOM | PARENT_INFORMED | EARLY_PICKUP | REFERRAL),
-  // referral { place, time, escort }. EARLY_PICKUP chỉ đánh dấu "chờ đón sớm"; giờ, người đón lấy từ bản ghi trả trẻ ở Đón trẻ
+  // referral { place, time, escort, escortPhone }. EARLY_PICKUP chỉ đánh dấu "chờ đón sớm"; giờ, người đón lấy từ bản ghi trả trẻ ở Đón trẻ
   addDailyHealth: (payload) => axiosClient.post('/daily-health-entries', payload),
   notifyDailyHealth: (entryId) => axiosClient.post(`/daily-health-entries/${entryId}/parent-notifications`),
 

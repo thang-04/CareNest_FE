@@ -261,7 +261,12 @@ export const dailyHealthMockRepository = {
         notificationStatus: 'PENDING',
         actions,
         referral: actions.includes('REFERRAL')
-          ? { place: payload.referral.place.trim(), time: payload.referral.time, escort: (payload.referral.escort || '').trim() }
+          ? {
+              place: payload.referral.place.trim(),
+              time: payload.referral.time,
+              escort: (payload.referral.escort || '').trim(),
+              escortPhone: (payload.referral.escortPhone || '').trim(),
+            }
           : null,
         recordedBy: user.id,
         recordedByName: user.fullName,

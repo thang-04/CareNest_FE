@@ -19,7 +19,7 @@ import { getCampuses } from '@/services/masterDataService';
 import { getLeaveRequests } from '@/services/attendance/attendanceService';
 import { canFilterLeaveByCampus } from '@/utils/attendance/attendancePermissions';
 import { addDays, schoolToday } from '@/utils/attendance/attendanceTime';
-import { leaveDefaultRange } from '@/utils/attendance/leaveRange';
+import { leaveDefaultRange, sortLeaves } from '@/utils/attendance/leaveRange';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
 import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { formatDate, formatDateTime, isIsoDate } from '@/utils/format';
@@ -89,7 +89,12 @@ export default function LeaveRequestsPage() {
   const leaves = useAsync(() => getLeaveRequests(query, user), [JSON.stringify(query), user?.id], { enabled: !invalidRange });
   // Lọc nhóm tuổi theo lớp của đơn (người dùng chọn, BE vẫn giới hạn phạm vi)
   const classIds = new Set(classes.map((c) => String(c.id)));
-  const rows = invalidRange ? [] : (leaves.data || []).filter((r) => !filters.ageGroupId || classIds.has(String(r.classId)));
+  const rows = invalidRange
+    ? []
+    : sortLeaves(
+        (leaves.data || []).filter((r) => !filters.ageGroupId || classIds.has(String(r.classId))),
+        today,
+      );
   const currentPage = Math.min(page, Math.max(1, Math.ceil(rows.length / PAGE_SIZE)));
   const setFilter = (patch) => {
     setFilters((f) => ({

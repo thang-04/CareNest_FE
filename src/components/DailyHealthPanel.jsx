@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { HeartPulse, Save, ArrowRight, Clock, CheckCircle2, Phone, ChevronDown, ChevronUp } from '@/components/ui/icons';
 import { FormField } from '@/components/form/FormField';
+import { TextField } from '@/components/form/Field';
 import { EmptyState, ErrorState, LoadingState, SubmitOverlay } from '@/components/ui/States';
 import { useAsync } from '@/hooks/useAsync';
 import { getDailyHealth, notifyDailyHealth, PARENT_NOTIFY_ENABLED } from '@/services/dailyHealthService';
@@ -27,7 +28,7 @@ const blank = () => ({
   symptoms: [],
   note: '',
   actions: [],
-  referral: { place: '', time: '', escort: '' },
+  referral: { place: '', time: '', escort: '', escortPhone: '' },
 });
 // Giờ hiện tại hh:mm (giờ máy) để điền sẵn giờ đón / giờ chuyển
 const nowTime = () => devNow().toTimeString().slice(0, 5);
@@ -338,6 +339,14 @@ export function DailyHealthPanel({
                             onChange={(e) => set('referral', { ...form.referral, escort: e.target.value })}
                           />
                         </FormField>
+                        <TextField
+                          label="Số điện thoại người đi cùng"
+                          inputMode="tel"
+                          maxLength={20}
+                          value={form.referral.escortPhone || ''}
+                          placeholder="Ví dụ: 0912 345 678"
+                          onChange={(e) => set('referral', { ...form.referral, escortPhone: e.target.value })}
+                        />
                       </div>
                     )}
                   </fieldset>
@@ -479,7 +488,7 @@ export function DailyHealthPanel({
                               </Link>
                             )}
                             {entry.referral &&
-                              ` · chuyển ${entry.referral.place} lúc ${entry.referral.time}${entry.referral.escort ? `, đi cùng ${entry.referral.escort}` : ''}`}
+                              ` · chuyển ${entry.referral.place} lúc ${entry.referral.time}${entry.referral.escort ? `, đi cùng ${entry.referral.escort}` : ''}${entry.referral.escortPhone ? ` (${entry.referral.escortPhone})` : ''}`}
                           </p>
                         )}
                         {entry.notificationStatus !== 'NOT_REQUIRED' && (
