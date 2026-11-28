@@ -8,7 +8,9 @@ import { FormField } from '@/components/form/FormField';
 import { MealCountStatusBadge } from '@/components/attendance/AttendanceBadges';
 import { unlockAttendanceDay } from '@/services/attendance/attendanceService';
 import { MEAL_COUNT_STATUS, MEAL_SESSION_LABELS } from '@/models/attendance/attendanceConstants';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import { canConfirmMealCount, canSeeMealReconfirmNotice, canUnlockAttendanceDay } from '@/utils/attendance/attendancePermissions';
+import { isPastUnconfirmed } from '@/utils/attendance/mealRegisterDay';
 import { dayBySession, dayRegister } from '@/utils/attendance/mealRegister';
 import { formatDate, formatDateTime } from '@/utils/format';
 import { ROLE_LABELS } from '@/models/User';
@@ -50,17 +52,25 @@ function ReturnButton({ line, onReturn }) {
   );
 }
 
+function PastUnconfirmedBadge() {
+  return <StatusBadge tone="gray" label="Ngày đã qua, chưa xác nhận" />;
+}
+
 /** Bảng lớp của một bữa: số suất theo bữa BE trả. Xác nhận theo cả ngày (BE NUT-02, D10). */
-function MealPanel({ count, md, onReturn }) {
+function MealPanel({ count, md, onReturn, pastUnconfirmed }) {
   const actions = !!onReturn;
   return (
     <>
       <div className="dd-meal-head">
-        <MealCountStatusBadge status={count.status} />
+        {pastUnconfirmed && count.status !== MEAL_COUNT_STATUS.CONFIRMED ? (
+          <PastUnconfirmedBadge />
+        ) : (
+          <MealCountStatusBadge status={count.status} />
+        )}
         <span className="muted text-sm">
           {count.confirmedAt
             ? `${count.needsReconfirmation ? 'Lần xác nhận trước' : 'Xác nhận'} bởi ${confirmerLabel(count, md)} lúc ${formatDateTime(count.confirmedAt)}`
-            : pastOpen(count)
+            : pastOpen(count) || pastUnconfirmed
               ? 'Ngày đã qua, sổ chưa được xác nhận'
               : count.status === 'OPEN'
                 ? 'Đang báo ăn, chưa tới giờ chốt'
@@ -118,7 +128,9 @@ export function MealRegisterCard({ counts, campusName, user, md, onConfirm, read
   const incomplete = register.rows.filter((l) => l.missing > 0);
   // ATT-08: qua giờ chốt (sổ không còn OPEN), ngày không ở tương lai, người có quyền mở lại điểm danh ở cơ sở này
   const [returning, setReturning] = useState(null);
+  const pastUnconfirmed = isPastUnconfirmed(counts, schoolToday());
   const returnable =
+    !pastUnconfirmed &&
     !readOnly &&
     !!first &&
     first.date <= schoolToday() &&
@@ -142,7 +154,7 @@ export function MealRegisterCard({ counts, campusName, user, md, onConfirm, read
     <div className="card dd-count">
       <div className="card__header">
         <div className="card__title">Sổ suất ăn ngày{campusName ? ` · ${campusName}` : ''}</div>
-        <MealCountStatusBadge status={status} />
+        {pastUnconfirmed ? <PastUnconfirmedBadge /> : <MealCountStatusBadge status={status} />}
       </div>
       <div className="card__body">
         {reconfirm && canSeeMealReconfirmNotice(user) && (
@@ -161,7 +173,13 @@ export function MealRegisterCard({ counts, campusName, user, md, onConfirm, read
             </div>
           </div>
         )}
-        {(status !== MEAL_COUNT_STATUS.CONFIRMED || confirmable.length > 0) && incomplete.length > 0 && (
+        {pastUnconfirmed && status !== 'OPEN' && (
+          <div className="alert alert--info mb-12" role="status">
+            <Info size={18} />
+            <div>Ngày đã qua và sổ suất ăn chưa được xác nhận: chỉ để xem. Sửa điểm danh ở màn Mở lại điểm danh.</div>
+          </div>
+        )}
+        {!pastUnconfirmed && (status !== MEAL_COUNT_STATUS.CONFIRMED || confirmable.length > 0) && incomplete.length > 0 && (
           <div className="alert alert--warning mb-12" role="status">
             <AlertTriangle size={18} />
             <div>
@@ -200,7 +218,7 @@ export function MealRegisterCard({ counts, campusName, user, md, onConfirm, read
           )}
         </div>
         {meal ? (
-          <MealPanel count={meal} md={md} onReturn={onReturn} />
+          <MealPanel count={meal} md={md} onReturn={onReturn} pastUnconfirmed={pastUnconfirmed} />
         ) : (
           <div className="table-wrap mt-12">
             <table className="table table--grid table--compact table--wrap-head">

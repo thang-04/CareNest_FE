@@ -8,3 +8,12 @@ export const leaveDefaultRange = (today, year) => {
   if (today > year.endDate) return monthRangeOf(year.endDate);
   return { from: month.from, to: year.endDate };
 };
+
+/** Đơn đang nghỉ / sắp nghỉ gần nhất lên đầu; đơn đã qua xuống dưới, mới nhất trước. */
+export const sortLeaves = (rows, today) =>
+  [...rows].sort((a, b) => {
+    const pastA = a.toDate < today;
+    const pastB = b.toDate < today;
+    if (pastA !== pastB) return pastA ? 1 : -1;
+    return pastA ? b.fromDate.localeCompare(a.fromDate) : a.fromDate.localeCompare(b.fromDate);
+  });
