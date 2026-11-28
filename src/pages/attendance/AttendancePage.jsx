@@ -61,6 +61,7 @@ import { PERMISSIONS } from '@/models/bePermissions';
 import '@/styles/modules/attendance.css';
 import { MealChoiceSelect } from '@/components/attendance/MealChoiceSelect';
 import { mealChoiceOf, mealChoiceOptions } from '@/utils/attendance/mealChoice';
+import { mealRowState } from '@/utils/attendance/mealRowState';
 import { useDevClockMarks } from '@/hooks/useDevClockMarks';
 import { dayTimeAt } from '@/utils/devClock';
 
@@ -684,6 +685,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
                     const entry = draft[row.child.id] || { status: '', meals: {} };
                     const absent = isAbsent(entry.status);
                     const reminder = healthReminder(row);
+                    const mealState = mealRowState(row, { editable, baseLocked: !!day?.baseLocked });
                     return (
                       <tr
                         key={row.child.id}
@@ -707,7 +709,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
                                 <strong>{childNameWithHistory(row.child.fullName, row.child.historyStatus)}</strong>
                               </button>
                               {/* CHD-13: trẻ không báo ăn ghi ở ô Trẻ; trẻ có ăn mà có dị ứng thì nhắc để GV biết suất thay thế */}
-                              {row.child.mealRegistered === false ? (
+                              {mealState === 'UNREGISTERED' ? (
                                 <span className="dd-reception__mealtag">
                                   <StatusBadge tone="gray" label="Không báo ăn" />
                                 </span>
@@ -895,8 +897,10 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
                               ) : (
                                 <span className="text-xs">{entry.meals?.[MEAL_SESSION.AFTERNOON] ? 'Ăn Xế' : 'Không ăn'}</span>
                               )
-                            ) : entry.status !== ATTENDANCE_STATUS.PRESENT || row.child.mealRegistered === false ? (
+                            ) : entry.status !== ATTENDANCE_STATUS.PRESENT || mealState === 'UNREGISTERED' ? (
                               <span className="muted">—</span>
+                            ) : mealState === 'SAVED' ? (
+                              <span className="text-xs">{mealText(row.record.meals, rowSessions(row))}</span>
                             ) : editable && !day?.baseLocked && !leaveLocked(row) ? (
                               <MealChoiceSelect
                                 aria-label={`Tham gia ăn: ${row.child.fullName}`}

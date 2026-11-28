@@ -10,7 +10,7 @@ test('điểm danh: trẻ không báo ăn hoặc chưa có mặt thì cột Tham
   const cell = page.slice(i, page.indexOf('</td>', i));
   assert.match(
     cell,
-    /entry\.status !== ATTENDANCE_STATUS\.PRESENT \|\| row\.child\.mealRegistered === false \? \(\s*<span className="muted">—<\/span>/,
+    /entry\.status !== ATTENDANCE_STATUS\.PRESENT \|\| mealState === 'UNREGISTERED' \? \(\s*<span className="muted">—<\/span>/,
   );
   assert.doesNotMatch(cell, /label="Không báo ăn"|>Không báo ăn</);
 });
