@@ -109,6 +109,81 @@ export const nutritionTableOf = (evaluation) => {
   ];
 };
 
+const num = (v) => (v == null || v === '' ? null : Number(v));
+
+// Chênh tới mép gần nhất của khoảng đạt; trạng thái vẫn là kết luận BE trả, đây chỉ là số để người dùng biết sửa bao nhiêu
+const gapOf = (value, min, max, status) => {
+  if (value == null) return null;
+  if (status === 'HIGH' && max != null) return Math.max(0, value - max);
+  if (status === 'LOW' && min != null) return Math.max(0, min - value);
+  return null;
+};
+
+// Thang hiển thị: khoảng đạt nằm giữa, rộng thêm mỗi bên một khoảng bằng chính nó và luôn chứa số thực tế
+const scaleOf = (value, min, max) => {
+  const span = max - min || Math.abs(max) * 0.2 || 1;
+  const lo = Math.min(min - span, value ?? min);
+  const hi = Math.max(max + span, value ?? max);
+  const pad = (hi - lo) * 0.04;
+  const at = (v) => Math.min(100, Math.max(0, ((v - (lo - pad)) / (hi - lo + 2 * pad)) * 100));
+  return { value: value == null ? null : at(value), from: at(min), to: at(max) };
+};
+
+const gauge = ({ value, min, max, status }) => {
+  const hasRange = value != null && min != null && max != null;
+  return { value, min, max, status, gap: gapOf(value, min, max, status), scale: hasRange ? scaleOf(value, min, max) : null };
+};
+
+const RATIO_PARTS = [
+  ['protein', 'Đạm'],
+  ['lipid', 'Béo'],
+  ['glucid', 'Đường'],
+];
+
+/**
+ * Số cho thẻ "Kết quả cân đối" và thanh trạng thái: thực tế, khoảng đạt, chênh của Lượng (kcal), Chất (% P:L:G) và Tiền
+ * (chi phí 1 trẻ trong ngân sách ± biên — cách BE chấm `moneyStatus`). Mọi số và trạng thái lấy từ evaluation BE trả.
+ */
+export const verdictGaugesOf = (evaluation) => {
+  if (!evaluation) return null;
+  const rows = new Map((evaluation.rows || []).map((r) => [r.key, r]));
+  const kcal = rows.get('kcal');
+  const budget = num(evaluation.foodBudget ?? evaluation.mealPrice);
+  const tolerance = num(evaluation.budgetTolerancePct) ?? 0;
+  return {
+    quantity: gauge({
+      value: num(kcal?.value ?? evaluation.totals?.kcal),
+      min: num(kcal?.min),
+      max: num(kcal?.max),
+      status: evaluation.quantityStatus,
+    }),
+    quality: {
+      status: evaluation.qualityStatus,
+      parts: RATIO_PARTS.map(([key, label]) => {
+        const row = rows.get(key);
+        return { key, label, value: num(row?.percent), min: num(row?.min), max: num(row?.max), status: row?.status };
+      }),
+    },
+    money: gauge({
+      value: num(evaluation.cost),
+      min: budget == null ? null : budget * (1 - tolerance / 100),
+      max: budget == null ? null : budget * (1 + tolerance / 100),
+      status: evaluation.moneyStatus,
+    }),
+  };
+};
+
+/** Lần tính thử vừa rồi đổi calo và chi phí 1 trẻ bao nhiêu; null khi chưa có lần trước hoặc không đổi. */
+export const verdictDeltaOf = (current, previous) => {
+  if (!current || !previous) return null;
+  const kcalOf = (e) => num(e.totals?.kcal);
+  const diff = (a, b) => (a == null || b == null ? null : a - b);
+  const kcal = diff(kcalOf(current), kcalOf(previous));
+  const cost = diff(num(current.cost), num(previous.cost));
+  const changed = (v) => v != null && Math.abs(v) >= 0.05;
+  return changed(kcal) || changed(cost) ? { kcal: changed(kcal) ? kcal : null, cost: changed(cost) ? cost : null } : null;
+};
+
 const OFF_DEFAULT = 'Ngày này không phục vụ bữa ăn.';
 
 /**
