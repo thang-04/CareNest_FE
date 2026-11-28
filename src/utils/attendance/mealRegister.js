@@ -11,7 +11,6 @@ export function dayRegister(counts) {
   return {
     rows,
     servings: sum('normal') + sum('substitute'),
-    substitute: sum('substitute'),
     present: sum('present'),
     absent: sum('absent'),
     missing: sum('missing'),
@@ -33,12 +32,10 @@ export function dayBySession(counts) {
       row.meals[c.session] = { normal: l.normal, substitute: l.substitute, before };
       row.normal += l.normal;
       row.substitute += l.substitute;
-      // NUT-02: điểm danh đổi sau khi suất thay thế đã sửa tay ở bữa nào đó ⇒ cả ngày cần kiểm tra lại
-      row.attendanceChanged = !!(row.attendanceChanged || l.attendanceChanged);
       byClass.set(l.classId, row);
     }),
   );
   const rows = [...byClass.values()];
   const sum = (key) => rows.reduce((s, r) => s + (r[key] || 0), 0);
-  return { sessions, rows, normal: sum('normal'), substitute: sum('substitute'), total: sum('normal') + sum('substitute') };
+  return { sessions, rows, total: sum('normal') + sum('substitute') };
 }

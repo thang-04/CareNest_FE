@@ -1,9 +1,11 @@
+import { childNameWithHistory } from '@/utils/childHistory';
 /*
  * Bản in "Phiếu đánh giá sự phát triển của trẻ" cuối năm theo mẫu giấy của trường (BE OBS-28): MT theo lĩnh vực, kết quả tổng hợp từ các chủ đề đã xong, ô
  * Đạt / Chưa đạt, cân nặng – chiều cao, Nhận xét, 4 lưu ý; chỗ "Xác nhận của BGH nhà trường" và "Giáo viên" ký tay.
  * Dữ liệu giữ nguyên BE trả; một nguồn HTML cho khung xem trước, file .doc và trang in.
  */
 import { DEFAULT_PRINT_TEMPLATE } from '@/config/printTemplate';
+import { pageCss, SIGN_SPACE } from '@/utils/assessment/docLayout';
 
 const esc = (s = '') => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const dmy = (iso) => {
@@ -37,7 +39,7 @@ export const yearEndSheetHtml = ({ sheet, ev, child, comment }, signers = yearEn
   const width = Math.floor(100 / (others.length + 1));
   // Ô BGH để trống tên: dòng hướng dẫn đóng dấu như mẫu giấy
   const otherCell = (s) =>
-    `<td class="c" style="width:${width}%"><p><b>${esc(s.title)}</b></p><p><i>(${s.name ? 'Kí và ghi rõ họ tên' : 'Kí tên và đóng dấu'})</i></p><div class="sign"></div><p><b>${esc(s.name)}</b></p></td>`;
+    `<td class="c" style="width:${width}%"><p><b>${esc(s.title)}</b></p><p><i>(${s.name ? 'Kí và ghi rõ họ tên' : 'Kí tên và đóng dấu'})</i></p>${SIGN_SPACE}<p><b>${esc(s.name)}</b></p></td>`;
   const yearText = `${(ev.periodStart || '').slice(0, 4)} - ${(ev.periodEnd || '').slice(0, 4)}`;
   const m = sheet.measurement;
   const rows = [];
@@ -62,7 +64,7 @@ export const yearEndSheetHtml = ({ sheet, ev, child, comment }, signers = yearEn
     // Như mẫu giấy: cuối mỗi lĩnh vực là các dòng chấm để ghi nhận xét; có nhận xét thì in nhận xét của cô
     // Nhận xét lĩnh vực: giữ cột TT / Đạt / Chưa đạt; hai dòng chấm chung một ô, không kẻ ngăn giữa (Cần yêu cầu 10/11/2026)
     rows.push(
-      `<tr class="cmt"><td></td><td><i>Nhận xét:</i> ${d.comment ? esc(d.comment) : `${dots}<br/>${dots}`}</td><td></td><td></td></tr>`,
+      `<tr class="cmt"><td></td><td><i>Nhận xét:</i>${d.comment ? ` ${esc(d.comment)}` : `<br/>${dots}<br/>${dots}`}</td><td></td><td></td></tr>`,
     );
   });
   const signed = localDate(sheet.confirmedAt);
@@ -76,9 +78,9 @@ export const yearEndSheetHtml = ({ sheet, ev, child, comment }, signers = yearEn
 </tr></table>
 <table class="plain head"><tr>
 <td style="width:78%"><h1>PHIẾU ĐÁNH GIÁ SỰ PHÁT TRIỂN<br/>CỦA TRẺ ${esc(ageTitle(sheet.ageGroupName))}</h1></td>
-<td style="width:22%"><div class="photo">Ảnh của trẻ</div></td>
+<td style="width:22%"><table class="photo" width="107" style="width:80pt"><tr><td height="133" style="border:1px solid black; width:80pt; height:100pt; text-align:center; vertical-align:middle; font-size:11pt">Ảnh của trẻ</td></tr></table></td>
 </tr></table>
-<p>Họ và tên trẻ: <b>${esc(child?.fullName || ev.childName || '')}</b> &nbsp; Ngày, tháng, năm sinh: ${esc(dmy(child?.dateOfBirth))} &nbsp; Lớp: ${esc(ev.className || '')}</p>
+<p>Họ và tên trẻ: <b>${esc(childNameWithHistory(child?.fullName || ev.childName || '', ev.historyStatus))}</b> &nbsp; Ngày, tháng, năm sinh: ${esc(dmy(child?.dateOfBirth))} &nbsp; Lớp: ${esc(ev.className || '')}</p>
 <p>Giáo viên: ${esc((sheet.teachers || []).join(', '))}</p>
 <table class="grid" style="table-layout:fixed"><thead><tr><th style="width:6%">TT</th><th>Mục tiêu giáo dục</th><th style="width:10%">Đạt</th><th style="width:10%">Chưa đạt</th></tr></thead>
 <tbody>${rows.join('')}</tbody></table>
@@ -93,16 +95,14 @@ ${note('Đối với cha mẹ / người chăm sóc trẻ', notes.forParent)}
 <table class="plain sign-row"><tr>
 ${others.map(otherCell).join('')}
 <td class="c" style="width:${width}%"><p><i>${esc(place)}, ${signDate}</i></p><p><b>${esc(teacher?.title || '')}</b></p><p><i>(Kí và ghi rõ họ tên)</i></p>
-<div class="sign"></div><p><b>${esc(teacher?.name || '')}</b></p></td>
+${SIGN_SPACE}<p><b>${esc(teacher?.name || '')}</b></p></td>
 </tr></table>`;
   return `<!DOCTYPE html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
 <head><meta charset="utf-8"/><title>${esc(`Phiếu đánh giá - ${child?.fullName || ev.childName || ''}`)}</title>
 <!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]-->
 <style>
-@page Section1 { size: 595.3pt 841.9pt; margin: 1.5cm 1.5cm 1.5cm 2cm; }
-@page { size: A4 portrait; margin: 1.5cm 1.5cm 1.5cm 2cm; }
-div.Section1 { page: Section1; }
+${pageCss('portrait', '1.5cm 1.5cm 1.5cm 2cm')}
 body { font-family: 'Times New Roman', serif; font-size: 13pt; color: black; }
 p { margin: 0 0 3pt; }
 .c { text-align: center; }
@@ -114,11 +114,9 @@ table.grid td.n { text-align: center; }
 table.grid tr.dom td { background: whitesmoke; }
 table.grid tr.cmt td { line-height: 1.8; padding: 2pt 4pt; }
 table.plain td { border: none; vertical-align: top; }
-.photo { border: 1px solid black; height: 90px; text-align: center; padding-top: 34px; font-size: 11pt; }
 .head { margin: 6pt 0; }
 .after { margin-top: 8pt; page-break-inside: avoid; }
 .sign-row { margin-top: 10pt; page-break-inside: avoid; }
-.sign { height: 60px; }
 thead { display: table-header-group; }
 tr { page-break-inside: avoid; }
 </style></head>

@@ -18,7 +18,7 @@ import { usePermissionStaff } from '@/hooks/account/usePermissions';
 import { usePermissionOverrides, useRolePermissionMatrix } from '@/hooks/account/usePermissions';
 import { updatePermissionOverrides } from '@/services/account/permissionService';
 import { PERMISSION_ROLE_LABELS, PERMISSION_TASKS, REASON_MAX_LENGTH } from '@/models/account/permissionConstants';
-import { overridesFromSwitches, permissionDraftRows } from '@/utils/account/personPermissions';
+import { overridesFromSwitches, permissionDraftRows, withoutEduWorkflowRows } from '@/utils/account/personPermissions';
 import { flowCheckState, permissionTableRows, toggleFlow, toggleWithRequires } from '@/utils/account/permissionMatrix';
 import { validatePermissionChange } from '@/utils/account/permissionValidation';
 
@@ -223,7 +223,8 @@ function StepConfigurePermissions({ staff, onBack, onNext, onChange }) {
   const rows = useMemo(() => {
     if (!overridesQuery.data || !matrix.roles.length) return [];
     const roleDefaults = matrix.roles.find((r) => r.role === staff.role)?.permissions || [];
-    return permissionDraftRows(overridesQuery.data, roleDefaults, staff.overridesPayload);
+    // BE EDU-110 (7): 8 mã soạn/duyệt chỉ đặt theo vai trò, không có ngoại lệ theo người
+    return withoutEduWorkflowRows(permissionDraftRows(overridesQuery.data, roleDefaults, staff.overridesPayload));
   }, [overridesQuery.data, matrix.roles, staff.role, staff.overridesPayload]);
 
   const [values, setValues] = useState({});

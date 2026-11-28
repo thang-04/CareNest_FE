@@ -28,7 +28,7 @@ const commentsOf = (sheet) => Object.fromEntries((sheet?.domains || []).map((d) 
  * tỷ lệ chủ đề đã xong đạt MT (≥50%), GV sửa tay; cân nặng – chiều cao từ phần sức khỏe; 4 lưu ý. sheetRef.current = { dirty, save } để màn đánh
  * giá lưu phiếu trước khi xác nhận.
  */
-export function YearEndSheetCard({ evaluation, child, comment, sheetRef, onDirtyChange }) {
+export function YearEndSheetCard({ evaluation, child, comment, sheetRef, onDirtyChange, revising = false, onCanRevise }) {
   const { user } = useAuth();
   const toast = useToast();
   const { sheet, loading, error, reload } = useYearEndSheet(evaluation.id);
@@ -50,22 +50,26 @@ export function YearEndSheetCard({ evaluation, child, comment, sheetRef, onDirty
   const commentsDirty = Object.keys(savedComments).some((k) => (comments[k] || '') !== savedComments[k]);
   const dirty = Object.keys(edits).length > 0 || NOTE_FIELDS.some(([k]) => notes[k] !== saved[k]) || commentsDirty;
 
+  // Đang sửa lại bản đã xác nhận: ô sửa trên màn, gửi kèm lúc xác nhận lại (không lưu riêng)
+  const editable = revising || !!sheet?.canEdit;
+  const canRevise = !!sheet?.canRevise;
+  useEffect(() => {
+    onCanRevise?.(canRevise);
+  }, [canRevise, onCanRevise]);
+  const requestBody = () => ({
+    goals: Object.entries(edits).map(([goalId, v]) => ({ goalId: Number(goalId), met: v === REVERT ? null : v })),
+    ...Object.fromEntries(NOTE_FIELDS.map(([k]) => [k, notes[k]])),
+    // Gửi đủ mọi lĩnh vực của phiếu; ô trống = xóa nhận xét lĩnh vực đó
+    domainComments: Object.fromEntries(Object.keys(savedComments).map((k) => [k, comments[k] || ''])),
+  });
+
   const save = async ({ silent = false } = {}) => {
     // Ô quá dài đã báo đỏ ngay dưới ô (không chặn gõ): không gửi BE
     if (NOTE_FIELDS.some(([k]) => notes[k].trim().length > NOTE_MAX)) return false;
     if (Object.values(comments).some((c) => (c || '').trim().length > NOTE_MAX)) return false;
     setBusy(true);
     try {
-      await saveYearEndSheet(
-        evaluation.id,
-        {
-          goals: Object.entries(edits).map(([goalId, v]) => ({ goalId: Number(goalId), met: v === REVERT ? null : v })),
-          ...Object.fromEntries(NOTE_FIELDS.map(([k]) => [k, notes[k]])),
-          // Gửi đủ mọi lĩnh vực của phiếu; ô trống = xóa nhận xét lĩnh vực đó
-          domainComments: Object.fromEntries(Object.keys(savedComments).map((k) => [k, comments[k] || ''])),
-        },
-        user,
-      );
+      await saveYearEndSheet(evaluation.id, requestBody(), user);
       if (!silent) toast.success('Đã lưu phiếu đánh giá. Phiếu chốt khi cô xác nhận đánh giá cuối năm.');
       await reload({ silent: true });
       return true;
@@ -76,8 +80,8 @@ export function YearEndSheetCard({ evaluation, child, comment, sheetRef, onDirty
       setBusy(false);
     }
   };
-  if (sheetRef) sheetRef.current = { dirty: !!sheet?.canEdit && dirty, save: () => save({ silent: true }) };
-  const pendingEdit = !!sheet?.canEdit && dirty;
+  if (sheetRef) sheetRef.current = { dirty: editable && dirty, save: () => save({ silent: true }), body: requestBody };
+  const pendingEdit = editable && dirty;
   useEffect(() => {
     onDirtyChange?.(pendingEdit);
   }, [pendingEdit, onDirtyChange]);
@@ -139,7 +143,7 @@ export function YearEndSheetCard({ evaluation, child, comment, sheetRef, onDirty
             <span className="muted">Trẻ chưa có lần cân đo nào ở phần sức khỏe.</span>
           )}
         </p>
-        {sheet.canEdit && (
+        {editable && (
           <p className="muted text-sm">
             Hệ thống tổng hợp kết quả cuối các chủ đề đã xong; mục tiêu Đạt khi Đạt ở ít nhất 50% số chủ đề có gắn mục tiêu. Bấm ô để sửa
             tay; bấm lại ô đang chọn để về kết quả hệ thống. Ô sửa tay có viền đậm.
@@ -181,7 +185,7 @@ export function YearEndSheetCard({ evaluation, child, comment, sheetRef, onDirty
                         </td>
                         {[true, false].map((option) => (
                           <td key={String(option)} className="center">
-                            {sheet.canEdit ? (
+                            {editable ? (
                               <button
                                 type="button"
                                 className={`dg-theme-cell ${manual && value === option ? 'is-manual' : ''} ${option ? '' : 'is-not-met'}`}
@@ -206,7 +210,7 @@ export function YearEndSheetCard({ evaluation, child, comment, sheetRef, onDirty
                       <label className="text-sm fw-600" htmlFor={`year-domain-${domainKey(d)}`}>
                         Nhận xét
                       </label>
-                      {sheet.canEdit ? (
+                      {editable ? (
                         <textarea
                           id={`year-domain-${domainKey(d)}`}
                           className="textarea"
@@ -221,7 +225,7 @@ export function YearEndSheetCard({ evaluation, child, comment, sheetRef, onDirty
                           {d.comment || <span className="muted">—</span>}
                         </div>
                       )}
-                      {sheet.canEdit && (comments[domainKey(d)] || '').trim().length > NOTE_MAX && (
+                      {editable && (comments[domainKey(d)] || '').trim().length > NOTE_MAX && (
                         <span className="field__error" role="alert">
                           {`Tối đa ${NOTE_MAX} ký tự (đang ${(comments[domainKey(d)] || '').trim().length}).`}
                         </span>
@@ -246,7 +250,7 @@ export function YearEndSheetCard({ evaluation, child, comment, sheetRef, onDirty
               <label className="text-sm" htmlFor={`year-note-${key}`}>
                 {label}
               </label>
-              {sheet.canEdit ? (
+              {editable ? (
                 <textarea
                   id={`year-note-${key}`}
                   className="textarea"
@@ -260,14 +264,14 @@ export function YearEndSheetCard({ evaluation, child, comment, sheetRef, onDirty
                   {saved[key] || <span className="muted">—</span>}
                 </div>
               )}
-              {sheet.canEdit && notes[key].trim().length > NOTE_MAX && (
+              {editable && notes[key].trim().length > NOTE_MAX && (
                 <span className="field__error" role="alert">
                   {`Tối đa ${NOTE_MAX} ký tự (đang ${notes[key].trim().length}).`}
                 </span>
               )}
             </div>
           ))}
-          {sheet.canEdit && (
+          {sheet.canEdit && !revising && (
             <div className="row gap-2 mt-12">
               <button type="button" className="btn" onClick={() => save()} disabled={busy || !dirty}>
                 {busy ? <Spinner small /> : <Save size={16} />} Lưu phiếu

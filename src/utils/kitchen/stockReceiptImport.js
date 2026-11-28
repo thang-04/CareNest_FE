@@ -79,7 +79,7 @@ export const rowsToLines = (rows, foods) => {
     if (!code && !name && !qty) return;
     const food = (code && byCode.get(normalizeText(code))) || (name && byName.get(normalizeText(name)));
     if (!food) {
-      problems.push(`Dòng ${i + 2}: không tìm thấy thực phẩm kho khô "${name || code}"`);
+      problems.push(`Dòng ${i + 2}: "${name || code}" không thuộc nhà cung cấp đã chọn hoặc không có trong danh mục kho khô`);
       return;
     }
     lines.push(

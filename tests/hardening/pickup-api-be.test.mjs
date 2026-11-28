@@ -135,8 +135,8 @@ test('ghi trả trẻ chỉ gửi field BE nhận; gọi phụ huynh không gử
   assert.deepEqual(
     client.calls.map((c) => c.body),
     [
-      { childId: '11', verification: 'PHOTO_MATCH', guardianPosition: 0, handoverTime: '15:30', note: '' },
-      { childId: '11', verification: 'PHONE_DECLINED', guardianPosition: null, handoverTime: null, note: 'Phụ huynh từ chối (giả)' },
+      { childId: '11', verification: 'PHOTO_MATCH', guardianPosition: 0, note: '' },
+      { childId: '11', verification: 'PHONE_DECLINED', guardianPosition: null, note: 'Phụ huynh từ chối (giả)' },
     ],
   );
   assert.equal(saved.pickupPersonRelation, 'Mẹ');

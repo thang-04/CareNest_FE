@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAsync } from '@/hooks/useAsync';
 import { getAppearance } from '@/services/appearance/appearanceService';
@@ -13,15 +13,22 @@ const TICK_MS = 10 * 60 * 1000;
 /** Cấu hình tranh nền chung của trường + tranh đang dùng; đặt biến CSS --scene-bg cho toàn app. */
 export function AppearanceProvider({ children }) {
   const { user } = useAuth();
-  const { data, reload } = useAsync(() => getAppearance(user), [user?.id], { enabled: !!user, refreshOnDataChange: true });
+  const { data, reload } = useAsync(() => getAppearance(user), [user?.id], { refreshOnDataChange: true });
   const [now, setNow] = useState(() => new Date());
-  // Chưa đăng nhập (màn đăng nhập, quên mật khẩu) chưa gọi được API ⇒ chọn tranh theo cấu hình mặc định
-  const config = user ? data : DEFAULT_APPEARANCE;
+  // BE cho đọc cấu hình khi chưa đăng nhập (màn đăng nhập, quên mật khẩu). Giữ bản gần nhất khi đang tải lại (đăng nhập/đăng xuất)
+  // để nền không nháy về tranh mặc định; chưa có hoặc lỗi ⇒ cấu hình mặc định
+  const lastConfig = useRef(null);
+  if (data) lastConfig.current = data;
+  const config = data || lastConfig.current || DEFAULT_APPEARANCE;
 
+  // Mỗi chu kỳ tính lại giờ và tải lại cấu hình để người dùng đang mở máy thấy thay đổi của Hiệu trưởng
   useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), TICK_MS);
+    const timer = setInterval(() => {
+      setNow(new Date());
+      reload({ silent: true });
+    }, TICK_MS);
     return () => clearInterval(timer);
-  }, []);
+  }, [reload]);
 
   const sceneId = config ? pickScene(config, now) : DEFAULT_SCENE_ID;
 

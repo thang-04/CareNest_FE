@@ -12,7 +12,7 @@ import { YearStatusBadge, yearBadgeStatus } from '@/components/school-config/Sch
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
 import { closeSchoolYear, deleteSchoolYear } from '@/services/school-config/schoolConfigService';
 import { ActivateYearModal, YearReadinessCard } from '@/components/school-config/YearReadiness';
-import { YEAR_STATUS } from '@/models/school-config/schoolConfigConstants';
+import { ACTIVATION_LEAD_DAYS, YEAR_STATUS } from '@/models/school-config/schoolConfigConstants';
 import {
   canActivateYear,
   canCloseYear,
@@ -27,6 +27,8 @@ import { yearCrumbs } from '@/utils/school-config/breadcrumbs';
 import { formatDate, todayInput } from '@/utils/format';
 import { DEV_SKIP_YEAR_DATES } from '@/config/env';
 import '@/styles/modules/school-config.css';
+import { useDevClockMarks } from '@/hooks/useDevClockMarks';
+import { dayStartAt, shiftDays } from '@/utils/devClock';
 
 /** #16 School Year List (UC 2.1). Principal configures; other school roles view. */
 export default function SchoolYearListPage() {
@@ -37,6 +39,15 @@ export default function SchoolYearListPage() {
   const [pendingError, setPendingError] = useState('');
   const [activating, setActivating] = useState(null);
   const [params, setParams] = useSearchParams();
+  const upcoming = nextYearToActivate(years);
+  const running = years.find((y) => y.status === YEAR_STATUS.ACTIVE);
+  useDevClockMarks(
+    [
+      upcoming && { label: `Mở kích hoạt ${upcoming.name}`, at: dayStartAt(shiftDays(upcoming.startDate, -ACTIVATION_LEAD_DAYS)) },
+      upcoming && { label: `Bắt đầu ${upcoming.name}`, at: dayStartAt(upcoming.startDate) },
+      running && { label: `Được kết thúc ${running.name}`, at: dayStartAt(closeYearOpensOn(running)) },
+    ].filter(Boolean),
+  );
 
   if (!canViewSchoolStructure(user))
     return (

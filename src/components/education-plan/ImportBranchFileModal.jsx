@@ -4,7 +4,6 @@ import { ImportDialog } from '@/components/upload/ImportDialog';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { previewBranchFile } from '@/services/education-plan/educationPlanService';
 import { branchFileChanges } from '@/models/education-plan/importBranchFile.mjs';
-import { USE_MOCK } from '@/config/env';
 import { branchTemplateFile } from '@/utils/education-plan/classPlanDoc';
 import { downloadDoc } from '@/utils/education-plan/yearPlanDoc';
 import { PLAN_IMPORT_ACCEPT as ACCEPT, validatePlanImportFile } from '@/utils/education-plan/planImportFile';
@@ -68,7 +67,6 @@ export function ImportBranchFileModal({ classId, yearPlanId, user, draft, templa
       confirmDisabled={!changes.length}
       onConfirm={() => (overwrites ? setConfirm(true) : apply())}
       onClose={onClose}
-      options={USE_MOCK ? <Notice tone="info">Chế độ demo chỉ đọc CSV. Word và Excel cần kết nối máy chủ.</Notice> : null}
     >
       {state.status === 'error' && <Notice>{state.message}</Notice>}
       {preview && (

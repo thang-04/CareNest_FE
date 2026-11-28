@@ -12,7 +12,11 @@ const RULES = [
   [/^School year name must be YYYY-YYYY/, 'name', () => 'Tên năm học có dạng NNNN-NNNN, năm sau lớn hơn năm trước 1 năm (ví dụ 2027-2028)'],
   [/^End date must be after start date/, 'endDate', () => 'Ngày kết thúc phải sau ngày bắt đầu'],
   [/^School year (\S+) already exists/, 'name', (m) => `Năm học ${m[1]} đã tồn tại`],
-  [/^Dates overlap school year (\S+)/, 'endDate', (m) => `Khoảng thời gian trùng với năm học ${m[1]}`],
+  [
+    /^Dates overlap school year (\S+)/,
+    '_form',
+    (m) => `Khoảng ngày học trùng với năm học ${m[1]}. Hãy điều chỉnh ngày bắt đầu hoặc ngày kết thúc.`,
+  ],
   [/^School year name can only change before it starts/, 'name', () => 'Chỉ đổi được tên năm học khi năm học chưa bắt đầu'],
   [/^School year already has classes, name cannot change/, 'name', () => 'Năm học đã có lớp, không đổi được tên'],
   [/^School year already has classes and cannot be deleted/, '_form', () => 'Năm học đã có lớp, không xóa được'],

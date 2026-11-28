@@ -113,8 +113,27 @@ export default function StockReceiptFormPage() {
     setForm((f) => ({ ...f, [field]: value }));
     setErrors((e) => ({ ...e, [field]: undefined }));
   };
+  // Giá danh mục tính theo đơn vị mua: chỉ điền khi dòng nhập theo đơn vị mua (hoặc mua trùng kho)
+  const catalogPrice = (foodId, unitKind) => {
+    const food = foodById[foodId];
+    const price = food?.unitPrice;
+    if (price == null || price === '' || !(Number(price) >= 0)) return '';
+    return unitKind === UNIT_KIND.PURCHASE || !hasPurchaseConversion(food) ? String(price) : '';
+  };
   const setLine = (index, field, value) => {
-    setForm((f) => ({ ...f, items: f.items.map((it, i) => (i === index ? { ...it, [field]: value } : it)) }));
+    setForm((f) => ({
+      ...f,
+      items: f.items.map((it, i) => {
+        if (i !== index) return it;
+        const next = { ...it, [field]: value };
+        // Đổi thực phẩm: thay giá nếu ô còn trống hoặc vẫn là giá danh mục của thực phẩm trước, giá người dùng đã sửa thì giữ
+        if (field === 'foodId') {
+          const untouched = it.unitPrice === '' || String(it.unitPrice) === catalogPrice(it.foodId, it.unitKind);
+          if (untouched) next.unitPrice = catalogPrice(value, it.unitKind);
+        }
+        return next;
+      }),
+    }));
     setErrors((e) => ({ ...e, [`items.${index}.${field}`]: undefined, items: undefined }));
   };
   const removeLine = (index) => {

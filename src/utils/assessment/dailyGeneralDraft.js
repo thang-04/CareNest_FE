@@ -9,7 +9,9 @@ export const createGeneralDraft = (row, mealSessions) => ({
   healthSigns: row.health.signs,
   healthNote: row.health.note || '',
   healthOverridden: row.health.overridden,
-  meals: Object.fromEntries(mealSessions.map((session) => [session, row.meals[session] || EATING.AN_HET])),
+  meals: Object.fromEntries(
+    mealSessions.map((session) => [session, row.skippedMeals?.includes(session) ? EATING.KHONG_AN : row.meals[session] || EATING.AN_HET]),
+  ),
   nap: row.nap || NAP.NGU_TOT,
   emotion: row.emotion || EMOTION.HAPPY,
   behaviors: row.behaviors,
@@ -21,8 +23,13 @@ export const createGeneralDraft = (row, mealSessions) => ({
 
 export const getGeneralSaveEntries = (rows, mealSessions, drafts, dirty) =>
   rows
-    .filter((row) => !isGeneralRecorded(row) || dirty.has(row.childId))
-    .map((row) => ({ childId: row.childId, ...(drafts[row.childId] || createGeneralDraft(row, mealSessions)) }));
+    .filter((row) => !row.historyStatus && (!isGeneralRecorded(row) || dirty.has(row.childId)))
+    // Dòng chưa ghi lúc mở trang chỉ tạo mới: cô khác ghi trước thì BE bỏ qua, không đè (OBS-33)
+    .map((row) => ({
+      childId: row.childId,
+      ...(drafts[row.childId] || createGeneralDraft(row, mealSessions)),
+      ...(isGeneralRecorded(row) ? {} : { createOnly: true }),
+    }));
 
 const draftKey = (draft) =>
   JSON.stringify({ ...draft, healthSigns: [...draft.healthSigns].sort(), behaviors: [...draft.behaviors].sort() });

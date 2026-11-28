@@ -4,10 +4,9 @@ import { useToast } from '@/contexts/ToastContext';
 import { useFood, useFoods } from '@/hooks/menu-planning/useMenuPlanning';
 import { saveFood } from '@/services/menu-planning/menuPlanningService';
 import { validateFood, hasErrors } from '@/utils/menu-planning/menuPlanningValidation';
-import { autoUnitRatios, foodUnits, purchaseUnitSizeOf } from '@/utils/menu-planning/foodUnits';
+import { foodUnits, selectNewFoodBaseUnit, selectNewFoodPurchaseUnit } from '@/utils/menu-planning/foodUnits';
 import { MICRONUTRIENTS } from '@/models/menu-planning/menuPlanningConstants';
-
-const UNIT_KEYS = ['unit', 'purchaseUnit', 'stockUnit'];
+import { todayInput } from '@/utils/format';
 
 const EMPTY = {
   name: '',
@@ -20,13 +19,15 @@ const EMPTY = {
   stockUnitSize: 1000,
   unitPrice: '',
   supplierId: '',
+  // Chỉ gửi khi sửa mà giá hoặc NCC đổi: ngày hiệu lực của mức giá mới và lý do (NUT-27)
+  effectiveFrom: '',
+  priceReason: '',
   wastePct: 0,
   favorite: false,
   storage: '',
   nutrition: { kcal: '', protein: '', lipid: '', glucid: '', ...Object.fromEntries(MICRONUTRIENTS.map((k) => [k, ''])) },
   origin: '',
   nutrientSource: '',
-  nutrientSourceVersion: '',
   allergens: [],
   note: '',
   status: 'ACTIVE',
@@ -37,9 +38,11 @@ const toForm = (f) => ({
   ...foodUnits(f),
   unit: f.unit,
   unitPrice: f.unitPrice ?? '',
+  supplierId: f.supplierId ?? '',
+  effectiveFrom: todayInput(),
+  priceReason: '',
   origin: f.origin ?? '',
   nutrientSource: f.nutrientSource ?? '',
-  nutrientSourceVersion: f.nutrientSourceVersion ?? '',
   nutrition: Object.fromEntries(Object.entries(f.nutrition || {}).map(([k, v]) => [k, v ?? ''])),
 });
 
@@ -68,22 +71,51 @@ export function useFoodForm(id, { onSaved } = {}) {
 
   // Đã có lô/phiếu nhập: giữ nguyên tỷ lệ đã lưu, không tự đổi
   const locked = !!item?.unitsLocked;
-  const auto = locked ? {} : autoUnitRatios(form);
-  // Số g/ml trong 1 đơn vị mua suy ra từ hai tỷ lệ, không nhập riêng
-  const ratios = { ...form, ...auto };
-  const payload = { ...ratios, purchaseUnitSize: purchaseUnitSizeOf(ratios.purchaseToStock, ratios.stockUnitSize) };
-  const errors = { ...validateFood({ ...payload, id }, others), ...serverErrors };
+  const payload = { ...form };
+  // Sửa mà giá hoặc NCC khác bản đã tải ⇒ BE thêm mức giá mới: cần ngày hiệu lực và lý do (NUT-27)
+  const priceChanged =
+    !!id &&
+    (String(form.unitPrice ?? '') !== String(initial.unitPrice ?? '') ||
+      String(form.supplierId ?? '') !== String(initial.supplierId ?? ''));
+  const errors = {
+    ...validateFood({ ...payload, id }, others),
+    ...(priceChanged && !form.effectiveFrom ? { effectiveFrom: 'Chọn ngày hiệu lực' } : {}),
+    ...serverErrors,
+  };
   const show = (k) => (submitted || touched[k] ? errors[k] : undefined);
   const set = (k, v) => {
     setForm((f) => {
-      const next = { ...f, [k]: v };
-      // Đổi đơn vị thì ô tỷ lệ tự điền được cập nhật theo, tránh số cũ hiện lại khi ô mở ra
-      return !locked && UNIT_KEYS.includes(k) ? { ...next, ...autoUnitRatios(next) } : next;
+      return { ...f, [k]: v };
     });
     // Xóa hẳn khóa: để `undefined` thì spread vào errors sẽ đè mất lỗi kiểm tra của ô
     setServerErrors(({ [k]: _drop, ...rest }) => rest);
   };
   const setNut = (k, v) => setForm((f) => ({ ...f, nutrition: { ...f.nutrition, [k]: v } }));
+  const clearUnitErrors = () =>
+    setServerErrors(
+      ({
+        unit: _unit,
+        purchaseUnit: _purchaseUnit,
+        purchaseUnitSize: _size,
+        stockUnitSize: _stockSize,
+        purchaseToStock: _ratio,
+        ...rest
+      }) => rest,
+    );
+  const setPurchaseUnit = (value) => {
+    if (id) set('purchaseUnit', value);
+    else setForm((f) => selectNewFoodPurchaseUnit(f, value));
+    clearUnitErrors();
+  };
+  const setBaseUnit = (value) => {
+    if (id) set('unit', value);
+    else setForm((f) => selectNewFoodBaseUnit(f, value));
+    clearUnitErrors();
+  };
+  const setUnitConversion = (v) => {
+    setForm((f) => ({ ...f, purchaseUnitSize: v, purchaseToStock: Number(v) / Number(f.stockUnitSize) }));
+    setServerErrors(({ purchaseUnitSize: _drop, stockUnitSize: _stockDrop, purchaseToStock: _ratioDrop, ...rest }) => rest);
+  };
   const blur = (k) => () => setTouched((t) => ({ ...t, [k]: true }));
   const toggleAllergen = (a) =>
     set('allergens', form.allergens.includes(a) ? form.allergens.filter((x) => x !== a) : [...form.allergens, a]);
@@ -92,7 +124,12 @@ export function useFoodForm(id, { onSaved } = {}) {
     e?.preventDefault();
     setSubmitted(true);
     const clean = Object.fromEntries(Object.entries(errors).filter(([, v]) => v));
-    if (hasErrors(clean)) return false;
+    if (hasErrors(clean)) {
+      // Lưu mà còn lỗi phải có phản hồi: báo số ô lỗi và cuộn tới ô đầu tiên
+      toast.error(`Còn ${Object.keys(clean).length} ô chưa hợp lệ, xem các ô báo đỏ.`);
+      requestAnimationFrame(() => document.querySelector('.td-food-editor [aria-invalid="true"]')?.scrollIntoView({ block: 'center' }));
+      return false;
+    }
     setBusy(true);
     try {
       const saved = await saveFood(id, payload, user);
@@ -117,6 +154,9 @@ export function useFoodForm(id, { onSaved } = {}) {
     form,
     payload,
     set,
+    setPurchaseUnit,
+    setBaseUnit,
+    setUnitConversion,
     setNut,
     blur,
     show,
@@ -125,8 +165,24 @@ export function useFoodForm(id, { onSaved } = {}) {
     busy,
     dirty: JSON.stringify(form) !== JSON.stringify(initial),
     locked,
-    auto,
-    // Giá và NCC chỉ nhập khi tạo; sau đó đổi qua điều chỉnh giá (NUT-27)
+    unitOptions: [
+      ...new Set(
+        [
+          'kg',
+          'g',
+          'lít',
+          'ml',
+          'hộp',
+          'chai',
+          'gói',
+          'quả',
+          'thùng',
+          form.purchaseUnit,
+          ...others.map((food) => food.purchaseUnit),
+        ].filter(Boolean),
+      ),
+    ].map((value) => ({ value, label: value })),
     isNew: !id,
+    priceChanged,
   };
 }

@@ -4,7 +4,7 @@ import YearPlanSourceCard from '@/components/education-plan/YearPlanSourceCard';
 import { planLevel as levelOf, planRoute } from '@/models/education-plan/planLevel.mjs';
 import { submissionRequirementsIssue } from '@/models/education-plan/submitRequirements.mjs';
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Copy, FileDown, Pencil, Trash2 } from '@/components/ui/icons';
 import { ROLES } from '@/models/User';
 import { useEducationPlan, useGoalDetails } from '@/hooks/education-plan/useEducationPlan';
@@ -19,11 +19,14 @@ import { RejectedNotice, ReviewActions, ReviewHistory } from '@/components/educa
 import { StatusPage } from '@/components/ui/StatusPage';
 import { LoadingState, Spinner } from '@/components/ui/States';
 import { useAsync } from '@/hooks/useAsync';
-import { getGoal } from '@/services/education-plan/educationPlanService';
+import { getGoal, getOverdueGoal } from '@/services/education-plan/educationPlanService';
 import { submitEntryOf } from '@/models/education-plan/reviewHistory.mjs';
 import { ReleasedVersionsPanel, VersionBadge, YearPlanVersionPanel } from '@/components/education-plan/VersionWidgets';
-import { chainOf, currentPlanOf } from '@/models/education-plan/planVersions.mjs';
+import { chainOf, currentPlanInYear } from '@/models/education-plan/planVersions.mjs';
+import { sameSchoolYearId } from '@/models/education-plan/schoolYearScope.mjs';
 import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
+import { canPrincipalPublish, isEduVicePrincipal } from '@/utils/education-plan/eduPermissions';
+import { devNow } from '@/utils/devClock';
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 const ISSUE_NOTE =
@@ -32,13 +35,26 @@ const editable = (s) => s === EDU_STATUS.DRAFT || s === EDU_STATUS.REJECTED || s
 
 /** Kế hoạch giáo dục năm học của một nhóm tuổi: bảng mục tiêu (A), chủ đề, sự kiện (B), người xây dựng và ban hành. */
 
+const VIEW_ONLY = {
+  canEdit: false,
+  canSubmit: false,
+  canApprove: false,
+  canIssue: false,
+  canReturn: false,
+  canDelete: false,
+  canCreateVersion: false,
+};
+
 export default function GoalDetailPage({ planLevel = 'TEAM' }) {
   const annual = planLevel === 'SCHOOL_YEAR';
   const basePath = planRoute({ planLevel });
   const pageLabel = annual ? 'Kế hoạch năm học' : 'Kế hoạch giáo dục tổ';
   const { id } = useParams();
+  // Mở từ Kế hoạch quá hạn của Hiệu trưởng: bản chưa ban hành, chỉ xem, không có thao tác nào
+  const overdueView = useSearchParams()[0].get('overdue') === '1';
   const {
     goals: allGoals,
+    schoolYearId,
     themes: themePlans,
     user,
     saveGoal,
@@ -47,6 +63,7 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
     toast,
     staff,
     refreshGoal,
+    eduConfig,
   } = useEducationPlan();
   const goals = allGoals.filter((g) => levelOf(g) === planLevel);
   const [preview, setPreview] = useState(null);
@@ -59,10 +76,17 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
   const [deleteError, setDeleteError] = useState('');
   const [creating, setCreating] = useState(false);
   const [actionError, setActionError] = useState('');
-  const found = goals.find((x) => x.id === id);
+  const found = overdueView ? null : goals.find((x) => x.id === id && sameSchoolYearId(x.schoolYearId, schoolYearId));
   // Bản Chờ duyệt (mở từ hàng chờ/thông báo) không có trong danh sách ⇒ hỏi BE theo id; người chỉ xem nhận 403 "chưa ban hành"
-  const single = useAsync(() => (found ? Promise.resolve(null) : getGoal(id, user)), [id, !!found]);
-  const g = found || single.data;
+  const single = useAsync(
+    () => (overdueView ? getOverdueGoal(user, schoolYearId, id) : getGoal(id, user)),
+    [id, user.id, schoolYearId, overdueView],
+    {
+      enabled: schoolYearId != null && !found,
+    },
+  );
+  const requested = single.data;
+  const g = found || (levelOf(requested) === planLevel && sameSchoolYearId(requested?.schoolYearId, schoolYearId) ? requested : null);
   // Danh sách chỉ có bản tóm tắt ⇒ tải chi tiết kế hoạch đang xem (và kế hoạch năm học nguồn của kế hoạch tổ)
   const details = useGoalDetails([found ? id : null, g?.curriculumSourcePlanId]);
 
@@ -74,7 +98,7 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
         <PageHead crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: pageLabel, to: basePath }]} title={pageLabel} />
         <StatusPage
           kind={single.error?.status === 403 ? '403' : '404'}
-          title={single.error?.status === 403 ? single.error.message : `Không tìm thấy ${pageLabel.toLowerCase()}`}
+          title={single.error?.status === 403 ? single.error.message : `Không tìm thấy ${pageLabel.toLowerCase()} trong năm học đang chọn`}
           action={
             <Link className="btn" to={basePath}>
               Về danh sách
@@ -84,7 +108,7 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
       </div>
     );
 
-  const isVp = user.role === ROLES.VICE_PRINCIPAL;
+  const isVp = isEduVicePrincipal(user);
   const isLeader = user.role === ROLES.TEAM_LEADER && user.ageGroupId === g.ageGroupId;
   const ageName = AGE_GROUPS.find((a) => a.id === g.ageGroupId)?.name;
   const usedBy = themePlans.filter((t) => t.goalId === g.id);
@@ -99,7 +123,7 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
   const numbers = numberGoals(domains);
   const plan = { ...g, domains, themes };
   const history = g.history || [];
-  const now = () => new Date().toISOString().slice(0, 10);
+  const now = () => devNow().toISOString().slice(0, 10);
   const log = (action, extra, tone) => [...history, { at: now(), by: user.name, action, note: extra || undefined, tone }];
   const me = { userId: user.id, name: user.name, role: user.role, title: user.title, at: now() };
   // Phó HT và tổ trưởng cùng soạn, mỗi lúc một người (BE:EDU-03, EDU-10); Phó HT duyệt, trả lại hoặc tự sửa khi đang chờ
@@ -108,7 +132,7 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
   const pending = isReview;
   const draftLike = editable(g.status) && !isReview;
   // API thật: BE trả quyền của người xem (permissions); mock chưa có thì tự suy
-  const perm = g.permissions;
+  const perm = overdueView ? VIEW_ONLY : g.permissions;
   const free = draftLike;
   const isReviewerForPlan = isReview && (g.waitingRole ? g.waitingRole === user.role : isVp);
   const canEditNow = perm ? perm.canEdit : free && (isVp || isLeader);
@@ -117,14 +141,21 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
   const canReturn = perm ? perm.canReturn : isReviewerForPlan;
   // Thông báo về khóa, hạn, rà soát chỉ dành cho người soạn (Tiền 11/11/2026); người khác thấy là thừa và lộ thông tin
   const isAuthor = g.owner?.userId === user.id || (!annual && isLeader) || !!perm?.canEdit || !!perm?.canSubmit;
+  // EDU-110 (8), (10): HT soạn loại này và chuỗi duyệt rỗng ⇒ nút Ban hành thay Gửi duyệt
+  const principalPublish = canPrincipalPublish({
+    user,
+    policy: eduConfig?.workflowPolicy?.[annual ? 'schoolYear' : 'year'],
+    status: g.status,
+    author: canEditNow || canSend,
+  });
   const canDelete = annual && (perm ? perm.canDelete : isVp && g.status === EDU_STATUS.DRAFT);
-  // BE:EDU-25 — sửa bản đã ban hành = tạo phiên bản mới; bản đã ban hành giữ nguyên
+  // BE:EDU-25, EDU-112 (2) — sửa bản đã ban hành = tạo phiên bản mới (năm học và tổ); bản đã ban hành giữ nguyên
   const canCreateVersion =
-    annual &&
-    (perm?.canCreateVersion ??
-      ((isVp || isLeader) &&
-        currentPlanOf(goals, g.ageGroupId, g.schoolYear, planLevel)?.id === g.id &&
-        chainOf(goals, g).every((x) => x.status === EDU_STATUS.APPROVED)));
+    perm?.canCreateVersion ??
+    (annual &&
+      (isVp || isLeader) &&
+      currentPlanInYear(goals, g.ageGroupId, schoolYearId, planLevel)?.id === g.id &&
+      chainOf(goals, g).every((x) => x.status === EDU_STATUS.APPROVED));
   const closeDelete = () => {
     setModal(null);
     setDeleteError('');
@@ -156,19 +187,22 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
 
   // Gửi / trả lại / ban hành theo mẫu chung (reviewUi); service quyết định trạng thái
   const act = async (action, note) => {
-    if (action === 'submit') {
+    const apiAction = action === 'approve' && principalPublish && !canIssue ? 'publish' : action;
+    // HT ban hành thẳng từ Nháp qua cùng kiểm tra như khi gửi (BE publishByPrincipal)
+    const sending = action === 'submit' || (apiAction === 'publish' && draftLike);
+    if (sending) {
       const issue = submissionRequirementsIssue({ ...g, planLevel });
       if (issue) {
         toast(issue, 'warn');
         return null;
       }
     }
-    if (action === 'submit' && (g.reviewItems || []).some((item) => !item.resolved)) {
+    if (sending && (g.reviewItems || []).some((item) => !item.resolved)) {
       toast('Còn mục cần rà soát theo nguồn mới. Mở chỉnh sửa để xử lý trước khi gửi.', 'warn');
       return null;
     }
     setActionError('');
-    if (action === 'submit' && g.durationPolicySnapshot?.mode === 'BOUNDED') {
+    if (sending && g.durationPolicySnapshot?.mode === 'BOUNDED') {
       const limits = g.durationPolicySnapshot;
       const issue =
         (g.themes || []).map((t) => durationRangeIssue(t, g.breaks || [], limits.theme, `Chủ đề "${t.name || t.abbr}"`)).find(Boolean) ||
@@ -185,7 +219,7 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
     }[action];
     let saved;
     try {
-      saved = await saveGoal(next, { action, silent: true });
+      saved = await saveGoal(next, { action: apiAction, silent: true });
     } catch (error) {
       const msg = error.message || 'Không thực hiện được. Tải lại trạng thái trước khi thử lại.';
       setActionError(msg);
@@ -244,9 +278,9 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
             )}
             <ReviewActions
               name={pageLabel.toLowerCase()}
-              approveLabel={g.review?.roles?.at(-1) === g.review?.waitingRole ? 'Ban hành' : 'Duyệt'}
+              approveLabel={principalPublish || g.review?.roles?.at(-1) === g.review?.waitingRole ? 'Ban hành' : 'Duyệt'}
               variant="btn--outline-primary"
-              can={{ send: canSend, reject: canReturn, approve: canIssue }}
+              can={{ send: canSend && !principalPublish, reject: canReturn, approve: canIssue || principalPublish }}
               // EDU-52 (Tiền 10/11/2026): chủ đề chưa chọn ngày thì chưa gửi, chưa ban hành được; sửa ngày ở màn chỉnh sửa
               beforeOpen={(action) => {
                 const undated = (action === 'approve' || action === 'submit') && themeWithoutDates(themes);
@@ -266,7 +300,7 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
               onAct={act}
             />
             {/* EDU-90: xuất file theo vai trò người tạo, BE trả cờ */}
-            {plan.permissions?.canExport !== false && (
+            {!overdueView && plan.permissions?.canExport !== false && (
               <button className="btn btn--sm btn--outline-primary" onClick={() => setPreview(yearPlanFile(plan, numbers, staff))}>
                 <FileDown size={16} aria-hidden /> Xuất file
               </button>

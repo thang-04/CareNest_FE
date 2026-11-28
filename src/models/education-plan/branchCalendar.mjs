@@ -50,6 +50,26 @@ export const normalizeBranchCalendar = (doc) =>
     ? { ...doc, branches: doc.branches ?? [], themeSchedules: doc.themeSchedules ?? [], names: doc.names ?? {}, notes: doc.notes ?? {} }
     : doc;
 
+export function publishedBranchCalendar(plan, packages) {
+  const releases = packages.filter((pkg) => pkg.status === 'APPROVED');
+  const themeIds = new Set(releases.flatMap((pkg) => (pkg.themeIds || []).map(String)));
+  const names = Object.assign({}, ...releases.map((pkg) => pkg.branchNames || {}));
+  const themeSchedules = releases.flatMap((pkg) => pkg.effectiveCalendar?.themeSchedules || []);
+  const branches = releases.flatMap((pkg) => pkg.effectiveCalendar?.branches || []);
+  const legacyWeeks = new Set(releases.filter((pkg) => !pkg.effectiveCalendar).flatMap((pkg) => Object.keys(pkg.branchNames || {})));
+  const historical = teachingWeeks(plan, { themeSchedules })
+    .filter((week) => themeIds.has(String(week.theme.id)) && legacyWeeks.has(week.start))
+    .map((week) => ({
+      key: `released-${week.theme.id}-${week.start}`,
+      themeId: week.theme.id,
+      name: names[week.start],
+      startDate: week.start,
+      endDate: week.end,
+    }));
+  const calendar = { schemaVersion: 2, themeSchedules, branches: [...branches, ...historical], names, themeIds };
+  return { ...calendar, notes: projectCalendar(calendar, plan).notes };
+}
+
 export function projectCalendar(doc, plan) {
   doc = normalizeBranchCalendar(doc);
   const names = {},

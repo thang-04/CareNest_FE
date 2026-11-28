@@ -5,9 +5,10 @@ import { useAppearance } from '@/contexts/AppearanceContext';
 import { sceneUrl } from '@/models/appearance/scenes';
 import { ROLE_LABELS } from '@/models/User';
 import { homeCrumbs } from '@/utils/dashboard/breadcrumbs';
+import { devNow } from '@/utils/devClock';
 
 const todayLabel = () => {
-  const text = new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
+  const text = devNow().toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
   return text.charAt(0).toUpperCase() + text.slice(1);
 };
 

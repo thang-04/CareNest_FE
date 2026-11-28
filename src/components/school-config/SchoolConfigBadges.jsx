@@ -56,6 +56,9 @@ export const ClassFillBadge = createStatusBadge(
 /* Chưa có người phụ trách = chờ người khác làm (orange). label đổi được theo ngữ cảnh ("Chưa có" trong bảng lớp). */
 export const UnassignedBadge = ({ label = 'Chưa phân công' }) => <StatusBadge tone="orange" icon={UserMinus} label={label} />;
 
+/* Phân công còn nhưng người này không đăng nhập được: Hiệu trưởng cần đổi hoặc gỡ. */
+export const LockedAccountBadge = () => <StatusBadge tone="red" icon={CircleX} label="Tài khoản đã khóa" />;
+
 export const StaffStatusBadge = createStatusBadge(
   { ACTIVE: ['green', CircleCheck], INACTIVE: ['gray', PauseCircle] },
   { ACTIVE: 'Đang hoạt động', INACTIVE: 'Đã vô hiệu hóa' },

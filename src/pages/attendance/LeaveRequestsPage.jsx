@@ -23,6 +23,7 @@ import { addDays, schoolToday } from '@/utils/attendance/attendanceTime';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
 import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { formatDate, formatDateTime, isIsoDate, monthRangeOf } from '@/utils/format';
+import { childNameWithHistory } from '@/utils/childHistory';
 import { LEAVE_PART, LEAVE_PART_LABELS, LEAVE_STATUS_LABELS, MEAL_SESSION_LABELS } from '@/models/attendance/attendanceConstants';
 import '@/styles/modules/attendance.css';
 
@@ -113,12 +114,13 @@ export default function LeaveRequestsPage() {
       'Bé tham gia ăn',
       'Lý do',
       'Trạng thái',
+      'Ghi chú hiệu lực',
       'Hủy từ ngày',
       'Người gửi',
       'Gửi lúc',
     ];
     const body = rows.map((r) => [
-      r.childName,
+      childNameWithHistory(r.childName, r.historyStatus),
       r.className,
       ...(leader ? [campusName(r.campusId)] : []),
       formatDate(r.fromDate),
@@ -127,6 +129,7 @@ export default function LeaveRequestsPage() {
       eatsLabel(r),
       r.reason,
       LEAVE_STATUS_LABELS[r.status] || r.status,
+      r.noticeOnly ? 'Báo nghỉ chiều sau giờ chốt; không đổi điểm danh/suất ăn' : '',
       cancelledFrom(r),
       r.createdByName || '',
       formatDateTime(r.createdAt),
@@ -139,6 +142,7 @@ export default function LeaveRequestsPage() {
   const statusOf = (r) => (
     <>
       <LeaveStatusBadge status={r.status} />
+      {r.noticeOnly && <div className="muted">Báo nghỉ chiều sau giờ chốt · không đổi điểm danh/suất ăn</div>}
       {cancelledFrom(r) && <div className="muted">Phụ huynh hủy từ {cancelledFrom(r)}</div>}
     </>
   );
@@ -244,7 +248,8 @@ export default function LeaveRequestsPage() {
             Nhập khoảng ngày hợp lệ theo dd/mm/yyyy, ngày bắt đầu không sau ngày kết thúc.
           </p>
         )}
-        {leaves.error ? (
+        {/* Khoảng ngày sai: chỉ báo lỗi ở trên, không dựng bảng hay trạng thái "không có đơn nghỉ" */}
+        {invalidRange ? null : leaves.error ? (
           <ErrorState error={leaves.error} onRetry={leaves.reload} />
         ) : (
           <div className="table-wrap">
@@ -280,7 +285,7 @@ export default function LeaveRequestsPage() {
                 ) : (
                   paginate(rows, currentPage, PAGE_SIZE).map((r) => (
                     <tr key={r.id}>
-                      <td>{r.childName}</td>
+                      <td>{childNameWithHistory(r.childName, r.historyStatus)}</td>
                       <td>
                         {r.className}
                         {leader && campusIds.size > 1 && r.campusId ? ` · ${campusName(r.campusId)}` : ''}
@@ -301,7 +306,7 @@ export default function LeaveRequestsPage() {
             </table>
           </div>
         )}
-        <Pagination page={currentPage} total={rows.length} pageSize={PAGE_SIZE} onChange={setPage} />
+        {!invalidRange && <Pagination page={currentPage} total={rows.length} pageSize={PAGE_SIZE} onChange={setPage} />}
       </div>
     </div>
   );

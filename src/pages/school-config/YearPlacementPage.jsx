@@ -19,6 +19,7 @@ import { autoPlace } from '@/services/school-config/schoolConfigService';
 import { PLACEMENT_ACTION } from '@/models/school-config/schoolConfigConstants';
 import { canConfigureSchool, canViewYearPlacement, nextYearToActivate } from '@/utils/school-config/schoolConfigPermissions';
 import { placementCrumbs } from '@/utils/school-config/breadcrumbs';
+import { formatDate, todayInput } from '@/utils/format';
 import '@/styles/modules/school-config.css';
 
 const placedOf = (c) => c.children.filter((ch) => ch.placement).length;
@@ -93,8 +94,12 @@ export default function YearPlacementPage() {
       classes.filter((c) => !c.graduating && !c.suggestedTargetId).map((c) => `${groupName(c.nextAgeGroupId)} (${campusName(c.campusId)})`),
     ),
   ];
-  const admissions = (plan?.newAdmissions || []).filter(
-    (item) => (!campusId || String(item.campusId) === String(campusId)) && (!groupId || String(item.ageGroupId) === String(groupId)),
+  const admissions = useMemo(
+    () =>
+      (plan?.newAdmissions || []).filter(
+        (item) => (!campusId || String(item.campusId) === String(campusId)) && (!groupId || String(item.ageGroupId) === String(groupId)),
+      ),
+    [plan?.newAdmissions, campusId, groupId],
   );
   const admissionsLeft = admissions.filter((item) => !item.targetClassId).length;
   const onClassDirty = useCallback((value) => setClassDirty(value), []);
@@ -264,6 +269,13 @@ export default function YearPlacementPage() {
             )}
           </div>
 
+          {/* CFG-YR-03: xếp lớp mở từ ngày kết thúc HK II của năm đang hoạt động; trước đó chỉ xem */}
+          {plan?.placementOpenFrom && plan.placementOpenFrom > todayInput() && (
+            <div className="alert alert--info" role="status">
+              <Clock size={16} /> Xếp lớp năm học mới mở từ {formatDate(plan.placementOpenFrom)} (kết thúc học kỳ II năm học{' '}
+              {plan.sourceYear?.name}). Trước ngày đó bảng xếp lớp chỉ xem.
+            </div>
+          )}
           <Tabs
             className="sc-plc__tabs"
             ariaLabel="Nhóm trẻ cần xếp lớp"
@@ -411,6 +423,7 @@ export default function YearPlacementPage() {
                           from={selected}
                           targets={plan.targets}
                           campusName={campusName}
+                          groupName={groupName}
                           editable={plan.editable}
                           onDirty={onClassDirty}
                           onSaved={() => reload({ silent: true })}

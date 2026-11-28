@@ -11,10 +11,12 @@ export const attendanceApi = {
   saveClassAttendance: ({ classId, date, entries }) =>
     axiosClient.put(`/classes/${classId}/attendance`, {
       date,
-      entries: entries.map(({ childId, status, meals }) => ({ childId, status, meals })),
+      entries: entries.map(({ childId, status, meals, presentPart }) => ({ childId, status, meals, presentPart })),
     }),
   markArrived: ({ classId, childId, date }) =>
     axiosClient.post(`/classes/${classId}/attendance/children/${childId}/arrived`, undefined, { params: { date } }),
+  correctMealParticipation: ({ classId, childId, date, participates }) =>
+    axiosClient.post(`/classes/${classId}/attendance/children/${childId}/meal-participation`, { date, participates }),
   // PENDING BE: không có classId = tổng hợp nhiều lớp trong phạm vi người gọi (campusId tùy chọn, BE tự giới hạn phạm vi)
   getAttendanceSummary: ({ classId, campusId, from, to }) =>
     classId
@@ -23,12 +25,7 @@ export const attendanceApi = {
   getMealCounts: ({ date }) => axiosClient.get('/meal-counts', { params: { date } }),
   getClassMealCount: ({ classId, date }) => axiosClient.get('/meal-counts/class', { params: { classId, date } }),
   confirmMealCount: (id, seen) =>
-    axiosClient.post(`/meal-counts/${id}/confirm`, undefined, {
-      params: { seenServings: seen?.servings ?? undefined, seenSubstitute: seen?.substitute ?? undefined },
-    }),
-  // NUT-02: chỉ suất thay thế (kèm lý do); suất thường chỉ đổi qua điểm danh
-  adjustMealDay: ({ campusId, date, session, classId, substitute, note }) =>
-    axiosClient.post('/meal-counts/adjustments', { campusId, date, session: session || null, classId, normal: null, substitute, note }),
+    axiosClient.post(`/meal-counts/${id}/confirm`, undefined, { params: { seenServings: seen?.servings ?? undefined } }),
   getMealHandovers: ({ date }) => axiosClient.get('/meal-handovers', { params: { date } }),
   confirmHandover: (id, body) => axiosClient.post(`/meal-handovers/${id}/confirm`, body),
   reportHandoverShortage: (id, body) => axiosClient.post(`/meal-handovers/${id}/shortage`, body),
@@ -38,7 +35,7 @@ export const attendanceApi = {
 /** BE trả thông tin ngày trong `day`, trẻ chỉ có id/họ tên/ngày sinh: đổi về dạng mock để màn hình dùng chung. */
 const toSheet = (data) => {
   const children = data.children.map(({ child, record, health, leave }) => ({
-    child: { ...child, code: '', gender: null, allergies: [], photoUrl: null },
+    child: { ...child, code: '', gender: null, allergies: [] },
     record,
     // Đơn nghỉ phụ huynh còn hiệu lực ngày này (ATT-04): nhãn "Phụ huynh báo nghỉ" ở dòng trẻ
     // ATT-12: part = cả ngày / buổi sáng / buổi chiều; eats = bé ăn bữa của buổi còn học (null = không áp dụng);
@@ -52,6 +49,7 @@ const toSheet = (data) => {
           part: leave.part || 'FULL_DAY',
           eats: leave.eats ?? null,
           eatsMeals: leave.eatsMeals || [],
+          noticeOnly: !!leave.noticeOnly,
         }
       : null,
     healthSummary: dailyHealthSummaryFromBe(health),
@@ -63,6 +61,7 @@ const toSheet = (data) => {
     className: data.className,
     campusId: data.campusId,
     mealSessions: data.mealSessions,
+    afternoonStart: data.afternoonStart,
     latestAfternoonArrival: data.latestAfternoonArrival,
     canRecord: data.canRecord,
     mealCountStatus: null,
@@ -102,11 +101,15 @@ export const createAttendanceBeApi = (client) => ({
   saveClassAttendance: ({ classId, date, entries }) =>
     client.put(`/classes/${classId}/attendance`, {
       date,
-      entries: entries.map(({ childId, status, meals }) => ({ childId, status, meals })),
+      entries: entries.map(({ childId, status, meals, presentPart }) => ({ childId, status, meals, presentPart })),
     }),
   // ATT-13: trẻ nghỉ buổi sáng đã đến lớp buổi chiều (không đổi sổ báo ăn)
   markArrived: ({ classId, childId, date }) =>
     client.post(`/classes/${classId}/attendance/children/${childId}/arrived`, undefined, { params: { date } }),
+  // ATT-02a: after the cut-off, only today's accidental meal-participation toggle may be corrected.
+  // The server rejects it once a relevant meal count is confirmed or the kitchen record is signed.
+  correctMealParticipation: ({ classId, childId, date, participates, meals }) =>
+    client.post(`/classes/${classId}/attendance/children/${childId}/meal-participation`, { date, participates, meals }),
   getAttendanceSummary: async ({ classId, campusId, ageGroupId, schoolYear, from, to }) =>
     classId
       ? withSubstitute(await client.get(`/classes/${classId}/attendance/summary`, { params: { from, to } }), 'CLASS')
@@ -125,12 +128,7 @@ export const createAttendanceBeApi = (client) => ({
   getMealCounts: ({ date, schoolYear }) => client.get('/meal-counts', { params: { date, schoolYearId: schoolYear || undefined } }),
   // NUT-02, ATT-02: suất ăn từng bữa của một lớp cho giáo viên (BE kiểm phân công lớp, không tên trẻ)
   getClassMealCount: ({ classId, date }) => client.get('/meal-counts/class', { params: { classId, date } }),
-  // seen: { servings, substitute } cơ sở–ngày đang hiện; BE từ chối (409) nếu số đã đổi so với lúc xem (NUT-03)
+  // seen: { servings } cơ sở–ngày đang hiện; BE từ chối (409) nếu số đã đổi so với lúc xem (NUT-03)
   confirmMealCount: (id, seen) =>
-    client.post(`/meal-counts/${id}/confirm`, undefined, {
-      params: { seenServings: seen?.servings ?? undefined, seenSubstitute: seen?.substitute ?? undefined },
-    }),
-  // NUT-02: chỉ điều chỉnh suất thay thế; suất thường chỉ đổi qua điểm danh ⇒ normal luôn null
-  adjustMealDay: ({ campusId, date, session, classId, substitute, note }) =>
-    client.post('/meal-counts/adjustments', { campusId, date, session: session || null, classId, normal: null, substitute, note }),
+    client.post(`/meal-counts/${id}/confirm`, undefined, { params: { seenServings: seen?.servings ?? undefined } }),
 });

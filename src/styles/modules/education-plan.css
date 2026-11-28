@@ -1038,41 +1038,6 @@ table.ga-import-theme-table tbody tr:nth-child(even):hover td {
   padding: var(--space-1) var(--space-2);
   white-space: normal;
 }
-/* Modal duyệt tên chủ đề nhánh AI điền: tuần · tên cũ gạch → tên AI · ✓ ✗ */
-.ga-ai-review {
-  display: grid;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.ga-ai-review__item {
-  display: grid;
-  grid-template-columns: minmax(0, 14rem) minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-}
-.ga-ai-review__name {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-.ga-ai-review__name ins {
-  text-decoration: none;
-  font-weight: var(--fw-semibold);
-  color: var(--color-primary);
-}
-@media (max-width: 640px) {
-  .ga-ai-review__item {
-    grid-template-columns: minmax(0, 1fr) auto auto;
-  }
-  .ga-ai-review__week {
-    grid-column: 1 / -1;
-  }
-}
 
 /* Khung gợi ý hoạt động của ô kế hoạch tuần (Tiền 21/10, phương án A) */
 .ga-sug-panel .search-select__list {
@@ -1144,7 +1109,8 @@ table.ga-import-theme-table tbody tr:nth-child(even):hover td {
   color: var(--color-success-fg);
 }
 
-.ga-edit-fieldset {
+.ga-edit-fieldset,
+.ga-overdue-fieldset {
   border: 0;
   margin: 0;
   padding: 0;

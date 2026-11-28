@@ -5,14 +5,11 @@ import { SearchSelect } from '@/components/ui/SearchSelect';
 import { RowMenu } from '@/components/ui/RowMenu';
 import { dishTypeClass } from '@/utils/dishTypeClass';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import { DishKcal } from '@/components/menu-planning/MenuBadges';
 import { DishInfoModal } from '@/components/menu-planning/DishInfoModal';
 import { DISH_TYPE_LABELS, MEAL_SESSION_LABELS, WEEKDAY_LABELS } from '@/models/menu-planning/menuPlanningConstants';
 import {
   addDish,
   dayAllergenNotes,
-  dayReasons,
-  dayResult,
   gridSections,
   removeDish,
   replaceDish,
@@ -28,7 +25,7 @@ const ddmm = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 
 /**
  * Bảng kế hoạch tuần của một khối như sổ thực đơn: cột là các thứ, mỗi bữa một dải tiêu đề, bữa trưa tách hàng theo loại món,
- * hàng cuối "Suất dị ứng". Đầu cột: ngày, nhãn kết quả BE đã kiểm ("N lưu ý" / "Đạt"), ô ngày nghỉ.
+ * hàng cuối "Suất dị ứng". Đầu cột: ngày, ô ngày nghỉ. Bảng chỉ liệt kê món; dinh dưỡng xem ở Cân đối khẩu phần.
  * `onEdit(fn)` nhận hàm biến đổi bản nháp; `editable` false ⇒ chỉ xem (đã công bố hoặc không có quyền sửa).
  * `templates` + `onPickTemplate(day, template)`: ô chọn mẫu ngày ở đầu mỗi cột (NUT-13).
  * `dayActions(day, index)`: mục menu "…" đầu cột ngày (Sửa ngày, Chép sang ngày…, Mở ở Cân đối khẩu phần) theo dạng `RowMenu`.
@@ -36,7 +33,6 @@ const ddmm = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
  */
 export function MealPlanGrid({
   draft,
-  plan,
   block,
   sessions,
   dishes,
@@ -48,7 +44,6 @@ export function MealPlanGrid({
   dayLink,
   templates,
   onPickTemplate,
-  kcalAgeGroup,
   dayActions,
   holidays = {},
 }) {
@@ -78,8 +73,9 @@ export function MealPlanGrid({
               const swaps = dishes.filter((dish) => dish.type === item.dishType && !chosen.has(String(dish.id)));
               return (
                 <li key={item.dishId} className={`td-dish ${dishTypeClass(item.dishType)}`}>
-                  <span className="td-grow">{name}</span>
-                  <DishKcal dish={dishById[String(item.dishId)]} ageGroup={kcalAgeGroup} />
+                  <span className="td-grow" title={name}>
+                    {name}
+                  </span>
                   <span className="td-dish__actions">
                     {editable && swaps.length > 0 && (
                       <SearchSelect
@@ -176,8 +172,6 @@ export function MealPlanGrid({
               <span className="sr-only">Món</span>
             </th>
             {draft.days.map((day, i) => {
-              const result = day.off ? null : dayResult(plan, day.date);
-              const why = day.off ? null : dayReasons(plan, day.date);
               return (
                 <th key={day.date}>
                   <div className="td-week__day">
@@ -223,28 +217,7 @@ export function MealPlanGrid({
                         }
                       />
                     )}
-                    {why && (
-                      // Lý do ngắn thay cho "N lưu ý"; rê chuột xem câu đầy đủ BE trả
-                      <ul className="td-week__reasons" aria-label={`Lưu ý ${WEEKDAY_LABELS[i]}`}>
-                        {why.reasons.map((r) => (
-                          <li key={r.label} title={r.title || undefined}>
-                            <StatusBadge tone={r.tone} label={r.label} />
-                          </li>
-                        ))}
-                        {why.more > 0 && (
-                          <li
-                            title={why.all
-                              .slice(2)
-                              .map((r) => r.label)
-                              .join(', ')}
-                          >
-                            <StatusBadge tone="gray" label={`+${why.more}`} />
-                          </li>
-                        )}
-                      </ul>
-                    )}
                     <div className="td-week__day-foot">
-                      {result && !why && <StatusBadge tone={result.tone} label={result.label} />}
                       {dayLink && !day.off && (
                         <Link className="text-xs" to={dayLink(day, i)} aria-label={`Định lượng & đi chợ ${WEEKDAY_LABELS[i]}`}>
                           Đi chợ
@@ -300,11 +273,10 @@ export function MealPlanGrid({
                 return (
                   <td key={day.date} className={day.off ? 'td-week__off' : undefined}>
                     {list.length > 0 ? (
-                      // Số trẻ dị ứng theo chất và món thay thế chưa có trên hệ thống (lát món thay thế dị ứng)
                       <ul className="td-week__notes">
                         {list.map((note) => (
-                          <li key={note.key} className="td-week__note--missing">
-                            <b>{note.dish}:</b> {note.allergens.join(', ').toLowerCase()} · chưa có suất thay thế
+                          <li key={note.key}>
+                            <b>{note.dish}:</b> {note.allergens.join(', ').toLowerCase()}
                           </li>
                         ))}
                       </ul>

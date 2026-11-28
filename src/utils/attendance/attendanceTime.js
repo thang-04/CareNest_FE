@@ -1,11 +1,12 @@
 import { DEFAULT_CUTOFF_TIME, SCHOOL_TIME_ZONE } from '@/models/attendance/attendanceConstants';
+import { devNow } from '@/utils/devClock';
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 export const isValidTime = (value) => TIME_RE.test(String(value || ''));
 
 /** Current date and time on the school clock (Vietnam time, GBR-CFG-02): { date: 'yyyy-mm-dd', time: 'HH:mm' }. */
-export const schoolNow = (now = new Date()) => {
+export const schoolNow = (now = devNow()) => {
   // sv-SE formats as "yyyy-mm-dd HH:mm:ss".
   const text = now.toLocaleString('sv-SE', { timeZone: SCHOOL_TIME_ZONE, hour12: false });
   const [date, time] = text.split(' ');

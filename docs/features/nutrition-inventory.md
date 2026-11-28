@@ -26,6 +26,17 @@ Plan: [2026-10-20-nutrition-ba-master-data](../plans/active/2026-10-20-nutrition
 - Đơn vị: dòng phiếu nhập chọn đơn vị mua hoặc kho, lô lưu theo đơn vị kho; đã có lô/phiếu xác nhận thì khóa đơn vị kho + tỷ lệ kho→công thức.
 - Món: thêm trạng thái Nháp (Lưu nháp / Lưu và dùng cho thực đơn); dùng cho thực đơn cần đủ định lượng mọi nhóm tuổi đang áp dụng; món chép từ thư viện về ở Nháp; chép định lượng giữa nhóm tuổi hỏi trước khi thay ô có số; không làm phiên bản công thức.
 
+## Quyết định user 25/11/2026 — nhãn mẫu thức ăn lưu (M4)
+
+Màn `/kitchen/inspections`.
+
+- Thứ tự thẻ theo QĐ 1246: M1, M2, M3, M4, M5.
+- M4 do PHT làm trên Web (chỉ in nhãn, không có biên bản riêng — INS-01); bếp chỉ lưu mẫu, M5 ghi lại quá trình lưu mẫu.
+- M4 mở cùng điều kiện M2, M3: ngày có thực đơn đã công bố, không chờ bếp ghi lưu mẫu. Bữa, món lấy từ M3; giờ lấy mẫu lấy từ M5 nếu đã ghi, chưa có thì để trống ghi tay.
+- Ngày sau hôm nay khóa in nhãn M4 ("Chưa đến ngày lấy mẫu"); hôm nay và ngày đã qua in được (in không bị khóa theo INS-05). Khóa này chỉ ở Web vì M4 không có lệnh ghi lên BE.
+- Tờ in M4 luôn đủ 4 nhãn theo ảnh mẫu user gửi: nhãn trống ghi tay đứng đầu, sau đó mỗi bữa một nhãn (áp dụng cả nút in nhãn ở Sổ lưu mẫu).
+- Rule BE: INS-01, NUT-21 (cập nhật 25/11/2026 trên nhánh `feature/G94-451-BE-FEAT-01-m4-label-rule`, chờ gộp vào `dev`).
+
 ## Chức năng BA ↔ màn FE
 
 | BA | Màn FE | GĐ |

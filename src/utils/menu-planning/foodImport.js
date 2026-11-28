@@ -10,14 +10,15 @@ import {
   defaultOriginOf,
 } from '@/models/menu-planning/menuPlanningConstants';
 import { validateFood } from '@/utils/menu-planning/menuPlanningValidation';
+import { foodUnits } from '@/utils/menu-planning/foodUnits';
 
 /** Cột của file mẫu `public/templates/thuc-pham-mau.xlsx`, theo thứ tự. */
 export const IMPORT_COLUMNS = [
   ['code', 'Mã TP'],
   ['name', 'Tên thực phẩm'],
   ['group', 'Nhóm'],
-  ['unit', 'Đơn vị'],
-  ['purchaseUnit', 'Đơn vị mua'],
+  ['unit', 'Đơn vị gốc'],
+  ['purchaseUnit', 'Đơn vị tính'],
   ['purchaseUnitSize', 'Quy đổi'],
   ['unitPrice', 'Đơn giá'],
   ['wastePct', 'Thải bỏ %'],
@@ -28,17 +29,20 @@ export const IMPORT_COLUMNS = [
   ['allergens', 'Dị ứng'],
   ['storage', 'Bảo quản'],
   ['nutrientSource', 'Nguồn số liệu'],
-  ['nutrientSourceVersion', 'Phiên bản nguồn'],
   ['origin', 'Nguồn gốc'],
   ...MICRONUTRIENTS.map((k) => [k, `${MICRONUTRIENT_LABELS[k]} (${MICRONUTRIENT_UNITS[k]})`]),
 ];
-// File mẫu cũ chưa có hai cột nguồn số liệu (NUT-05) ⇒ vẫn đọc được, dòng thêm mới sẽ báo thiếu nguồn.
-// Cột Nguồn gốc trống/thiếu ⇒ dòng thêm mới lấy theo nhóm (thịt, thủy sản, trứng sữa là động vật)
-// Cột vi chất (BE NUT-26) không bắt buộc: file mẫu cũ không có vẫn đọc được
-const OPTIONAL_COLUMNS = ['nutrientSource', 'nutrientSourceVersion', 'origin', ...MICRONUTRIENTS];
+// File cũ có thể còn cột Phiên bản nguồn; parser bỏ qua cột này theo tên nên không làm lệch các cột sau.
+// Cột Nguồn gốc và vi chất không bắt buộc với file cũ; dòng mới vẫn được kiểm tra theo validation hiện hành.
+const OPTIONAL_COLUMNS = ['nutrientSource', 'origin', ...MICRONUTRIENTS];
 export const IMPORT_TEMPLATE_URL = '/templates/thuc-pham-mau.xlsx';
-// File mẫu tải trước khi đổi tên cột vẫn ghi "Bột" nên vẫn nhận tên cũ
-const HEADER_ALIASES = { glucid: ['Bột'] };
+const HEADER_ALIASES = {
+  unit: ['Đơn vị'],
+  purchaseUnit: ['Đơn vị mua'],
+  glucid: ['Bột'],
+  vitaminPp: ['Vitamin PP (mg)'],
+  vitaminA: ['Vitamin A (µg)'],
+};
 
 const norm = (v) => normalizeText(String(v ?? '')).trim();
 const blank = (v) => v === null || v === undefined || String(v).trim() === '';
@@ -59,10 +63,14 @@ export async function readFoodFile(file) {
  */
 export function matchFoodRows(rows, foods) {
   const [header, ...body] = rows || [];
-  const expected = IMPORT_COLUMNS.map(([key, label]) => [label, ...(HEADER_ALIASES[key] || [])].map(norm));
-  const missingHeader = (labels, i) =>
-    !labels.includes(norm(header[i])) && !(OPTIONAL_COLUMNS.includes(IMPORT_COLUMNS[i][0]) && blank(header[i]));
-  if (!header || expected.some(missingHeader))
+  const headerIndexes = new Map((header || []).map((label, index) => [norm(label), index]));
+  const indexOf = ([key, label]) => {
+    const labels = [label, ...(HEADER_ALIASES[key] || [])].map(norm);
+    return labels.map((candidate) => headerIndexes.get(candidate)).find((index) => index !== undefined);
+  };
+  const columns = IMPORT_COLUMNS.map((column) => ({ column, index: indexOf(column) }));
+  const missingHeader = ({ column: [key], index }) => index === undefined && !OPTIONAL_COLUMNS.includes(key);
+  if (!header || columns.some(missingHeader))
     return { creates: [], updates: [], errors: [{ row: 1, reason: 'Dòng tiêu đề không đúng file mẫu. Hãy tải file mẫu và điền lại.' }] };
 
   const creates = [];
@@ -72,7 +80,7 @@ export function matchFoodRows(rows, foods) {
   body.forEach((cells, idx) => {
     const row = idx + 2;
     if ((cells || []).every(blank)) return;
-    const raw = Object.fromEntries(IMPORT_COLUMNS.map(([key], i) => [key, cells[i]]));
+    const raw = Object.fromEntries(columns.map(({ column: [key], index }) => [key, cells[index]]));
     const problems = [];
     const data = {};
     const nutrition = {};
@@ -112,7 +120,6 @@ export function matchFoodRows(rows, foods) {
       else data.allergens = list.map((a) => ALLERGENS.find((x) => norm(x) === norm(a)));
     }
     if (!blank(raw.nutrientSource)) data.nutrientSource = String(raw.nutrientSource).trim();
-    if (!blank(raw.nutrientSourceVersion)) data.nutrientSourceVersion = String(raw.nutrientSourceVersion).trim();
     if (!blank(raw.origin)) {
       const o = byLabel(FOOD_ORIGIN_LABELS, raw.origin);
       if (o) data.origin = o;
@@ -126,6 +133,9 @@ export function matchFoodRows(rows, foods) {
 
     const code = blank(raw.code) ? '' : String(raw.code).trim();
     const before = code ? foods.find((f) => norm(f.code) === norm(code)) : null;
+    if (before && data.purchaseUnitSize != null) {
+      data.purchaseToStock = data.purchaseUnitSize / foodUnits(before).stockUnitSize;
+    }
     if (code && !before) problems.push(`Mã ${code} không có trong danh mục`);
     if (!code && !data.origin && data.group) data.origin = defaultOriginOf(data.group);
     const name = data.name || before?.name;

@@ -268,7 +268,11 @@ export function YearSetupImportPanel({ open, mode, yearId, onClose }) {
             <span className={`chip ${result.errors.length ? 'chip--red' : 'chip--gray'}`}>Lỗi {result.errors.length}</span>
           </div>
           {!valid && !result.errors.length && (
-            <p className="text-sm muted">Tệp chưa có dòng dữ liệu nào. Điền vào tệp mẫu rồi tải lên lại.</p>
+            <p className="text-sm muted">
+              {result.unchanged
+                ? `${result.unchanged} dòng trong tệp giống dữ liệu hiện có, không có gì cần lưu.`
+                : 'Tệp chưa có dòng dữ liệu nào. Điền vào tệp mẫu rồi tải lên lại.'}
+            </p>
           )}
           <PreviewTable title="Dòng lỗi (không lưu)" head={errorHead} rows={errorRows} />
           {isRooms ? (

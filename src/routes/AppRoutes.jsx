@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import { MENU_AI_ENABLED } from '@/config/env';
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { lazyPage, registerRouteTree } from './routePrefetch';
 import { MainLayout } from '@/layouts/MainLayout';
@@ -50,6 +51,7 @@ const GoalsEntry = lazyPage(() =>
 const GoalFormPage = lazyPage(() => import('@/pages/education-plan/GoalFormPage'));
 const GoalDetailPage = lazyPage(() => import('@/pages/education-plan/GoalDetailPage'));
 const ClassPlanPage = lazyPage(() => import('@/pages/education-plan/ClassPlanPage'));
+const ClassDocListPage = lazyPage(() => import('@/pages/education-plan/ClassDocListPage'));
 const ClassPlanRedirect = lazyPage(() =>
   import('@/pages/education-plan/ClassPlanPage').then((m) => ({
     default: m.ClassPlanRedirect,
@@ -130,6 +132,7 @@ const DryStockLedgerPage = lazyPage(() => import('@/pages/kitchen/DryStockLedger
 const StockReceiptEditorPage = lazyPage(() => import('@/pages/kitchen/StockReceiptEditorPage'));
 const StockReceiptListPage = lazyPage(() => import('@/pages/kitchen/StockReceiptListPage'));
 const StockReceiptFormPage = lazyPage(() => import('@/pages/kitchen/StockReceiptFormPage'));
+const StockDisposalFormPage = lazyPage(() => import('@/pages/kitchen/StockDisposalFormPage'));
 const SupplierListPage = lazyPage(() => import('@/pages/kitchen/SupplierListPage'));
 const SupplierDetailPage = lazyPage(() => import('@/pages/kitchen/SupplierDetailPage'));
 const KitchenFlowPage = lazyPage(() => import('@/pages/kitchen/KitchenFlowPage'));
@@ -157,7 +160,6 @@ const ChildDevelopmentProgressPage = lazyPage(() => import('@/pages/assessment/C
 const AiEvaluationDraftPage = lazyPage(() => import('@/pages/assessment/AiEvaluationDraftPage'));
 const ClassRatingsPage = lazyPage(() => import('@/pages/assessment/ClassRatingsPage'));
 const SemesterEvaluationListPage = lazyPage(() => import('@/pages/assessment/SemesterEvaluationListPage'));
-const SemesterEvaluationDetailPage = lazyPage(() => import('@/pages/assessment/SemesterEvaluationDetailPage'));
 const YearEndEvaluationListPage = lazyPage(() => import('@/pages/assessment/YearEndEvaluationListPage'));
 const YearEndEvaluationDetailPage = lazyPage(() => import('@/pages/assessment/YearEndEvaluationDetailPage'));
 const GoodBehaviourTicketsPage = lazyPage(() => import('@/pages/assessment/GoodBehaviourTicketsPage'));
@@ -289,12 +291,10 @@ export function AppRoutes() {
             <Route path="goals/:id" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <GoalDetailPage />)} />
             <Route path="goals/:id/edit" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <GoalFormPage key="team" />)} />
             {/* Spec 004: Kế hoạch giáo dục chủ đề (theo học kỳ) và Kế hoạch giáo dục ngày (theo chủ đề), EDU-101 */}
-            <Route path="theme-plans" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanRedirect showAllAges />)} />
+            {/* BE EDU-112 (4): danh sách trước rồi mới vào chi tiết */}
+            <Route path="theme-plans" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassDocListPage kind="semester" />)} />
             <Route path="theme-plans/:classId" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanPage />)} />
-            <Route
-              path="day-plans"
-              element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanRedirect showAllAges toOf={(id) => `/education/day-plans/${id}`} />)}
-            />
+            <Route path="day-plans" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassDocListPage kind="dossier" />)} />
             <Route path="day-plans/:classId" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <DayPlansPage />)} />
             {/* Spec 900 (BE:EDU-88): kho học liệu dùng lại cho giáo án ngày */}
             <Route path="resources" element={edu([ROLES.TEAM_LEADER, ROLES.TEACHER], <ResourceLibraryPage />)} />
@@ -333,7 +333,7 @@ export function AppRoutes() {
             <Route path="years/:id/edit" element={only([R.PRINCIPAL], <SchoolYearFormPage />)} />
             <Route path="classes" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <AgeGroupsClassesPage />)} />
             <Route path="rooms" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <RoomListPage />)} />
-            <Route path="staff" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <StaffAccountsPage />)} />
+            <Route path="staff" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, R.ADMIN], <StaffAccountsPage />)} />
             <Route path="placement" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <YearPlacementPage />)} />
             <Route path="cutoff" element={only([R.PRINCIPAL], <CutoffSettingPage />)} />
             <Route path="campuses" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <CampusListPage />)} />
@@ -360,6 +360,8 @@ export function AppRoutes() {
             <Route path="roles" element={only([R.PRINCIPAL], <Navigate to="/school/roles" replace />)} />
             <Route path="overrides" element={only([R.PRINCIPAL], <UserOverridesPage />)} />
             <Route path="history" element={only([R.PRINCIPAL], <PermissionHistoryPage />)} />
+            {/* EDU-110 (1): tab Soạn / duyệt gộp vào Mặc định theo vai trò; link cũ chuyển hướng */}
+            <Route path="edu-workflow" element={<Navigate to="/school/roles" replace />} />
           </Route>
           <Route path="children">
             <Route index element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <ChildrenListPage />)} />
@@ -473,7 +475,13 @@ export function AppRoutes() {
             />
             <Route
               path="ai-suggestion"
-              element={only(LEADERS, BOARDING_API ? <BoardingPendingPage feature="suggestion" /> : <AiMenuSuggestionPage />)}
+              element={
+                MENU_AI_ENABLED ? (
+                  only(LEADERS, BOARDING_API ? <BoardingPendingPage feature="suggestion" /> : <AiMenuSuggestionPage />)
+                ) : (
+                  <Navigate to="/menu/weekly" replace />
+                )
+              }
             />
             <Route path="weekly" element={only(LEADERS, MEAL_PLAN_API ? <WeeklyPlanPage /> : <WeeklyMenuListPage />)} />
             <Route
@@ -527,6 +535,9 @@ export function AppRoutes() {
               path="stock-receipts/new"
               element={only(STOCK_RECEIPT_ROLES, DRY_STOCK_API ? <StockReceiptEditorPage /> : <StockReceiptFormPage />)}
             />
+            {/* Xuất kho khô kèm lý do (đề xuất BA): BE chưa có endpoint ⇒ chạy trên dữ liệu demo của module kitchen */}
+            <Route path="stock-returns/new" element={only(STOCK_RECEIPT_ROLES, <StockDisposalFormPage kind="SUPPLIER_RETURN" />)} />
+            <Route path="stock-write-offs/new" element={only(STOCK_RECEIPT_ROLES, <StockDisposalFormPage kind="WRITE_OFF" />)} />
             {DRY_STOCK_API ? (
               <Route path="stock-receipts/:id" element={only(STOCK_RECEIPT_ROLES, <StockReceiptEditorPage />)} />
             ) : (
@@ -553,9 +564,11 @@ export function AppRoutes() {
             <Route path="daily" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <DailyAssessmentPage />)} />
             <Route path="daily/skills" element={permit([PERMISSIONS.ASSESSMENT_RECORD], <DailyGoalAssessmentPage />)} />
             <Route path="day-unlocks" element={permit([PERMISSIONS.ASSESSMENT_UNLOCK], <AssessmentDayUnlockPage />)} />
-            {/* Đánh giá tháng đã bỏ (Cần chốt 14/11/2026): giữ chuyển hướng cho link thông báo cũ */}
+            {/* Nhận xét tháng/học kỳ cá nhân đã bỏ; giữ link cũ về hồ sơ hoặc bảng học kỳ. */}
             <Route path="periodic/*" element={<Navigate to="/assessment/children" replace />} />
-            <Route path="overview" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <ClassAssessmentOverviewPage />)} />
+            <Route path="monthly/*" element={<Navigate to="/assessment/children" replace />} />
+            {/* BE chỉ cho BGH và tổ trưởng xem tổng quan liên lớp; giáo viên vẫn đánh giá lớp được phân công. */}
+            <Route path="overview" element={only([...LEADERS, R.TEAM_LEADER], <ClassAssessmentOverviewPage />)} />
             <Route path="quality-report" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <QualityReportPage />)} />
             <Route path="class-ratings" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <ClassRatingsPage />)} />
             <Route path="themes" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <ThemeEvaluationPage />)} />
@@ -563,8 +576,7 @@ export function AppRoutes() {
             <Route path="children/:childId" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <ChildDevelopmentProfilePage />)} />
             <Route path="children/:childId/progress" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <ChildDevelopmentProgressPage />)} />
             <Route path="semester" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <SemesterEvaluationListPage />)} />
-            <Route path="semester/:id" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <SemesterEvaluationDetailPage />)} />
-            <Route path="semester/:id/ai-draft" element={permit([PERMISSIONS.ASSESSMENT_RECORD], <AiEvaluationDraftPage />)} />
+            <Route path="semester/*" element={<Navigate to="/assessment/semester" replace />} />
             <Route path="year-end" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <YearEndEvaluationListPage />)} />
             <Route path="year-end/:id" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <YearEndEvaluationDetailPage />)} />
             <Route path="year-end/:id/ai-draft" element={permit([PERMISSIONS.ASSESSMENT_RECORD], <AiEvaluationDraftPage />)} />
@@ -579,7 +591,8 @@ export function AppRoutes() {
             <Route path="summary" element={permit([PERMISSIONS.ATTENDANCE_VIEW], <AttendanceSummaryPage />)} />
             {/* AUTH-20: BGH xem số suất mọi điểm trường; nút xác nhận theo MEAL_COUNT_CONFIRM và cờ BE từng bữa */}
             <Route path="meal-count" element={only(LEADERS, <MealCountPage />)} />
-            <Route path="health" element={permit([PERMISSIONS.ATTENDANCE_VIEW], <DailyHealthOverviewPage />)} />
+            {/* BE chỉ cho Hiệu trưởng/Phó hiệu trưởng xem tổng hợp sức khỏe; giáo viên xem từng trẻ ngay màn điểm danh */}
+            <Route path="health" element={only(LEADERS, <DailyHealthOverviewPage />)} />
             <Route path="leave-requests" element={permit([PERMISSIONS.ATTENDANCE_VIEW], <LeaveRequestsPage />)} />
           </Route>
           <Route path="pickup">

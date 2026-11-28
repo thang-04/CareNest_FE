@@ -25,6 +25,7 @@ export const createSchoolConfigApi = (axiosClient) => ({
 
   getStructure: (filters) => axiosClient.get('/school-structure', { params: filters }),
   getAgeGroups: () => axiosClient.get('/age-groups'),
+  getAgeGroupCatalog: () => axiosClient.get('/age-groups/catalog'),
   // PENDING BE: nhóm tuổi gửi mealSessions (MORNING | LUNCH | AFTERNOON), mealsPerDay = số phần tử
   // Nhóm tuổi theo năm học (Cần chốt 22/10/2026): thêm / xóa chỉ ở năm đang chọn
   saveAgeGroup: (id, form, _user, schoolYearId) =>
@@ -41,6 +42,8 @@ export const createSchoolConfigApi = (axiosClient) => ({
 
   getCutoffSetting: (schoolYear) => axiosClient.get(`/school-years/${schoolYear}/cutoff`),
   saveCutoffSetting: (schoolYear, form) => axiosClient.put(`/school-years/${schoolYear}/cutoff`, form),
+  cancelScheduledCutoff: (schoolYear, effectiveFrom) =>
+    axiosClient.delete(`/school-years/${schoolYear}/cutoff`, { params: { effectiveFrom } }),
   saveSemester: (schoolYear, form) => axiosClient.put(`/school-years/${schoolYear}/semester`, form),
   // Học kỳ đã có đánh giá học kỳ thì khóa ngày (BE OBS-25)
   getSemesterLocks: (schoolYear) => axiosClient.get(`/school-years/${schoolYear}/semester-locks`),

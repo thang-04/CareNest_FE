@@ -42,6 +42,9 @@ const toCheckLine = (line) => ({
   ...line,
   purchaseExpectedQty: toPurchaseQuantity(line.expectedQty, line.food),
   purchaseReceivedQty: line.receivedQty == null ? null : toPurchaseQuantity(line.receivedQty, line.food),
+  // Lần 2 theo cân đối: hàng đã nhận lần 1 và lượng đã gọi thêm / trả lại
+  ...(line.round1Qty == null ? {} : { purchaseRound1Qty: toPurchaseQuantity(line.round1Qty, line.food) }),
+  ...(line.handlingQty == null ? {} : { purchaseHandlingQty: toPurchaseQuantity(line.handlingQty, line.food) }),
 });
 // Hàng khô giao trong ngày: đã đặt (null = ngoài đơn) và đã nhận cộng dồn của kỳ, BE tính
 const toDryOrderStatus = (line) => ({
@@ -84,6 +87,7 @@ export const toDayMarket = (market) => {
     date: market?.date,
     status: DAY_MARKET_STATUS[market?.status] || market?.status,
     basis: market?.basis,
+    ...(market?.balanceRound ? { balanceRound: market.balanceRound } : {}),
     confirmedAt: market?.confirmedAt,
     groups,
     lines: (market?.lines || []).map((line) => ({
@@ -185,12 +189,25 @@ export const toCheckRequest = (form, lines) => {
     lines: (form.lines || []).map((line, i) => {
       const food = foodById[String(line.foodId)];
       if (!food) throw fieldError('Thực phẩm không còn trong lần kiểm này', { [`lines.${i}.foodId`]: 'Tải lại trang rồi kiểm lại' });
+      const supplierId = blank(line.supplierId) ? null : Number(line.supplierId);
+      // Lần 2 theo cân đối chỉ gửi cách xử lý; số thực nhận và đủ / thiếu / thừa do BE tính
+      if (line.handlingAction !== undefined)
+        return {
+          foodId: line.foodId,
+          receivedQty: null,
+          result: null,
+          note: text(line.note),
+          supplierId,
+          handlingAction: line.handlingAction || null,
+          // Giữ dùng không kèm số lượng dù ô còn số gợi ý cũ
+          handlingQty: line.handlingAction === 'KEEP' || blank(line.handlingQty) ? null : toBaseQuantity(line.handlingQty, food),
+        };
       return {
         foodId: line.foodId,
         receivedQty: blank(line.receivedQty) ? null : toBaseQuantity(line.receivedQty, food),
         result: line.result,
         note: text(line.note),
-        supplierId: blank(line.supplierId) ? null : Number(line.supplierId),
+        supplierId,
       };
     }),
   };
@@ -198,7 +215,10 @@ export const toCheckRequest = (form, lines) => {
 
 /** Factory để test thay client HTTP. */
 export const createFreshGoodsApi = ({ client = beClient } = {}) => ({
-  /** Các bản dự trù đã lưu của điểm trường, mới nhất trước: [{ id, periodFrom, periodTo, note, foodCount, createdAt }]. */
+  /**
+   * Các bản dự trù đã lưu của điểm trường, mới nhất trước: [{ id, periodFrom, periodTo, note, foodCount, createdAt, version, current }];
+   * `current` = bản đang dùng cho kiểm nhận, `version` = thứ tự lập trong cùng kỳ.
+   */
   async listForecasts({ campusId } = {}) {
     return (await client.get('/nutrition/fresh-forecasts', { params: params({ campusId }) })) || [];
   },

@@ -16,6 +16,9 @@ const stubs = `
   const useNavigate = () => navigate;
   const classFilterPath = (base, id, age) => id ? base + "/" + id : base + "/no-class?ageGroup=" + encodeURIComponent(age);
   const useClassPlanContext = () => ctx;
+  const useEducationPlan = () => ({ pollClassDocs: async () => {} });
+  const usePolling = () => {};
+  const useState = React.useState;
   const LoadingState = () => <p>Đang tải</p>;
   export let pick;
   function ClassPageEmpty({ classes, emptyTitle, onPick }) {
@@ -46,7 +49,7 @@ test('empty branch group keeps the class picker and can return to a group with p
   page.pick('ready');
   assert.equal(to, '/education/branches/ready');
 
-  page.setContext({ cls: classes[1], classes, yearPlan: { id: 'team' } }, 'ready');
+  page.setContext({ cls: classes[1], classes, yearPlan: { id: 'team' }, canComposeClassDocs: true }, 'ready');
   assert.match(renderToStaticMarkup(React.createElement(page.default)), /Soạn kế hoạch team/);
 });
 

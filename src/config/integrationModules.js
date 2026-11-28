@@ -154,7 +154,14 @@ export const INTEGRATION_MODULES = {
   // Kho khô trên BE /nutrition/stock/*: tồn theo lô, phiếu nhập, lịch sử nhập/trừ, phần thiếu; route dài hơn nên thắng '/kitchen'
   'dry-stock': {
     source: 'api',
-    routes: ['/kitchen/dry-stock', '/kitchen/stock-receipts', '/kitchen/stock-history', '/kitchen/stock-shortfalls'],
+    routes: [
+      '/kitchen/dry-stock',
+      '/kitchen/stock-receipts',
+      '/kitchen/stock-history',
+      '/kitchen/stock-shortfalls',
+      '/kitchen/stock-returns',
+      '/kitchen/stock-write-offs',
+    ],
     files: ['src/services/dryStockApi.js'],
   },
   // Hàng tươi trên BE: bản dự trù /nutrition/fresh-forecasts, kiểm nhận hai lần /nutrition/fresh-checks, bảng đi chợ /nutrition/day-market; route dài hơn nên thắng '/kitchen'
@@ -162,6 +169,8 @@ export const INTEGRATION_MODULES = {
     source: 'api',
     routes: ['/kitchen/forecast', '/kitchen/fresh-receipts', '/kitchen/market-day'],
     files: ['src/services/freshGoodsApi.js'],
+    // BE tạm tắt endpoint nhập hàng khô tại kiểm nhận (hàng khô nhập qua Phiếu nhập); card FE đang ẩn
+    pending: ['POST /nutrition/fresh-checks/dry-receipts'],
   },
   // Bếp hôm nay (xem), lưu mẫu thức ăn (duyệt), ảnh bữa, khung giờ ảnh trên BE /nutrition/{kitchen/day,food-samples,meal-photos,meal-photo-windows}
   'kitchen-records': {
@@ -172,9 +181,9 @@ export const INTEGRATION_MODULES = {
   // Kế hoạch tuần theo khối + công bố trên BE /nutrition/meal-plans; thắng '/menu' của thực đơn mẫu còn demo
   'meal-plan': {
     source: 'api',
-    // Cân đối khẩu phần đọc/lưu kế hoạch tuần + menu-statistics (09/11/2026)
+    // Cân đối khẩu phần đọc kế hoạch tuần và bản cân đối ngày /nutrition/day-balances
     routes: ['/menu/weekly', '/menu/statistics', '/menu/nutrition'],
-    files: ['src/services/mealPlanApi.js'],
+    files: ['src/services/mealPlanApi.js', 'src/services/dayBalanceApi.js'],
   },
   // Mẫu thực đơn một ngày theo khối trên BE /nutrition/menu-templates (NUT-13, đổi 04/11)
   'menu-template': {
@@ -216,6 +225,8 @@ export const INTEGRATION_MODULES = {
     routes: ['/kitchen/inspections'],
     files: ['src/services/kitchen/api/inspectionApi.js'],
     facades: ['src/services/kitchen/inspectionService.js'],
+    // INS-05 (BE G94-450, chưa vào dev): HT duyệt mở mẫu ngày cũ. Gỡ ba dòng này khi BE merge và đồng bộ be-api-routes.json
+    pending: ['POST /inspections/day/{x}/approvals', 'GET /inspections/approvals', 'POST /inspections/approvals/{x}/{x}'],
   },
   // Sổ báo ăn đã xác nhận: BE có GET /meal-counts ⇒ màn này dùng số thật, các màn bếp khác còn demo
   'kitchen-meal-count': {
@@ -244,7 +255,7 @@ export const INTEGRATION_MODULES = {
     facades: ['src/services/signatureService.js'],
   },
   appearance: {
-    source: 'demo',
+    source: 'api',
     routes: ['/settings/appearance'],
     files: ['src/services/appearance/api/appearanceApi.js'],
     facades: ['src/services/appearance/appearanceService.js'],

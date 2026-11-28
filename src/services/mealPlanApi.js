@@ -39,13 +39,14 @@ export const createMealPlanApi = ({ client = beClient } = {}) => ({
    * Thống kê một ngày thực đơn cho N trẻ của một nhóm tuổi (không lưu): bảng thực phẩm (lượng ăn, thải bỏ, lượng mua, tiền),
    * bảng kiểm dinh dưỡng, % năng lượng từng bữa. `children` trống ⇒ BE lấy suất đã xác nhận, không có thì sĩ số đang học.
    */
-  async getMenuStatistics({ ageGroupId, date, campusId, children, items }) {
+  async getMenuStatistics({ ageGroupId, date, campusId, children, items, useBalance }) {
     const body = {
       ageGroupId,
       ...(date ? { date } : {}),
       ...(campusId ? { campusId } : {}),
+      ...(useBalance ? { useBalance: true } : {}),
       ...(children === '' || children == null ? {} : { children: Number(children) }),
-      items: items.map(({ session, dishId }) => ({ session, dishId })),
+      items: items.map(({ session, block, dishId }) => ({ session, ...(block ? { block } : {}), dishId })),
     };
     const stats = await client.post('/nutrition/menu-statistics', body);
     return { ...stats, dishes: stats?.dishes || [], ingredients: stats?.ingredients || [] };

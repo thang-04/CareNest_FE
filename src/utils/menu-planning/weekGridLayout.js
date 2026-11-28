@@ -39,8 +39,8 @@ export const weekSections = (setups, ageGroupId, days, dishById, { keepEmpty = t
     return { session: m.code, label: m.name, rows: rows.length ? rows : [{ key: 'LUNCH', label: 'Món', session: 'LUNCH' }] };
   });
 
-/** Ghi chú dị ứng của một bữa trong ngày: món có chất mà nhóm có trẻ dị ứng, kèm suất thay thế của thực đơn mẫu. */
-export const dayAllergyNotes = ({ day, session, catalog, allergyRows = [], allergyMenus = [] }) => {
+/** Ghi chú dị ứng của một bữa trong ngày: món có chất mà nhóm có trẻ dị ứng (chỉ cảnh báo, NUT-23). */
+export const dayAllergyNotes = ({ day, session, catalog, allergyRows = [] }) => {
   if (day.holiday) return [];
   const items = (day.meals || []).find((m) => m.session === session)?.items || [];
   return items.flatMap(({ dishId }) => {
@@ -49,16 +49,10 @@ export const dayAllergyNotes = ({ day, session, catalog, allergyRows = [], aller
       .map((a) => {
         const kids = allergyRows.find((r) => sameAllergen(r.allergen, a))?.childCount;
         if (!kids) return null;
-        const rep = allergyMenus
-          .filter((s) => s.baseMenuId === day.menuId && s.restrictions.some((x) => sameAllergen(x, a)))
-          .flatMap((s) => s.replacements)
-          .find((r) => r.session === session && r.originalDishId === dishId);
-        const swap = rep ? (rep.replacementDishId ? catalog.dishById[rep.replacementDishId]?.name : 'bỏ món') : null;
         return {
           key: `${dishId}|${a}`,
           dish: dish?.name || 'Món đã xóa',
-          text: `${kids} trẻ ${a.toLowerCase()}${swap ? ` → ${swap}` : ' · chưa có suất thay thế'}`,
-          missing: !swap,
+          text: `${kids} trẻ ${a.toLowerCase()}`,
         };
       })
       .filter(Boolean);

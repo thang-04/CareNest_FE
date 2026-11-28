@@ -1,3 +1,4 @@
+import { childNameWithHistory } from '@/utils/childHistory';
 import { Clock, Phone, Send } from '@/components/ui/icons';
 import { Modal } from '@/components/ui/Modal';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -35,7 +36,7 @@ export function DailyHealthHistoryModal({ open, child, date, history, loading, e
   return (
     <Modal
       open={open}
-      title={`Sức khỏe trong ngày – ${child?.childName || ''}`}
+      title={`Sức khỏe trong ngày – ${childNameWithHistory(child?.childName || '', history?.historyStatus || child?.historyStatus)}`}
       size="lg"
       onClose={onClose}
       footer={

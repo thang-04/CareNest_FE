@@ -1,24 +1,19 @@
-import { Link } from 'react-router-dom';
 import { ShieldAlert, Info } from '@/components/ui/icons';
 import { useMasterData } from '@/hooks/useMasterData';
 import { mealsAllergens, sameAllergen } from '@/utils/menu-planning/menuCalculations';
-import { RECORD_STATUS } from '@/models/menu-planning/menuPlanningConstants';
 import { mealLabel } from '@/utils/menu-planning/nutritionSetup';
 
 /**
- * GBR-MENU-03 / MSG40: warns when a dish contains an allergen recorded for children of the age group,
- * names the affected classes (counts only) and shows whether an alternative menu covers it.
- * contextRows: getAllergyContext(ageGroupId); allergyMenus: alternative menus of the base menu (if any).
+ * GBR-MENU-03 / MSG40: warns when a dish contains an allergen recorded for children of the age group and names the
+ * affected classes (counts only). Warning only: handling is agreed between school and parents (BE NUT-23).
+ * contextRows: getAllergyContext(ageGroupId).
  */
-export function AllergenWarnings({ meals, catalog, ageGroupId, contextRows, allergyMenus = [], baseMenuId, canCreate = false }) {
+export function AllergenWarnings({ meals, catalog, ageGroupId, contextRows }) {
   const md = useMasterData();
   const present = mealsAllergens(meals, catalog.dishById, catalog.foodById);
   const conflicts = present.map((p) => ({ ...p, ctx: contextRows.find((r) => sameAllergen(r.allergen, p.allergen)) })).filter((p) => p.ctx);
   const others = present.filter((p) => !conflicts.some((c) => c.allergen === p.allergen));
   if (!present.length) return null;
-
-  const coverOf = (allergen) =>
-    allergyMenus.filter((a) => a.status === RECORD_STATUS.ACTIVE && a.restrictions.some((r) => sameAllergen(r, allergen)));
 
   return (
     <>
@@ -26,10 +21,9 @@ export function AllergenWarnings({ meals, catalog, ageGroupId, contextRows, alle
         <div className="alert alert--danger mb-12" role="status">
           <ShieldAlert size={18} />
           <div className="td-grow">
-            <div className="fw-600">Phát hiện xung đột chế độ ăn. Hãy xem các trẻ bị ảnh hưởng và thực đơn thay thế.</div>
+            <div className="fw-600">Phát hiện xung đột chế độ ăn. Hãy xem các trẻ bị ảnh hưởng và trao đổi với phụ huynh.</div>
             <ul className="td-warn-list">
               {conflicts.map((c) => {
-                const covers = coverOf(c.allergen);
                 return (
                   <li key={c.allergen}>
                     <b>{c.allergen}</b> trong{' '}
@@ -41,24 +35,7 @@ export function AllergenWarnings({ meals, catalog, ageGroupId, contextRows, alle
                           `${cl.className} – ${md.campusById(cl.campusId)?.code || cl.campusId}${c.ctx.classes.length > 1 ? `: ${cl.count}` : ''}`,
                       )
                       .join('; ')}
-                    ).{' '}
-                    {baseMenuId &&
-                      (covers.length ? (
-                        <span>
-                          Đã có suất thay thế:{' '}
-                          {covers.map((a, i) => (
-                            <span key={a.id}>
-                              {i > 0 && ', '}
-                              <Link to={`/menu/menus/${baseMenuId}/edit`}>{a.name}</Link>
-                            </span>
-                          ))}
-                          .
-                        </span>
-                      ) : (
-                        <span>
-                          Chưa có suất thay thế. {canCreate && <Link to={`/menu/menus/${baseMenuId}/edit`}>Thêm suất thay thế</Link>}
-                        </span>
-                      ))}
+                    ).
                   </li>
                 );
               })}

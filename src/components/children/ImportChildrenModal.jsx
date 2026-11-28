@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AlertTriangle, ChevronDown, ChevronUp } from '@/components/ui/icons';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -6,12 +6,17 @@ import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { ImportDialog } from '@/components/upload/ImportDialog';
 import { SelectField } from '@/components/form/Field';
-import { ActiveYearNotice } from '@/components/children/ActiveYearNotice';
+import { IntakeStartFields } from '@/components/children/IntakeStartFields';
+import { useYearHolidays } from '@/hooks/children/useChildRecords';
 import { previewEnrollmentImport } from '@/services/children/childrenService';
 import { importTemplateRows } from '@/utils/children/importTemplate';
 import { downloadCsv } from '@/utils/exportCsv';
 import { childCampusesOf } from '@/utils/children/childrenPermissions';
+import { keepCampusPick } from '@/utils/children/childrenHelpers';
 import { saveImportDraft } from '@/utils/children/importDraft';
+import { intakeYearOptions } from '@/utils/schoolYearPrep';
+import { defaultStartDate, startDateError as startDateProblem } from '@/utils/children/startDate';
+import { todayInput } from '@/utils/format';
 
 const MAX_SIZE = 10 * 1024 * 1024;
 const ACCEPT = '.csv,.xlsx,.xls';
@@ -69,8 +74,15 @@ function ImportGuide() {
  */
 export function ImportChildrenModal({ initialCampusId, onClose, onChecked }) {
   const { user } = useAuth();
-  const md = useMasterData();
-  const { yearReadOnly } = useSchoolYear();
+  const { schoolYears } = useSchoolYear();
+  // CHD-11, G94-180/CHD-14: năm tiếp nhận (năm đang hoạt động hoặc năm sau đã mở chuẩn bị) bắt buộc, không chọn sẵn, không theo
+  // header; một ngày bắt đầu đi học cho cả file.
+  const yearOptions = intakeYearOptions(schoolYears);
+  const [yearPick, setYearPick] = useState('');
+  const intakeYear = yearOptions.find((y) => String(y.id) === yearPick) || null;
+  const { holidays } = useYearHolidays(intakeYear?.id);
+  // Điểm trường của năm tiếp nhận (G94-180/CHD-02, user chốt 2026-11-22)
+  const md = useMasterData(intakeYear?.id ?? null);
   const campusOptions = childCampusesOf(user, md.campuses);
   // Có từ 2 điểm trường được tiếp nhận (Hiệu trưởng, PHT được phân 2 điểm trường) ⇒ bắt buộc chọn, không chọn sẵn; 1 điểm trường ⇒ dùng luôn.
   const pickCampus = campusOptions.length > 1;
@@ -78,6 +90,18 @@ export function ImportChildrenModal({ initialCampusId, onClose, onChecked }) {
     pickCampus && campusOptions.some((c) => String(c.id) === String(initialCampusId)) ? String(initialCampusId) : '',
   );
   const [campusError, setCampusError] = useState('');
+  // Đổi năm tiếp nhận: điểm trường đã chọn không có trong năm mới ⇒ bỏ chọn (chỉ xét khi danh sách đã tải xong)
+  useEffect(() => {
+    if (!md.loading && campusPick && keepCampusPick(campusPick, campusOptions) == null) setCampusPick('');
+  }, [md.loading, campusOptions, campusPick]);
+  const [startDate, setStartDate] = useState('');
+  const [startTouched, setStartTouched] = useState(false);
+  const [dateErrors, setDateErrors] = useState({});
+  // Ngày mặc định tính lại khi ngày nghỉ của năm tải xong (người dùng chưa tự chọn ngày)
+  useEffect(() => {
+    if (intakeYear && !startTouched) setStartDate(defaultStartDate(intakeYear, todayInput(), holidays));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ tính lại khi đổi năm hoặc ngày nghỉ tải xong
+  }, [yearPick, holidays]);
   const [file, setFile] = useState(null);
   const [fileError, setFileError] = useState('');
   const [unsupported, setUnsupported] = useState('');
@@ -99,6 +123,14 @@ export function ImportChildrenModal({ initialCampusId, onClose, onChecked }) {
       setCampusError('Chọn điểm trường tiếp nhận trẻ');
       return;
     }
+    const errors = {
+      schoolYearId: intakeYear ? '' : 'Chọn năm học tiếp nhận',
+      startDate: intakeYear ? startDateProblem(startDate, intakeYear, todayInput(), holidays) : '',
+    };
+    if (errors.schoolYearId || errors.startDate) {
+      setDateErrors(errors);
+      return;
+    }
     setFileError('');
     setUnsupported('');
     setReading(true);
@@ -108,7 +140,16 @@ export function ImportChildrenModal({ initialCampusId, onClose, onChecked }) {
         setUnsupported(preview.message);
         return;
       }
-      const draft = { preview, fileName: file.name, fileSize: file.size, campusId, campusName };
+      const draft = {
+        preview,
+        fileName: file.name,
+        fileSize: file.size,
+        campusId,
+        campusName,
+        schoolYearId: intakeYear.id,
+        schoolYearName: intakeYear.label,
+        startDate,
+      };
       saveImportDraft(draft);
       onChecked(draft);
     } catch (err) {
@@ -127,7 +168,24 @@ export function ImportChildrenModal({ initialCampusId, onClose, onChecked }) {
       templateLabel="Tải file mẫu"
       options={
         <>
-          <ActiveYearNotice action="Nhập danh sách trẻ" />
+          <IntakeStartFields
+            schoolYears={schoolYears}
+            yearId={yearPick}
+            onYearChange={(next) => {
+              setYearPick(next ? String(next.id) : '');
+              setStartTouched(false);
+              setStartDate(defaultStartDate(next, todayInput()));
+              setDateErrors({});
+            }}
+            startDate={startDate}
+            onStartDateChange={(value) => {
+              setStartDate(value);
+              setStartTouched(true);
+              setDateErrors((current) => ({ ...current, startDate: undefined }));
+            }}
+            errors={dateErrors}
+          />
+          {intakeYear && <div className="text-sm muted">Ngày bắt đầu đi học áp dụng cho mọi trẻ trong file.</div>}
           {pickCampus ? (
             <SelectField
               label="Điểm trường tiếp nhận"
@@ -162,7 +220,7 @@ export function ImportChildrenModal({ initialCampusId, onClose, onChecked }) {
       onFile={takeFile}
       confirmLabel="Tải lên và kiểm tra"
       idleLabel="Tải lên và kiểm tra"
-      confirmDisabled={!file || tooLarge || yearReadOnly}
+      confirmDisabled={!file || tooLarge}
       busy={reading}
       onConfirm={check}
       onClose={onClose}

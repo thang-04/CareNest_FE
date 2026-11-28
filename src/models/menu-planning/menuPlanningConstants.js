@@ -35,6 +35,7 @@
  * @property {string} name              unique
  * @property {string} type              DISH_TYPE
  * @property {string} description
+ * @property {string[]} ageGroupIds     nhóm tuổi món được dùng (G94-379); các cột định lượng/tab chỉ hiện nhóm này
  * @property {DishIngredient[]} ingredients
  * @property {'DRAFT'|'ACTIVE'|'INACTIVE'} status  DRAFT: chưa dùng được cho thực đơn
  *
@@ -111,7 +112,7 @@ export const DISH_TYPE_LABELS = {
   MAIN: 'Món mặn',
   SOUP: 'Canh',
   VEGETABLE: 'Món rau',
-  SNACK: 'Món bữa chiều',
+  SNACK: 'Món phụ',
   DESSERT: 'Tráng miệng, sữa',
 };
 
@@ -139,28 +140,30 @@ export const NUTRIENT_UNITS = { kcal: 'kcal', protein: 'g', lipid: 'g', glucid: 
 
 /**
  * Vi chất theo bảng PMS (BE NUT-26): trên 100 g ăn được của thực phẩm; trống = chưa có số liệu, không chặn tính toán.
- * Vitamin A tính theo đương lượng retinol (µg).
+ * Vitamin A hiển thị theo µg RAE; dữ liệu cũ cần xác minh đơn vị nguồn trước khi cộng chung.
  */
 export const MICRONUTRIENT_GROUPS = [
-  { key: 'minerals', label: 'Khoáng chất', items: ['calcium', 'phosphorus', 'iron'] },
-  { key: 'vitamins', label: 'Vitamin', items: ['vitaminA', 'vitaminB1', 'vitaminB2', 'vitaminPp', 'vitaminC'] },
+  { key: 'main', label: 'Vi chất chính', items: ['calcium', 'iron', 'zinc', 'vitaminA', 'vitaminC'] },
+  { key: 'supplementary', label: 'Vi chất bổ sung', items: ['phosphorus', 'vitaminB1', 'vitaminB2', 'vitaminPp'] },
 ];
 export const MICRONUTRIENTS = MICRONUTRIENT_GROUPS.flatMap((g) => g.items);
 export const MICRONUTRIENT_LABELS = {
   calcium: 'Canxi',
   phosphorus: 'Phospho',
   iron: 'Sắt',
+  zinc: 'Kẽm',
   vitaminA: 'Vitamin A',
   vitaminB1: 'Vitamin B1',
   vitaminB2: 'Vitamin B2',
-  vitaminPp: 'Vitamin PP',
+  vitaminPp: 'Vitamin B3 (PP/niacin)',
   vitaminC: 'Vitamin C',
 };
 export const MICRONUTRIENT_UNITS = {
   calcium: 'mg',
   phosphorus: 'mg',
   iron: 'mg',
-  vitaminA: 'µg',
+  zinc: 'mg',
+  vitaminA: 'µg RAE',
   vitaminB1: 'mg',
   vitaminB2: 'mg',
   vitaminPp: 'mg',
@@ -201,18 +204,6 @@ export const MEAL_BLOCK_LABELS = { NURSERY: 'Nhà trẻ', KINDERGARTEN: 'Mẫu g
 export const MEAL_PLAN_STATUS = { NONE: 'NONE', DRAFT: 'DRAFT', PUBLISHED: 'PUBLISHED' };
 export const MEAL_PLAN_STATUS_LABELS = { NONE: 'Chưa lập', DRAFT: 'Bản nháp', PUBLISHED: 'Đã công bố' };
 export const PLAN_ISSUE_SEVERITY_LABELS = { BLOCKING: 'Cần sửa trước khi công bố', WARNING: 'Cảnh báo', INFO: 'Lưu ý' };
-// Nhãn ngắn ở đầu cột ngày theo `issues[].code` BE trả (MealPlanEvaluator); câu đầy đủ là `issues[].message`
-export const MEAL_PLAN_ISSUE_SHORT = {
-  NOT_BALANCED: 'Chưa cân đối',
-  NORM_NOT_SET: 'Chưa có định mức',
-  INCOMPLETE_DATA: 'Thiếu số liệu',
-  NO_DISHES: 'Chưa có món',
-  OVER_BUDGET: 'Vượt giá suất',
-  DISH_REPEATED: 'Món lặp',
-  SESSION_KCAL_OFF: 'Lệch kcal bữa',
-  MICRONUTRIENT_OFF: 'Lệch vi chất',
-  MICRONUTRIENT_INCOMPLETE: 'Thiếu số liệu vi chất',
-};
 // Dòng kiểm tra từng ngày của một nhóm tuổi (khóa `rows[].key` BE trả), theo thứ tự bảng dinh dưỡng PMS
 export const EVAL_ROW_KEYS = [
   'kcal',
@@ -262,6 +253,8 @@ export const HISTORY_LABELS = {
   REPLACEMENT_CREATED: 'Tạo phiên bản thay thế',
   REPLACED: 'Được thay thế bởi phiên bản mới',
   AI_APPLIED: 'Dùng bản nháp AI',
+  STATUS_CHANGED: 'Đổi trạng thái',
+  PRICE_ADJUSTED: 'Đổi giá / nhà cung cấp',
 };
 
 /** A main dish should not repeat within this many days (GBR-MENU-04: allowed but flagged). */

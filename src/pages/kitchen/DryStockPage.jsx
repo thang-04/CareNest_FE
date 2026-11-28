@@ -179,9 +179,17 @@ export default function DryStockPage() {
         </div>
         <div className="page__actions">
           {canManageStock(user) && (
-            <Link className="btn btn--primary" to="/kitchen/stock-receipts/new">
-              <Plus size={16} /> Tạo phiếu nhập
-            </Link>
+            <>
+              <Link className="btn" to="/kitchen/stock-returns/new">
+                <PackageX size={16} /> Xuất kho cho NCC
+              </Link>
+              <Link className="btn" to="/kitchen/stock-write-offs/new">
+                <PackageX size={16} /> Xuất kho
+              </Link>
+              <Link className="btn btn--primary" to="/kitchen/stock-receipts/new">
+                <Plus size={16} /> Tạo phiếu nhập
+              </Link>
+            </>
           )}
         </div>
       </div>

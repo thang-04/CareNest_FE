@@ -144,7 +144,7 @@ export const CLASS_RATING_CRITERIA = [
 ];
 
 // Giá trị = đoạn đường dẫn /assessment/<kind>
-export const EVAL_KIND = { SEMESTER: 'semester', YEAR_END: 'year-end' };
+export const EVAL_KIND = { MONTHLY: 'monthly', SEMESTER: 'semester', YEAR_END: 'year-end' };
 
 export const EVAL_STATUS = { AWAITING_REVIEW: 'AWAITING_REVIEW', AI_FAILED: 'AI_FAILED', CONFIRMED: 'CONFIRMED' };
 export const EVAL_STATUS_LABELS = {
@@ -156,9 +156,10 @@ export const EVAL_STATUS_LABELS = {
 export const AI_DRAFT_LABEL = 'Bản nháp AI – cần giáo viên duyệt';
 
 export const EVAL_HISTORY_LABELS = {
-  AI_DRAFTED: 'AI tạo bản nháp',
+  AI_DRAFTED: 'Hệ thống tạo bản nháp',
+  TEMPLATE_DRAFTED: 'Hệ thống tạo bản nháp theo mẫu câu',
   AI_FAILED: 'AI không tạo được bản nháp',
-  AI_REDRAFTED: 'Yêu cầu AI tạo lại bản nháp',
+  AI_REDRAFTED: 'Tạo lại bản nháp',
   EDITED: 'Giáo viên lưu chỉnh sửa',
   CONFIRMED: 'Giáo viên xác nhận và công bố',
 };

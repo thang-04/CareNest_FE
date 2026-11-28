@@ -9,6 +9,7 @@ import { Pagination, paginate } from '@/components/ui/Pagination';
 import { clickableRowProps } from '@/utils/clickableRow';
 import { useNavigate } from 'react-router-dom';
 import { ChildNameCell } from '@/components/assessment/ChildNameCell';
+import { childHistoryLabel } from '@/utils/childHistory';
 import { CampusFilter } from '@/components/ui/CampusFilter';
 import { useYearCampuses } from '@/hooks/useYearCampuses';
 import { PERMISSIONS } from '@/models/bePermissions';
@@ -197,7 +198,9 @@ export default function ChildDevelopmentListPage() {
                       <td className="nowrap">{ch.dateOfBirth ? ageLabel(ch.dateOfBirth) : '—'}</td>
                       <td>
                         {ch.className || '—'}
-                        {ch.current === false && <div className="muted">Đã chuyển lớp / nghỉ</div>}
+                        {ch.current === false && childHistoryLabel(ch.historyStatus) && (
+                          <div className="muted">{childHistoryLabel(ch.historyStatus)}</div>
+                        )}
                       </td>
                     </tr>
                   ))

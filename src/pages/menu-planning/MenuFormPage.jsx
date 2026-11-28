@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useState } from 'react';
+import { MENU_AI_ENABLED } from '@/config/env';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, Bowl, ChevronDown, Copy, Plus, Save, Sparkles, Trash2, X } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
@@ -218,9 +219,11 @@ export default function MenuFormPage() {
               <Link className="btn" to="/menu/menus">
                 <X size={16} /> Hủy
               </Link>
-              <Button variant="outline-primary" onClick={openAi}>
-                <Sparkles size={16} /> AI soạn mẫu
-              </Button>
+              {MENU_AI_ENABLED && (
+                <Button variant="outline-primary" onClick={openAi}>
+                  <Sparkles size={16} /> AI soạn mẫu
+                </Button>
+              )}
               {id && (
                 <Link className="btn" to={`/menu/menus/new?copyOf=${id}`}>
                   <Copy size={16} /> Sao chép
@@ -281,7 +284,7 @@ export default function MenuFormPage() {
             </Button>
           </div>
         )}
-        {form.ageGroupId && (
+        {MENU_AI_ENABLED && form.ageGroupId && (
           <AiTemplateComposer
             open={aiOpen}
             onClose={() => setAiOpen(false)}

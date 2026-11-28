@@ -25,25 +25,188 @@
   gap: var(--space-1);
 }
 
-.kr-photos {
+/* Ảnh bữa ăn theo tuần: dải ngày một dòng, ba thẻ bữa cùng hàng dùng subgrid để các dòng thẳng nhau */
+/* Dải ngày: mỗi ngày một ô riêng, cách nhau; không dùng nền liền của thanh tab */
+.tabs.kr-week {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-2);
+  padding: 0;
+  width: 100%;
+  background: none;
+}
+.kr-week .tab {
+  justify-content: center;
+  padding: var(--space-3) var(--space-2);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+.kr-week .tab--active,
+.kr-week .tab--active:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+.kr-week-day {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+  white-space: nowrap;
+}
+.kr-week-day__note {
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+}
+.kr-week-day__note--warn {
+  color: var(--color-danger-fg);
+  font-weight: var(--fw-semibold);
+}
+.kr-pick {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.kr-campus {
+  flex: none;
+}
+.kr-pick > .tabs.kr-week {
+  flex: 1 1 480px;
+  min-width: 0;
+  width: auto;
+}
+.kr-daybar {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+.kr-daybar__title {
+  margin: 0;
+  font-size: var(--fs-xl);
+}
+
+.kr-meals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-4);
 }
-.kr-photo__frame {
+.kr-meal {
   display: grid;
-  place-items: center;
-  min-height: 180px;
-  background: var(--surface-muted, var(--surface));
-  border-radius: var(--radius);
+  grid-template-rows: subgrid;
+  grid-row: span 5;
+  gap: 0;
   overflow: hidden;
 }
+/* Viền trên theo trạng thái bữa: đủ ảnh xanh, thiếu đỏ, chờ đăng cam; nhìn lướt biết bữa nào cần xử lý */
+.kr-meal {
+  border-top: 3px solid var(--color-border);
+  transition: box-shadow var(--duration-fast) ease;
+}
+.kr-meal:hover {
+  box-shadow: var(--shadow-sm);
+}
+.kr-meal--posted {
+  border-top-color: var(--color-success);
+}
+.kr-meal--missing {
+  border-top-color: var(--color-danger);
+}
+.kr-meal--pending {
+  border-top-color: var(--color-warning);
+}
+.kr-meal > * {
+  margin: 0;
+  padding-inline: var(--space-4);
+}
+.kr-meal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-block: var(--space-3);
+}
+.kr-meal__title {
+  margin: 0;
+  font-size: var(--fs-lg);
+}
+.kr-photo {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 4 / 3;
+  padding-inline: 0;
+  background: var(--color-surface-muted);
+  overflow: hidden;
+}
+.kr-photo--empty {
+  align-content: center;
+  justify-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--fs-sm);
+  border-block: 1px solid var(--color-border);
+}
+.kr-photo__link,
 .kr-photo__img {
   display: block;
   width: 100%;
-  height: auto;
-  max-height: 320px;
+  height: 100%;
+}
+.kr-photo__img {
   object-fit: cover;
+  transition: transform var(--duration-fast) ease;
+}
+.kr-photo__link:hover .kr-photo__img {
+  transform: scale(1.03);
+}
+.kr-photo__link:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+.kr-meal__who {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding-block: var(--space-3);
+  font-size: var(--fs-sm);
+}
+.kr-meal__ontime {
+  margin-left: auto;
+}
+.kr-meal__menu {
+  padding-bottom: var(--space-3);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+  /* Giữ chỗ 2 dòng, dài hơn thì cắt (đủ nội dung ở tooltip) */
+  min-height: calc(2lh + var(--space-3));
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.kr-meal__chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: var(--space-2);
+  padding-bottom: var(--space-4);
+}
+@media (max-width: 640px) {
+  .tabs.kr-week {
+    grid-auto-flow: column;
+    grid-template-columns: none;
+    grid-auto-columns: minmax(120px, 1fr);
+  }
+}
+@media (max-width: 900px) {
+  .kr-meals {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .kr-meal {
+    grid-template-rows: none;
+    grid-row: auto;
+  }
 }
 
 .kr-window-time {
@@ -70,12 +233,53 @@
 }
 .kr-card__top {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: var(--space-3);
 }
 .kr-card__name {
-  flex: 1;
+  flex: 1 1 12rem;
   min-width: 0;
+  overflow-wrap: anywhere;
+}
+/* Nhãn trạng thái (mở/thu hồi/đã ký…) tự xuống hàng, không ép tiêu đề */
+.kr-card__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  max-width: 100%;
+}
+.kr-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Yêu cầu mở mẫu ngày cũ chờ Hiệu trưởng duyệt (INS-05) */
+.kr-queue {
+  margin-bottom: var(--space-4);
+}
+.kr-approvals {
+  display: grid;
+  gap: var(--space-3);
+}
+.kr-approval {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.kr-approval__main {
+  flex: 1 1 280px;
+  min-width: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+.kr-approval__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
 .kr-form-modal .modal__body {

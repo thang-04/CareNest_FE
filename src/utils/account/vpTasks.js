@@ -1,5 +1,6 @@
 import { OVERRIDE_EFFECT, PERMISSION_TASKS } from '@/models/account/permissionConstants';
 import { VP_OTHER_AREA, VP_PLACE, VP_TASK_AREAS, VP_TASK_PRESETS, VP_VIEW_CODE } from '@/models/account/vpTaskAreas';
+import { isEduWorkflowCode } from '@/utils/account/eduRoleMatrix';
 
 export const VP_AREA_STATE = { VIEW_ONLY: 'VIEW_ONLY', PARTIAL: 'PARTIAL', ALL: 'ALL' };
 
@@ -69,7 +70,7 @@ export const vpAreasView = (items = [], draft = vpDraftOf(items)) => {
   const byCode = new Map(items.map((item) => [item.code, item]));
   const known = new Set(VP_TASK_AREAS.flatMap((area) => area.tasks.map((task) => task.code)));
   const other = items
-    .filter((item) => !known.has(item.code) && item.code !== VP_VIEW_CODE)
+    .filter((item) => !known.has(item.code) && item.code !== VP_VIEW_CODE && !isEduWorkflowCode(item.code))
     .map((item) => ({ code: item.code, place: VP_PLACE.CAMPUS }));
   const areas = other.length ? [...VP_TASK_AREAS, { ...VP_OTHER_AREA, tasks: other }] : VP_TASK_AREAS;
   return areas
@@ -89,7 +90,7 @@ export const vpAreasView = (items = [], draft = vpDraftOf(items)) => {
         });
       const onCount = tasks.filter((task) => task.on).length;
       const state = onCount === 0 ? VP_AREA_STATE.VIEW_ONLY : onCount === tasks.length ? VP_AREA_STATE.ALL : VP_AREA_STATE.PARTIAL;
-      return { key: area.key, label: area.label, checkGaps: !!area.checkGaps, tasks, onCount, state };
+      return { key: area.key, label: area.label, note: area.note, checkGaps: !!area.checkGaps, tasks, onCount, state };
     })
     .filter((area) => area.tasks.length > 0);
 };
@@ -129,9 +130,11 @@ export const setVpCell = (draft, code, value) => {
 const setVpPreset = (draft, presetKey, items, on) => {
   const preset = VP_TASK_PRESETS.find((p) => p.key === presetKey);
   if (!preset) return draft;
-  return vpAreasView(items, draft)
-    .filter((area) => preset.areas.includes(area.key))
-    .reduce((next, area) => setVpArea(next, area, on), draft);
+  const areas = vpAreasView(items, draft);
+  const next = areas.filter((area) => preset.areas.includes(area.key)).reduce((d, area) => setVpArea(d, area, on), draft);
+  // Giao nhãn có offAreas (PHT dinh dưỡng) ⇒ các mảng đó về chỉ xem; bỏ nhãn không tự bật lại
+  if (!on) return next;
+  return areas.filter((area) => (preset.offAreas || []).includes(area.key)).reduce((d, area) => setVpArea(d, area, false), next);
 };
 
 /** Giao nhanh chỉ bật thêm, không tắt việc đã giao ở mảng khác. */
@@ -148,7 +151,9 @@ export const vpPresetsOf = (items = [], draft = vpDraftOf(items)) => {
   const areas = vpAreasView(items, draft);
   return VP_TASK_PRESETS.flatMap((preset) => {
     const own = areas.filter((area) => preset.areas.includes(area.key));
-    return own.length ? [{ ...preset, applied: own.every((area) => area.state === VP_AREA_STATE.ALL) }] : [];
+    const off = areas.filter((area) => (preset.offAreas || []).includes(area.key));
+    const applied = own.every((area) => area.state === VP_AREA_STATE.ALL) && off.every((area) => area.onCount === 0);
+    return own.length ? [{ ...preset, applied }] : [];
   });
 };
 
@@ -158,6 +163,8 @@ export const vpPresetsOf = (items = [], draft = vpDraftOf(items)) => {
  */
 export const vpOverridesFromDraft = (items = [], draft = {}) =>
   items.flatMap((item) => {
+    // BE EDU-110 (7): 8 mã soạn/duyệt không có ngoại lệ theo người (1120)
+    if (isEduWorkflowCode(item.code)) return [];
     const wanted = draft[item.code] || { on: !!item.on };
     if (!wanted.on) return item.roleOn ? [{ permission: item.code, effect: OVERRIDE_EFFECT.REVOKE }] : [];
     if (item.campusScoped && wanted.scope === VP_PLACE.SCHOOL) {

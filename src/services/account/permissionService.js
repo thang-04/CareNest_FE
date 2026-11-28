@@ -11,6 +11,11 @@ export const getPermissionStaff = (user) => call('getPermissionStaff', user);
 export const getRolePermissions = (user) => call('getRolePermissions', user);
 export const updateRolePermissions = (role, payload, user) => call('updateRolePermissions', role, payload, user);
 export const getPermissionOverrides = (id, user) => call('getPermissionOverrides', id, user);
-export const getAccountsWithOverrides = (user) => call('getAccountsWithOverrides', user);
+export const getAccountsWithOverrides = async (user) => {
+  const result = await call('getAccountsWithOverrides', user);
+  return repo === mock ? { accounts: result, unavailableCount: 0 } : result;
+};
 export const updatePermissionOverrides = (id, payload, user) => call('updatePermissionOverrides', id, payload, user);
+export const updateRolePermissionsBulk = (payload, user) => call('updateRolePermissionsBulk', payload, user);
+export const getEduWorkflowIssues = (user) => call('getEduWorkflowIssues', user);
 export const getPermissionChangeLogs = (filters, user) => call('getPermissionChangeLogs', filters, user);

@@ -1,25 +1,35 @@
 // BE quyết định hạn theo EDU-74/76/94. Nhãn tự cập nhật khi tab còn mở qua ngày.
 
+import { devNow } from '../../utils/devClock.js';
+
 const ddmm = (iso) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : '');
 
-/** { tone, label } cho StatusBadge; null khi không có hạn (năm chưa cấu hình học kỳ). */
-const dayBefore = (iso) => new Date(Date.parse(`${iso}T00:00:00Z`) - 86400000).toISOString().slice(0, 10);
+const ISSUED = new Set(['APPROVED', 'SENT', 'REPLACED']);
+
+/** EDU-109: hồ sơ chưa ban hành đã qua hạn hiệu lực (BE trả deadlineState OVERDUE, kể cả Chờ duyệt). */
+export function isOverdueDoc(doc) {
+  if (!doc || ISSUED.has(doc.status)) return false;
+  return (
+    doc.deadlineState === 'OVERDUE' ||
+    doc.timeLock?.deadlineState === 'OVERDUE' ||
+    doc.reviewDeadline?.locked === true ||
+    doc.timeLock?.reviewDeadline?.locked === true
+  );
+}
+
+/** { tone, label } cho StatusBadge; null khi không có hạn hoặc đã ban hành sau hạn. */
 
 const schoolDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' });
-export const deadlineToday = () => schoolDate.format();
+export const deadlineToday = () => schoolDate.format(devNow());
 
 export function deadlineLabel(doc, today) {
   if (!doc?.deadline) return null;
-  const official = doc.extendedTo || doc.deadline;
-  // Trả lại sau hạn: BE cho gửi lại tới hết ngày trước graceTo (Tiền 18/11/2026)
-  const grace = doc.graceTo && doc.graceTo > official ? doc.graceTo : null;
-  const effective = grace || official;
+  // EDU-109: hạn hiệu lực = hạn mở thêm hoặc hạn gốc, không còn ngày ân hạn
+  const effective = doc.extendedTo || doc.deadline;
   const due = ddmm(effective);
   if (doc.deadlineState === 'NEAR' && today && today >= effective) {
     return { tone: 'red', label: `Hạn: Quá hạn (${due})` };
   }
-  if (grace && (doc.deadlineState === 'NEAR' || doc.deadlineState === 'NORMAL'))
-    return { tone: 'orange', label: `Hạn: Gửi lại trước hết ${ddmm(dayBefore(grace))}` };
   switch (doc.deadlineState) {
     case 'NEAR':
       return {
@@ -31,7 +41,8 @@ export function deadlineLabel(doc, today) {
     case 'ON_TIME':
       return { tone: 'green', label: 'Hạn: Đúng hạn' };
     case 'LATE':
-      return { tone: 'teal', label: 'Hạn: Ban hành trễ' };
+    case 'ISSUED':
+      return null; // EDU-109: ban hành sau hạn không hiện nhãn hạn
     default:
       return { tone: 'gray', label: `Hạn: ${due}` };
   }

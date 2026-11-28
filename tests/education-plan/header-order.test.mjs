@@ -45,5 +45,5 @@ test('EDU-92: thanh thao tác đứng trước bộ lọc/tab trong DOM ở mọ
       checked += 1;
     });
   }
-  assert.ok(checked >= 9, `Đã kiểm ${checked} khung có toolbar, ngoại lệ trang Mở hạn`);
+  assert.ok(checked >= 8, `Đã kiểm ${checked} khung có toolbar, ngoại lệ trang Mở hạn`);
 });

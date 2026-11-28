@@ -85,6 +85,8 @@ export function matchRoomClassRows(
   const classes = [];
   const allRooms = [...savedRooms];
   const info = new Map();
+  // Dòng đọc được nhưng giống dữ liệu đang có: không lưu, không phải lỗi
+  let unchanged = 0;
   const withInfo = () => errors.map((e) => ({ ...info.get(`${e.sheet}:${e.row}`), ...e }));
   const roomInCampus = (campusId, code) => allRooms.find((r) => r.campusId === campusId && key(r.room) === key(code)) || null;
 
@@ -137,9 +139,12 @@ export function matchRoomClassRows(
       existing.name === form.name &&
       sameNumber(existing.capacity, form.capacity) &&
       existing.type === form.type &&
-      String(existing.managerUserId || '') === String(form.managerUserId || '')
-    )
+      // Người phụ trách phòng học theo GV phụ trách chính nên không tính là thay đổi
+      (type === LOCATION_TYPES.CLASS || String(existing.managerUserId || '') === String(form.managerUserId || ''))
+    ) {
+      unchanged += 1;
       return;
+    }
     const item = {
       row,
       key: existing?.id || `new-room-${row}`,
@@ -153,7 +158,7 @@ export function matchRoomClassRows(
   });
 
   const allClasses = savedClasses.map((c) => ({ ...c, schoolYear }));
-  if (roomsOnly) return { rooms, classes, errors: withInfo() };
+  if (roomsOnly) return { rooms, classes, errors: withInfo(), unchanged };
   bodyOf(sheets[SHEETS.classes], CLASS_COLUMNS, SHEETS.classes, errors).forEach(({ row, cells }) => {
     const [campusName, name, groupName, code, capacity] = cells;
     info.set(`${SHEETS.classes}:${row}`, rowInfo(campusName, code, name));
@@ -196,8 +201,10 @@ export function matchRoomClassRows(
       existing.ageGroupId === form.ageGroupId &&
       existing.locationId === form.locationId &&
       sameNumber(existing.capacity, form.capacity)
-    )
+    ) {
+      unchanged += 1;
       return;
+    }
     classes.push({
       row,
       key: existing?.id || `new-class-${row}`,
@@ -210,7 +217,7 @@ export function matchRoomClassRows(
     if (existing) Object.assign(existing, form);
     else allClasses.push({ ...form, id: `new-class-${row}` });
   });
-  return { rooms, classes, errors: withInfo() };
+  return { rooms, classes, errors: withInfo(), unchanged };
 }
 
 /**
@@ -221,6 +228,7 @@ export function matchTeacherRows(sheets, { campuses, ageGroups, classes: savedCl
   const errors = [];
   const classes = [];
   const leaders = [];
+  let unchanged = 0;
   const byName = (name, campusId) => {
     const all = teachers.filter((t) => personKey(t.fullName) === personKey(name));
     const here = campusId ? all.filter((t) => t.campusId === campusId || (t.campusIds || []).includes(campusId)) : all;
@@ -279,7 +287,10 @@ export function matchTeacherRows(sheets, { campuses, ageGroups, classes: savedCl
       form.teacherIds.length === cls.teacherIds.length &&
       form.teacherIds.every((id) => cls.teacherIds.includes(id)) &&
       form.homeroomTeacherId === (cls.homeroomTeacherId || '');
-    if (same) return;
+    if (same) {
+      unchanged += 1;
+      return;
+    }
     classes.push({
       row,
       id: cls.id,
@@ -311,7 +322,10 @@ export function matchTeacherRows(sheets, { campuses, ageGroups, classes: savedCl
         reason: `${teacher.fullName} đã làm tổ trưởng ${leading.get(teacher.id)} trong file`,
       });
     leading.set(teacher.id, group.shortName || group.name);
-    if (savedLeaders[group.id] === teacher.id) return;
+    if (savedLeaders[group.id] === teacher.id) {
+      unchanged += 1;
+      return;
+    }
     leaders.push({
       row,
       ageGroupId: group.id,
@@ -321,5 +335,5 @@ export function matchTeacherRows(sheets, { campuses, ageGroups, classes: savedCl
       payload: { schoolYear, ageGroupId: group.id, userId: teacher.id },
     });
   });
-  return { classes, leaders, errors };
+  return { classes, leaders, errors, unchanged };
 }

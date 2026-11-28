@@ -69,6 +69,7 @@ import {
   validateStaffAccount,
   validateStaffProfile,
   validateVpAssignment,
+  normalizeCampusCode,
   normalizePhone,
 } from '@/utils/school-config/schoolConfigValidation';
 
@@ -231,13 +232,17 @@ const nextGroupId = (db, groupId) => {
   const i = list.findIndex((g) => g.id === groupId);
   return i >= 0 && i < list.length - 1 ? list[i + 1].id : null;
 };
-/** Nhóm tuổi của trẻ tại ngày bắt đầu năm học mới (như BE YearTransitionServiceImpl.ageGroupOf); không khớp ⇒ null. */
-const admissionAgeGroup = (db, child, yearStart) => {
+const placementAgeMonths = (child, yearStart) => {
   const birth = child?.dateOfBirth || child?.birthDate;
   if (!birth || !yearStart) return null;
   const [by, bm, bd] = birth.split('-').map(Number);
   const [sy, sm, sd] = yearStart.split('-').map(Number);
-  const months = (sy - by) * 12 + (sm - bm) - (sd < bd ? 1 : 0);
+  return (sy - by) * 12 + (sm - bm) - (sd < bd ? 1 : 0);
+};
+/** Nhóm tuổi chỉ để gợi ý, xếp tay năm mới được chọn nhóm khác. */
+const admissionAgeGroup = (db, child, yearStart) => {
+  const months = placementAgeMonths(child, yearStart);
+  if (months == null) return null;
   return groupsByAge(db).find((g) => g.ageFromMonths != null && months >= g.ageFromMonths && months < g.ageToMonths)?.id || null;
 };
 /** Trẻ được xếp từ năm đang hoạt động sang năm sắp diễn ra. */
@@ -303,25 +308,25 @@ const buildReadiness = (db, year) => {
         ? `${leaderGroups.length - leaderMissing.length}/${leaderGroups.length} nhóm tuổi có tổ trưởng (toàn trường)`
         : 'Chưa có lớp',
     },
-    // Lớp chưa có giáo viên hoặc chưa có chủ nhiệm chặn kích hoạt; thiếu 1 GV chỉ cảnh báo (Cần chốt 22/10/2026)
+    // SCH-04 (Cần chốt 28/11/2026): mỗi lớp đủ 2 GV và có GV phụ trách chính mới kích hoạt được
     teachers: (() => {
       const empty = classes.filter((c) => !(c.teacherIds || []).length);
       const short = classes.filter((c) => (c.teacherIds || []).length > 0 && c.teacherIds.length < TEACHERS_PER_CLASS);
       const noHomeroom = classes.filter((c) => (c.teacherIds || []).length > 0 && !c.homeroomTeacherId);
-      const ok = classes.length > 0 && !empty.length && !noHomeroom.length;
+      const ok = classes.length > 0 && !empty.length && !short.length && !noHomeroom.length;
       return {
         ok,
-        warning: ok && short.length > 0,
         detail: !classes.length
           ? 'Chưa có lớp'
-          : !ok
-            ? [
+          : ok
+            ? 'Tất cả lớp đủ GV và có GV phụ trách chính'
+            : [
                 empty.length && `${empty.length} lớp chưa có giáo viên`,
+                short.length && `${short.length} lớp thiếu 1 GV`,
                 noHomeroom.length && `${noHomeroom.length} lớp chưa có GV phụ trách chính`,
               ]
                 .filter(Boolean)
-                .join(' · ')
-            : ['Tất cả lớp có GV và GV phụ trách chính', short.length && `${short.length} lớp thiếu 1 GV`].filter(Boolean).join(' · '),
+                .join(' · '),
       };
     })(),
     placement: {
@@ -734,16 +739,17 @@ export const schoolConfigMockRepository = {
         if (!child) return (errors[it.childId] = 'Trẻ không thuộc lớp của năm học đang hoạt động');
         const from = db.classes.find((c) => c.id === child.classId);
         if (!canEditYearPlacement(user, from.campusId)) return (errors[it.childId] = 'Trẻ thuộc điểm trường bạn không được giao xếp lớp');
-        const next = nextGroupId(db, from.ageGroupId);
+        const months = placementAgeMonths(child, target.startDate);
         if (!PLACEMENT_ACTION_LABELS[it.action]) return (errors[it.childId] = 'Chọn kết quả xếp lớp');
-        if (it.action === PLACEMENT_ACTION.GRADUATE && next) return (errors[it.childId] = 'Chỉ trẻ nhóm tuổi lớn nhất được ra trường');
-        if (it.action === PLACEMENT_ACTION.PROMOTE && !next) return (errors[it.childId] = 'Nhóm tuổi lớn nhất: chọn Ra trường hoặc Ở lại');
+        if (it.action === PLACEMENT_ACTION.GRADUATE && (months == null || months < 72))
+          return (errors[it.childId] = 'Trẻ chưa đủ tuổi ra trường');
+        if (it.action === PLACEMENT_ACTION.PROMOTE && (months == null || months >= 72))
+          return (errors[it.childId] = 'Trẻ đủ tuổi ra trường: chọn Ra trường hoặc Ở lại');
         if (PLACEMENT_IN_CLASS.includes(it.action)) {
           const to = db.classes.find((c) => c.id === it.toClassId && c.schoolYear === target.id);
           if (!to) return (errors[it.childId] = 'Chọn lớp năm học mới');
-          const want = it.action === PLACEMENT_ACTION.PROMOTE ? next : from.ageGroupId;
-          if (to.ageGroupId !== want)
-            return (errors[it.childId] = `${to.name} không đúng nhóm tuổi cho "${PLACEMENT_ACTION_LABELS[it.action]}"`);
+          if (!canEditYearPlacement(user, to.campusId)) return (errors[it.childId] = 'Lớp đích ngoài phạm vi được giao xếp lớp');
+          if (!to.ageGroupId) return (errors[it.childId] = 'Lớp năm mới chưa có nhóm tuổi');
         }
         return null;
       });
@@ -760,9 +766,7 @@ export const schoolConfigMockRepository = {
           if (!to || to.campusId !== admission.campusId)
             return (errors[`admission.${item.admissionId}`] =
               `Lớp ${to?.name || ''} không thuộc điểm trường đăng ký của ${child?.fullName || 'trẻ'}`);
-          // BE 2416: lớp phải đúng nhóm tuổi của trẻ tại ngày bắt đầu năm học mới
-          if (to.ageGroupId !== admissionAgeGroup(db, child, target.startDate))
-            return (errors[`admission.${item.admissionId}`] = `${child?.fullName || 'Trẻ'} không thuộc nhóm tuổi của ${to.name}`);
+          if (!to.ageGroupId) return (errors[`admission.${item.admissionId}`] = 'Lớp năm mới chưa có nhóm tuổi');
         }
         return null;
       });
@@ -944,12 +948,29 @@ export const schoolConfigMockRepository = {
     return clone(seeded().ageGroups);
   },
 
+  async getAgeGroupCatalog() {
+    await delay(40);
+    return clone([
+      { id: 'ag-0', name: 'Nhà trẻ 3–12 tháng', shortName: '3–12 tháng', ageFromMonths: 3, ageToMonths: 13, maxClassSize: 15 },
+      { id: 'ag-1', name: 'Nhà trẻ 13–24 tháng', shortName: '13–24 tháng', ageFromMonths: 13, ageToMonths: 25, maxClassSize: 20 },
+      { id: 'ag-2', name: 'Nhà trẻ 25–36 tháng', shortName: '25–36 tháng', ageFromMonths: 25, ageToMonths: 36, maxClassSize: 25 },
+      { id: 'ag-3', name: 'Mẫu giáo 3–4 tuổi', shortName: '3–4 tuổi', ageFromMonths: 36, ageToMonths: 48, maxClassSize: 25 },
+      { id: 'ag-4', name: 'Mẫu giáo 4–5 tuổi', shortName: '4–5 tuổi', ageFromMonths: 48, ageToMonths: 60, maxClassSize: 30 },
+      { id: 'ag-5', name: 'Mẫu giáo 5–6 tuổi', shortName: '5–6 tuổi', ageFromMonths: 60, ageToMonths: 72, maxClassSize: 35 },
+    ]);
+  },
+
   async saveAgeGroup(id, form, user, schoolYearId) {
     await delay();
     if (!canConfigureSchool(user)) throw forbid();
     seeded();
     return writeDb((db) => {
-      if (!id && schoolYearId) assertOpenYear(findYear(db, schoolYearId));
+      if (!id && schoolYearId) {
+        const year = findYear(db, schoolYearId);
+        if (year.status !== YEAR_STATUS.PLANNED)
+          throw new ApiError(409, `Chỉ thêm nhóm tuổi khi năm học ở trạng thái Sắp diễn ra (${year.name} đang hoạt động)`);
+      }
+      if (!id && !form.standardAgeGroupId) throw invalid({ standardAgeGroupId: 'Chọn một nhóm tuổi chuẩn để áp dụng' });
       // Trùng tên nhóm đã có ở năm khác: dùng lại nhóm đó cho năm đang chọn
       const sameName = !id && schoolYearId && db.ageGroups.find((g) => g.name.toLowerCase() === (form.name || '').trim().toLowerCase());
       if (sameName && !inYear(sameName, schoolYearId)) {
@@ -985,7 +1006,7 @@ export const schoolConfigMockRepository = {
         return clone(group);
       }
       const group = {
-        id: uid('ag'),
+        id: form.standardAgeGroupId || uid('ag'),
         ...data,
         ...(schoolYearId ? { yearIds: [schoolYearId] } : {}),
         history: [{ action: 'CREATED', userId: user.id, at: now() }],
@@ -1176,7 +1197,7 @@ export const schoolConfigMockRepository = {
       if (!target.setting && source.setting) {
         const day = schoolNow().date;
         const from = day > target.year.startDate ? day : target.year.startDate;
-        await this.saveCutoffSetting(targetYearId, { time: source.setting.time, effectiveFrom: from, note: '' }, user);
+        await this.saveCutoffSetting(targetYearId, { ...source.setting, effectiveFrom: from, note: '' }, user);
         result.cutoffTime = source.setting.time;
       }
     }
@@ -1235,6 +1256,26 @@ export const schoolConfigMockRepository = {
     });
   },
 
+  // BE giả ATT-06: chỉ hủy lịch chưa tới ngày áp dụng, không hủy mốc đầu tiên của năm
+  async cancelScheduledCutoff(schoolYear, effectiveFrom, user) {
+    await delay();
+    if (!canConfigureCutoff(user)) throw forbid();
+    seeded();
+    return writeDb((db) => {
+      assertOpenYear(findYear(db, schoolYear));
+      const setting = db.cutoffSettings.find((s) => s.schoolYear === schoolYear);
+      const history = setting?.history || [];
+      if (effectiveFrom <= schoolNow().date || !history.some((h) => h.effectiveFrom === effectiveFrom))
+        throw new ApiError(409, 'Chỉ hủy được lịch giờ chốt chưa tới ngày áp dụng');
+      if (!history.some((h) => h.effectiveFrom < effectiveFrom))
+        throw new ApiError(409, 'Không hủy được giờ chốt đầu tiên của năm học; muốn đổi thì lưu giờ khác cho ngày đó');
+      setting.history = history.filter((h) => h.effectiveFrom !== effectiveFrom);
+      const { previousTime, userId, at, note, ...latest } = setting.history[0];
+      Object.assign(setting, latest);
+      return clone(setting);
+    });
+  },
+
   async saveCutoffSetting(schoolYear, form, user) {
     await delay();
     if (!canConfigureCutoff(user)) throw forbid();
@@ -1242,16 +1283,32 @@ export const schoolConfigMockRepository = {
     return writeDb((db) => {
       const year = findYear(db, schoolYear);
       assertOpenYear(year);
-      const errors = validateCutoff(form, year);
-      if (hasErrors(errors)) throw invalid(errors);
       let setting = db.cutoffSettings.find((s) => s.schoolYear === schoolYear);
+      const errors = validateCutoff(form, year, { hasSetting: !!setting, today: schoolNow().date });
+      if (hasErrors(errors)) throw invalid(errors);
       const previousTime = setting?.time || null;
       const latestAfternoonArrival = form.latestAfternoonArrival || setting?.latestAfternoonArrival || '14:00';
+      const dropoffOpenFrom = form.dropoffOpenFrom || setting?.dropoffOpenFrom || '06:30';
+      const morningStart = form.morningStart || setting?.morningStart || '07:00';
+      const morningEnd = form.morningEnd || setting?.morningEnd || '11:00';
+      const afternoonStart = form.afternoonStart || setting?.afternoonStart || '13:30';
+      const pickupStart = form.pickupStart || setting?.pickupStart || '15:00';
+      const fullDayPickupFrom = form.fullDayPickupFrom || setting?.fullDayPickupFrom || '15:00';
+      const pickupEnd = form.pickupEnd || setting?.pickupEnd || '17:00';
+      const afternoonEnd = form.afternoonEnd || setting?.afternoonEnd || '17:00';
       if (
         setting &&
         setting.time === form.time &&
         setting.effectiveFrom === form.effectiveFrom &&
-        (setting.latestAfternoonArrival || '14:00') === latestAfternoonArrival
+        (setting.latestAfternoonArrival || '14:00') === latestAfternoonArrival &&
+        (setting.dropoffOpenFrom || '06:30') === dropoffOpenFrom &&
+        (setting.morningStart || '07:00') === morningStart &&
+        (setting.morningEnd || '11:00') === morningEnd &&
+        (setting.afternoonStart || '13:30') === afternoonStart &&
+        (setting.pickupStart || '15:00') === pickupStart &&
+        (setting.fullDayPickupFrom || '15:00') === fullDayPickupFrom &&
+        (setting.pickupEnd || '17:00') === pickupEnd &&
+        (setting.afternoonEnd || '17:00') === afternoonEnd
       )
         throw invalid({ time: 'Giờ chốt và ngày áp dụng chưa thay đổi' });
       // Màn điểm danh demo đọc giờ đến muộn nhất buổi chiều (ATT-13)
@@ -1264,6 +1321,14 @@ export const schoolConfigMockRepository = {
         time: form.time,
         effectiveFrom: form.effectiveFrom,
         latestAfternoonArrival,
+        dropoffOpenFrom,
+        morningStart,
+        morningEnd,
+        afternoonStart,
+        pickupStart,
+        fullDayPickupFrom,
+        pickupEnd,
+        afternoonEnd,
         updatedBy: user.id,
         updatedAt: now(),
       });
@@ -1271,6 +1336,14 @@ export const schoolConfigMockRepository = {
         time: form.time,
         effectiveFrom: form.effectiveFrom,
         latestAfternoonArrival,
+        dropoffOpenFrom,
+        morningStart,
+        morningEnd,
+        afternoonStart,
+        pickupStart,
+        fullDayPickupFrom,
+        pickupEnd,
+        afternoonEnd,
         previousTime,
         userId: user.id,
         at: now(),
@@ -1351,7 +1424,7 @@ export const schoolConfigMockRepository = {
       if (current?.isMain && !form.isMain)
         throw invalid({ isMain: 'Trường phải có đúng một điểm trường chính. Hãy chọn điểm trường chính khác trước.' });
       const data = {
-        code: form.code.trim(),
+        code: normalizeCampusCode(form.code),
         name: form.name.trim(),
         shortName: form.shortName.trim(),
         address: form.address.trim(),

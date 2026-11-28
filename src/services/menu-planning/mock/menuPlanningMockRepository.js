@@ -14,7 +14,7 @@ import { formatDate, normalizeText, todayInput } from '@/utils/format';
 import { activeAgeGroups, ageAbbr, hasLegacyNormKeys, mealsOf, migrateNormKeys } from '@/utils/menu-planning/nutritionSetup';
 import { foodUnits, purchaseUnitSizeOf } from '@/utils/menu-planning/foodUnits';
 import { ROLES } from '@/models/User';
-import { ageGroupById, isNurseryAgeGroup } from '@/models/School';
+import { AGE_GROUPS, ageGroupById, isNurseryAgeGroup } from '@/models/School';
 import {
   AI_DRAFT_KIND,
   AI_DRAFT_STATUS,
@@ -222,7 +222,6 @@ const sanitizeFood = (p) => ({
   },
   origin: FOOD_ORIGIN_LABELS[p.origin] ? p.origin : '',
   nutrientSource: String(p.nutrientSource || '').trim(),
-  nutrientSourceVersion: String(p.nutrientSourceVersion || '').trim(),
   allergens: [...new Set((p.allergens || []).map((a) => String(a).trim()).filter(Boolean))],
   note: String(p.note || '').trim(),
   status: p.status === RECORD_STATUS.INACTIVE ? RECORD_STATUS.INACTIVE : RECORD_STATUS.ACTIVE,
@@ -241,6 +240,7 @@ const sanitizeSetup = (g) => ({
   enabled: g.enabled !== false,
   price: Number(g.price),
   serviceFee: Number(g.serviceFee) || 0,
+  budgetTolerancePct: Number(g.budgetTolerancePct ?? 5),
   meals: (g.meals || []).map((m) => ({
     code: m.code || uid('meal'),
     name: String(m.name || '').trim(),
@@ -824,16 +824,24 @@ export const menuPlanningMockRepository = {
       ensure(db);
       requireManager(db, user);
       const before = id ? find(db.dishes, id, 'món ăn') : null;
+      const allGroupIds = AGE_GROUPS.map((g) => g.id);
       const data = {
         name: String(payload.name || '').trim(),
         type: payload.type,
         description: String(payload.description || '').trim(),
+        // G94-379: nhóm tuổi giáo viên chọn (kiểu PMS); chỉ giữ id hợp lệ, món cũ chưa có ⇒ đủ 4 nhóm
+        ageGroupIds: Array.isArray(payload.ageGroupIds) ? payload.ageGroupIds.filter((g) => allGroupIds.includes(g)) : allGroupIds,
         ingredients: (payload.ingredients || []).map(sanitizeIngredient),
         status: Object.values(DISH_STATUS).includes(payload.status) ? payload.status : DISH_STATUS.ACTIVE,
       };
-      // Rời Nháp (hoặc tạo mới dùng ngay) ⇒ đủ định lượng mọi nhóm tuổi đang áp dụng
+      // Rời Nháp (hoặc tạo mới dùng ngay) ⇒ đủ định lượng các nhóm tuổi món khai báo (chọn ở form), còn active
       const activating = data.status === DISH_STATUS.ACTIVE && (!before || before.status === DISH_STATUS.DRAFT);
-      const requireGroups = activating ? activeAgeGroups(db.nutritionSetups).map((g) => ({ id: g.id, name: ageAbbr(g.id) })) : null;
+      if (activating && !data.ageGroupIds.length) fail(422, MSG.invalid, { ageGroupIds: 'Chọn ít nhất một nhóm tuổi.' });
+      const requireGroups = activating
+        ? activeAgeGroups(db.nutritionSetups)
+            .filter((g) => data.ageGroupIds.includes(g.id))
+            .map((g) => ({ id: g.id, name: ageAbbr(g.id) }))
+        : null;
       const errors = validateDish({ ...data, id }, db.dishes, { requireGroups });
       if (hasErrors(errors)) fail(422, MSG.invalid, errors);
       const foodById = byId(db.foods);
@@ -995,6 +1003,8 @@ export const menuPlanningMockRepository = {
         name: ref.name,
         type: ref.type,
         description: ref.description,
+        // G94-379: món tham khảo chưa chọn nhóm tuổi ⇒ mặc định đủ 4 nhóm
+        ageGroupIds: ref.ageGroupIds?.length ? ref.ageGroupIds : AGE_GROUPS.map((g) => g.id),
         ingredients,
         // Không qua form để PHT chọn trạng thái ⇒ về Nháp, PHT kiểm tra rồi mới dùng (user chốt 20/10/2026)
         status: DISH_STATUS.DRAFT,
@@ -1060,7 +1070,8 @@ export const menuPlanningMockRepository = {
       });
       if (hasErrors(errors)) fail(422, MSG.invalid, errors);
       const basis = String(payload.basis || '').trim();
-      const snapshot = (x) => JSON.stringify([x.enabled, x.price, x.serviceFee, x.meals, x.norms, x.basis, x.applied]);
+      const snapshot = (x) =>
+        JSON.stringify([x.enabled, x.price, x.serviceFee, x.budgetTolerancePct, x.meals, x.norms, x.basis, x.applied]);
       plans.forEach(({ g, data, total, current, changed }) => {
         const setup = db.nutritionSetups.find((x) => x.ageGroupId === g.ageGroupId);
         const before = snapshot(setup);

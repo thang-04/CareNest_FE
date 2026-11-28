@@ -1,14 +1,17 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useChildYearLock } from '@/hooks/children/useChildYearLock';
 import { FileText, RotateCcw, Search, Stethoscope, Users } from '@/components/ui/icons';
 import { useHealthCheckClass } from '@/hooks/children/useHealthChecks';
 import { useFilterParams } from '@/hooks/useFilterParams';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { clickableRowProps } from '@/utils/clickableRow';
+import { RosterFold } from './RosterFold';
 import { RosterActions } from './RosterActions';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { FilterChips } from '@/components/ui/FilterChips';
 import { Pagination, paginate } from '@/components/ui/Pagination';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import { ChildResultBadge, ConclusionCategoryBadge, FollowUpLevelShortBadge, PublishStatusBadge } from './ChildBadges';
 import { CHILD_RESULT_STATUS, CHILD_RESULT_STATUS_LABELS } from '@/models/children/healthCheckConstants';
 import { CONCLUSION_CATEGORY_LABELS } from '@/models/children/healthExamForm';
@@ -16,6 +19,7 @@ import { MEASUREMENT_SOURCE, MEASUREMENT_SOURCE_LABELS } from '@/models/children
 import { formatDate, normalizeText } from '@/utils/format';
 
 const COLS = 6;
+const ABSENT_TODAY_HINT = 'Trẻ vắng hôm nay (điểm danh). Nhập khi trẻ có mặt.';
 // 10 trẻ một trang (user yêu cầu 2026-10-23).
 const PAGE_SIZE = 10;
 // Sổ dưới dòng lớp: 5 trẻ/trang để bảng lớp không bị đẩy quá dài (user yêu cầu 2026-11-11).
@@ -30,12 +34,18 @@ const conclusionNote = (c) => (c?.specialty ? `Chuyển khám: ${c.specialty}` :
  * Danh sách trẻ của một lớp trong đợt khám; giáo viên phụ trách lớp mở phiếu khám Phụ lục II từng trẻ khi đợt đang diễn ra.
  * embedded: sổ ngay dưới dòng lớp của bảng tiến độ (không khung card, không tiêu đề riêng).
  */
-export function HealthCheckClassRoster({ campaignId, classId, embedded = false }) {
+export function HealthCheckClassRoster({ campaignId, classId, embedded = false, collapsible = false, defaultOpen = false, summary = '' }) {
+  // Khối thu gọn: chỉ tải danh sách khi đang mở
+  const [open, setOpen] = useState(!collapsible || defaultOpen);
   const pageSize = embedded ? EMBEDDED_PAGE_SIZE : PAGE_SIZE;
   const navigate = useNavigate();
-  const { roster, loading, error, reload } = useHealthCheckClass(campaignId, classId);
+  const { roster, loading, error, reload } = useHealthCheckClass(campaignId, classId, { enabled: open });
+  // Năm đã kết thúc hoặc năm sắp diễn ra chưa tới ngày mở chuẩn bị (CFG-YR-01, CHD-12): chỉ xem
+  const yearLocked = useChildYearLock();
+  const canRecord = !!roster?.canRecord && !yearLocked;
   const rows = useMemo(() => roster?.children || [], [roster]);
-  const concluded = rows.filter((r) => r.result === CHILD_RESULT_STATUS.RECORDED).length;
+  const countable = rows.filter((r) => !r.movedTo).length;
+  const concluded = rows.filter((r) => !r.movedTo && r.result === CHILD_RESULT_STATUS.RECORDED).length;
   const [filters, setFilters, resetFilterParams, activeKeys] = useFilterParams(FILTER_DEFAULTS);
   const { keyword, result, conclusion } = filters;
   const [page, setPage] = useState(1);
@@ -143,10 +153,14 @@ export function HealthCheckClassRoster({ campaignId, classId, embedded = false }
                 const healthLink = `/children/${r.childId}/health`;
                 // Việc chính của dòng: giáo viên khám / khám tiếp; có phiếu thì xem phiếu. Bấm dòng làm việc chính, không có thì
                 // mở sổ sức khỏe (DESIGN §6.3: bấm dòng mở chi tiết, không icon Xem).
-                const primary =
-                  roster.canRecord && r.result === CHILD_RESULT_STATUS.NOT_RECORDED
-                    ? { label: 'Khám', strong: true }
-                    : roster.canRecord && r.result === CHILD_RESULT_STATUS.IN_PROGRESS
+                // Trẻ đã chuyển lớp chỉ xem, không thao tác (HLT-09)
+                const primary = r.movedTo
+                  ? null
+                  : canRecord && r.result === CHILD_RESULT_STATUS.NOT_RECORDED
+                    ? r.absentToday
+                      ? { label: 'Khám', strong: true, disabled: true, title: ABSENT_TODAY_HINT }
+                      : { label: 'Khám', strong: true }
+                    : canRecord && r.result === CHILD_RESULT_STATUS.IN_PROGRESS
                       ? { label: 'Tiếp tục khám', strong: true }
                       : hasExam
                         ? { label: 'Xem phiếu', strong: false }
@@ -154,12 +168,28 @@ export function HealthCheckClassRoster({ campaignId, classId, embedded = false }
                 return (
                   <tr
                     key={r.childId}
-                    className="row-click"
-                    {...clickableRowProps(() => navigate(primary ? examLink(r.childId) : healthLink))}
+                    className={r.movedTo ? undefined : 'row-click'}
+                    {...(r.movedTo
+                      ? {}
+                      : clickableRowProps(() => navigate(primary && !primary.disabled ? examLink(r.childId) : healthLink)))}
                   >
                     <td>
                       <div className="fw-600">{r.fullName}</div>
                       <div className="muted text-xs">{r.code}</div>
+                      {r.absentToday && !r.movedTo && (
+                        <div className="mt-8">
+                          <StatusBadge tone="orange" label="Vắng hôm nay" size="sm" />
+                        </div>
+                      )}
+                      {r.movedTo && (
+                        <div className="mt-8">
+                          <StatusBadge
+                            tone="gray"
+                            size="sm"
+                            label={`Đã chuyển sang ${r.movedTo.className} (${r.movedTo.campusName}) từ ${formatDate(r.movedTo.from)}`}
+                          />
+                        </div>
+                      )}
                     </td>
                     <td className="text-sm">
                       {r.previous ? (
@@ -207,7 +237,7 @@ export function HealthCheckClassRoster({ campaignId, classId, embedded = false }
                             icon: primary.strong ? Stethoscope : FileText,
                           }
                         }
-                        healthLink={healthLink}
+                        healthLink={r.movedTo ? null : healthLink}
                       />
                     </td>
                   </tr>
@@ -223,6 +253,13 @@ export function HealthCheckClassRoster({ campaignId, classId, embedded = false }
     </>
   );
 
+  const label = roster ? `Danh sách trẻ ${roster.cls.name}` : 'Danh sách trẻ của lớp';
+  if (collapsible)
+    return (
+      <RosterFold summary={summary} open={open} onToggle={setOpen} label={label}>
+        {body}
+      </RosterFold>
+    );
   if (embedded)
     return (
       <div className="tr-acc-roster" role="region" aria-label={roster ? `Danh sách trẻ ${roster.cls.name}` : 'Danh sách trẻ của lớp'}>
@@ -233,7 +270,7 @@ export function HealthCheckClassRoster({ campaignId, classId, embedded = false }
     <section className="card mt-16" aria-label={roster ? `Danh sách trẻ ${roster.cls.name}` : 'Danh sách trẻ của lớp'}>
       <div className="card__header">
         <h2 className="card__title">
-          {roster ? `${roster.cls.name} – đã có kết luận ${concluded}/${rows.length} trẻ` : 'Danh sách trẻ của lớp'}
+          {roster ? `${roster.cls.name} – đã có kết luận ${concluded}/${countable} trẻ` : 'Danh sách trẻ của lớp'}
         </h2>
       </div>
       {body}

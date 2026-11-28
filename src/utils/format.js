@@ -1,4 +1,36 @@
+import { devNow } from '@/utils/devClock';
 const pad = (n) => String(n).padStart(2, '0');
+
+/** Giữ các đoạn ngày/tháng khi sửa giữa chuỗi; chỉ tự chèn dấu khi người dùng gõ liền 8 chữ số. */
+export const normalizeDateInput = (raw) => {
+  const value = String(raw || '').replace(/[^\d/]/g, '');
+  if (!value.includes('/')) {
+    const digits = value.slice(0, 8);
+    return [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4)].filter(Boolean).join('/');
+  }
+  // Có dấu "/" do người dùng gõ: giữ dấu (kể cả ở cuối, vd "5/"), đoạn ngày/tháng quá 2 số thì phần dư sang đoạn sau
+  const parts = value.split('/').slice(0, 3);
+  const out = [];
+  let carry = '';
+  parts.forEach((part, i) => {
+    const seg = carry + part;
+    carry = '';
+    if (i < 2 && seg.length > 2) {
+      out.push(seg.slice(0, 2));
+      carry = seg.slice(2);
+    } else {
+      out.push(i === 2 ? seg.slice(0, 4) : seg);
+    }
+  });
+  if (carry) out.push(carry.slice(0, 4));
+  return out.slice(0, 3).join('/');
+};
+
+/** "5/9/2027" -> "05/09/2027"; text that is not d/m/yyyy is returned unchanged. */
+export const padDisplayDate = (text) => {
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(text || '');
+  return m ? `${m[1].padStart(2, '0')}/${m[2].padStart(2, '0')}/${m[3]}` : text;
+};
 
 /** yyyy-mm-dd or ISO -> dd/mm/yyyy */
 export const formatDate = (value) => {
@@ -23,9 +55,11 @@ export const formatWeekdayDate = (iso) => {
 
 /** dd/mm/yyyy -> yyyy-mm-dd; null when the text is not a real calendar date (31/02, 29/02 of a non-leap year…). */
 export const parseDisplayDate = (text) => {
-  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(text || '');
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(text || '');
   if (!m) return null;
-  const [, d, mo, y] = m;
+  const y = m[3];
+  const d = m[1].padStart(2, '0');
+  const mo = m[2].padStart(2, '0');
   const date = new Date(Date.UTC(Number(y), Number(mo) - 1, Number(d)));
   if (date.getUTCFullYear() !== Number(y) || date.getUTCMonth() !== Number(mo) - 1 || date.getUTCDate() !== Number(d)) return null;
   return `${y}-${mo}-${d}`;
@@ -68,8 +102,15 @@ export const timeAgo = (value) => {
 };
 
 export const todayInput = () => {
-  const d = new Date();
+  const d = devNow();
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
+/** yyyy-mm-dd cộng / trừ số ngày, tính theo lịch địa phương (không qua toISOString). */
+export const addDays = (iso, days) => {
+  const [y, m, d] = String(iso).split('-').map(Number);
+  const date = new Date(y, m - 1, d + days);
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 };
 
 /** Ngày địa phương yyyy-mm-dd của một thời điểm ISO (toISOString lệch múi giờ). */

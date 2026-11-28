@@ -1,5 +1,6 @@
 import {
   AlertTriangle,
+  Camera,
   CheckCircle2,
   CircleX,
   Clock,
@@ -12,6 +13,7 @@ import {
   Trash2,
 } from '@/components/ui/icons';
 import { StatusBadge, createStatusBadge } from '@/components/ui/StatusBadge';
+import { MEAL_PHOTO_STATUS_LABELS } from '@/models/kitchen/kitchenRecordConstants';
 import {
   FORECAST_DAY_PLAN_LABELS,
   FRESH_CHECK_RESULT_LABELS,
@@ -78,6 +80,8 @@ export const StockMovementBadge = createStatusBadge(
     ADJUST: ['orange', null],
     SHORTFALL_DEDUCT: ['orange', null],
     RECEIPT_CANCEL: ['gray', null],
+    SUPPLIER_RETURN: ['orange', null],
+    WRITE_OFF: ['red', null],
   },
   STOCK_MOVEMENT_LABELS,
 );
@@ -121,6 +125,12 @@ export function FoodSampleStatusBadge({ status, time }) {
 
 /* Mức tồn kho khô: chỉ hiển thị trạng thái và số ngày BE/hook đã tính, không tự tính ngưỡng. */
 const STOCK_LEVEL_STYLE = { OUT: ['red', PackageX], LOW: ['orange', Hourglass] };
+// Ảnh bữa ăn (NUT-16): thiếu = đỏ, chờ đăng = cam, đã đăng = xanh; bữa không có thì xám
+export const MealPhotoStatusBadge = createStatusBadge(
+  { POSTED: ['green', Camera], MISSING: ['red', AlertTriangle], PENDING: ['orange', Clock], NOT_EXPECTED: ['gray', FileQuestion] },
+  MEAL_PHOTO_STATUS_LABELS,
+);
+
 export function StockLevelBadge({ status, daysLeft }) {
   const style = STOCK_LEVEL_STYLE[status];
   if (!style) return null;

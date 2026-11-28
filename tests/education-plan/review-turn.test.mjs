@@ -20,6 +20,22 @@ test('EDU-93: người không đúng lượt thấy "Đang chờ <vai trò> duy�
   assert.equal(waitingLabel(dossier({ canApprove: false }, 'TEAM_LEADER'), LABELS), 'Đang chờ Tổ trưởng duyệt');
 });
 
+test('EDU-93/97: đúng lượt nhưng hết hạn vẫn thấy Chờ duyệt, người khác thấy vai trò đang chờ', () => {
+  const doc = dossier({ canApprove: false, canReturn: false });
+  for (const reviewDeadline of [{ locked: true, isCurrentReviewer: true }, { locked: true, isCurrentReviewer: false }]) {
+    const expected = reviewDeadline.isCurrentReviewer ? null : 'Đang chờ Phó hiệu trưởng duyệt';
+    assert.equal(waitingLabel({ ...doc, reviewDeadline }, LABELS), expected);
+    assert.equal(waitingLabel({ ...doc, timeLock: { reviewDeadline } }, LABELS), expected);
+  }
+  assert.equal(isReviewTurn(doc), false);
+});
+
+test('EDU-93: chỉ chuỗi nhiều bước hiện tên vai trò đang chờ', () => {
+  const doc = dossier({ canApprove: false });
+  assert.equal(waitingLabel({ ...doc, review: { ...doc.review, roles: ['VICE_PRINCIPAL'] } }, LABELS), null);
+  assert.equal(waitingLabel({ ...doc, review: { waitingRole: 'VICE_PRINCIPAL' } }, LABELS), null);
+});
+
 test('EDU-93: chỉ cần một trong các cờ duyệt/trả lại là đúng lượt (kế hoạch năm dùng canIssue)', () => {
   assert.equal(isReviewTurn({ permissions: { canIssue: true } }), true);
   assert.equal(isReviewTurn({ permissions: { canReject: true } }), true);

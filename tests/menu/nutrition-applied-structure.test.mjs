@@ -62,7 +62,7 @@ test('form lưu: lỗi cơ cấu nằm ở khóa `${nhóm}.applied`, payload ch�
     price: 34000,
     meals: [],
     norms: { kcal: [615, 726], ...NORMS, animalProteinG: [1, 2], calcium: [100, 200], lunchKcalPct: [30, 35] },
-    dailyKcalNeed: 1290,
+    dailyKcal: [1230, 1320],
     applied: { protein: 14, lipid: 26, glucid: 61 },
   };
   const form = toSetupForm([setup], '2026-11-23');

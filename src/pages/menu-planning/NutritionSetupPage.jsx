@@ -9,7 +9,6 @@ import { usePageReadOnly } from '@/contexts/PageReadOnlyContext';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { SidePanel } from '@/components/ui/SidePanel';
-import { Switch } from '@/components/ui/Switch';
 import { Tabs } from '@/components/ui/Tabs';
 import { RowActions } from '@/components/ui/RowActions';
 import { FormField } from '@/components/form/FormField';
@@ -17,15 +16,7 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { NutritionGroupList, NutritionSetupGroup, rangeLabel, versionState } from '@/components/menu-planning/NutritionSetupGroup';
 import { addDays, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
 import { hasErrors, validateNutritionSetup } from '@/utils/menu-planning/menuPlanningValidation';
-import {
-  APPLIED_STRUCTURE_COLUMNS,
-  KCAL_NORM,
-  STRUCTURE_NORM_COLUMNS,
-  priceStatus,
-  setupGroupInfo,
-  toSetupForm,
-  toSetupPayload,
-} from '@/utils/menu-planning/nutritionSetup';
+import { APPLIED_STRUCTURE_COLUMNS, priceStatus, setupGroupInfo, toSetupForm, toSetupPayload } from '@/utils/menu-planning/nutritionSetup';
 import { setupCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { clickableRowProps } from '@/utils/clickableRow';
 import { formatDate, todayInput } from '@/utils/format';
@@ -34,7 +25,6 @@ import { Button, TextAreaField, TextField } from '@/components';
 
 const TABS = [
   { key: 'overview', label: 'Tổng quan' },
-  { key: 'groups', label: 'Nhóm độ tuổi' },
   { key: 'meals', label: 'Định mức dinh dưỡng' },
 ];
 const isSet = (range) => rangeLabel(range) !== '—';
@@ -43,11 +33,10 @@ const appliedLabel = (applied) => {
   const values = APPLIED_STRUCTURE_COLUMNS.map((c) => applied?.[c.key]);
   return values.some((v) => v === '' || v == null) ? '—' : `${values.join('–')}%`;
 };
-// Trạng thái nhóm: chưa đủ năng lượng + P:L:G thì thực đơn chưa đánh giá được ⇒ báo vàng thay vì "Đang áp dụng"
+// Trạng thái áp dụng do Hiệu trưởng bật/tắt; ngày hiệu lực thuộc phiên bản định mức.
 const groupStatus = (g) => {
   if (!g.enabled) return { tone: 'gray', label: 'Không áp dụng' };
-  const coreSet = [KCAL_NORM, ...STRUCTURE_NORM_COLUMNS].every((c) => isSet(g.norms[c.key]));
-  return coreSet ? { tone: 'green', label: 'Đang áp dụng' } : { tone: 'orange', label: 'Chưa nhập chuẩn' };
+  return { tone: 'green', label: 'Đang áp dụng' };
 };
 
 function VersionHistory({ versions, today }) {
@@ -94,7 +83,7 @@ export default function NutritionSetupPage() {
   const hasVersions = items.some((s) => s.versions?.length);
   const firstDate = usesApi && hasVersions ? tomorrow : today;
   const validateOpts = usesApi ? { mealsReadOnly: true, minDate: hasVersions ? tomorrow : undefined } : {};
-  const tabs = usesApi ? TABS.filter((t) => t.key !== 'groups') : TABS;
+  const tabs = TABS;
 
   // Dữ liệu tải lại nền không ghi đè khi đang sửa dở
   useEffect(() => {
@@ -151,6 +140,9 @@ export default function NutritionSetupPage() {
       </div>
     );
 
+  const baseline = toSetupForm(items, today);
+  const withoutStatus = (f) => JSON.stringify({ basis: f.basis, groups: f.groups.map(({ enabled, originalEnabled, ...g }) => g) });
+  const statusOnly = usesApi && withoutStatus(form) === withoutStatus(baseline);
   const errors = { ...(submitted ? validateNutritionSetup(form, today, validateOpts) : {}), ...serverErrors };
   const err = (k) => errors[k];
   const groupHasError = (id) => Object.keys(errors).some((k) => k.startsWith(`${id}.`));
@@ -176,6 +168,10 @@ export default function NutritionSetupPage() {
   };
   // Kiểm các ô trên bảng trước; ngày áp dụng và lý do nhập trong hộp xác nhận
   const submit = () => {
+    if (statusOnly) {
+      setConfirm(true);
+      return;
+    }
     setSubmitted(true);
     const tableErrors = Object.keys(validateNutritionSetup({ ...form, effectiveFrom: firstDate }, today, validateOpts));
     if (tableErrors.length) {
@@ -197,9 +193,9 @@ export default function NutritionSetupPage() {
     setConfirm(true);
   };
   const save = async () => {
-    if (hasErrors(validateNutritionSetup(form, today, validateOpts))) return;
+    if (!statusOnly && hasErrors(validateNutritionSetup(form, today, validateOpts))) return;
     try {
-      await saveNutritionSetups(toSetupPayload(form), user);
+      await saveNutritionSetups({ ...toSetupPayload(form), statusOnly }, user);
       toast.success('Đã lưu thiết lập dinh dưỡng.');
       setDirty(false);
       setSubmitted(false);
@@ -218,31 +214,6 @@ export default function NutritionSetupPage() {
   const historyGroup = historyOf && setupOf(historyOf);
   const childCountOf = (ageGroupId) => setupOf(ageGroupId)?.childCount;
   const activeGroup = form.groups.find((g) => g.ageGroupId === groupKey) || form.groups[0];
-  const groupRows = (list) =>
-    list.map((g, i) => {
-      const info = groupInfo(g.ageGroupId);
-      return (
-        <tr key={g.ageGroupId}>
-          <td className="muted td-num-col">{i + 1}</td>
-          <td>
-            <b>{info.short}</b> <span className="muted">{info.range}</span>
-            <div className="text-xs muted">{childCountOf(g.ageGroupId) ?? 0} trẻ</div>
-          </td>
-          <td>
-            <span className="row td-switch-row">
-              <Switch
-                checked={g.enabled}
-                disabled={!canEdit}
-                label={`Áp dụng ${info.short}`}
-                onChange={(v) => setGroup(g.ageGroupId, (x) => (x.enabled = v))}
-              />
-              {g.enabled ? 'Đang áp dụng' : 'Không áp dụng'}
-            </span>
-          </td>
-        </tr>
-      );
-    });
-
   return (
     <div className="page">
       {header}
@@ -286,7 +257,7 @@ export default function NutritionSetupPage() {
                       </td>
                       <td className="nowrap text-2">{info.range || '—'}</td>
                       <td className="nowrap">{appliedLabel(g.applied)}</td>
-                      <td className="num nowrap">{g.dailyKcalNeed ? `${g.dailyKcalNeed} kcal` : '—'}</td>
+                      <td className="num nowrap">{isSet(g.dailyKcal) ? `${rangeLabel(g.dailyKcal)} kcal` : '—'}</td>
                       <td className="num nowrap">{isSet(g.norms.kcal) ? `${rangeLabel(g.norms.kcal)} kcal` : '—'}</td>
                       <td className="money">
                         <div className="td-overview__price">
@@ -303,36 +274,21 @@ export default function NutritionSetupPage() {
                       </td>
                       {canEdit && (
                         <td className="cell--actions">
-                          <RowActions edit={{ onClick: () => openGroup(g.ageGroupId) }} name={info.short} />
+                          <RowActions
+                            edit={{ onClick: () => openGroup(g.ageGroupId) }}
+                            name={info.short}
+                            menu={[
+                              {
+                                label: g.enabled ? 'Ngừng áp dụng' : 'Áp dụng',
+                                onClick: () => setGroup(g.ageGroupId, (x) => (x.enabled = !x.enabled)),
+                              },
+                            ]}
+                          />
                         </td>
                       )}
                     </tr>
                   );
                 })}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      ) : tab === 'groups' ? (
-        <section className="card">
-          <div className="table-wrap">
-            <table className="table table--grid">
-              <thead>
-                <tr>
-                  <th className="td-num-col">STT</th>
-                  <th>Nhóm trẻ tại trường</th>
-                  <th className="center">Trạng thái</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="td-grp-row">
-                  <td colSpan={3}>Nhà trẻ (dưới 36 tháng)</td>
-                </tr>
-                {groupRows(form.groups.filter((g) => groupInfo(g.ageGroupId).nursery))}
-                <tr className="td-grp-row">
-                  <td colSpan={3}>Mẫu giáo (từ 36 tháng)</td>
-                </tr>
-                {groupRows(form.groups.filter((g) => !groupInfo(g.ageGroupId).nursery))}
               </tbody>
             </table>
           </div>
@@ -379,24 +335,28 @@ export default function NutritionSetupPage() {
         open={confirm}
         title="Lưu thiết lập dinh dưỡng"
         message={
-          usesApi
-            ? 'Giá suất ăn và định mức đã đổi được lưu thành bản cấu hình áp dụng từ ngày bạn chọn. Bản đã áp dụng giữ nguyên.'
-            : 'Định mức và bữa ăn áp dụng ngay cho các kiểm tra thực đơn. Giá đã đổi áp dụng từ ngày bạn chọn.'
+          statusOnly
+            ? 'Cập nhật trạng thái áp dụng khi soạn thực đơn ngay sau khi lưu.'
+            : usesApi
+              ? 'Giá suất ăn và định mức đã đổi được lưu thành bản cấu hình áp dụng từ ngày bạn chọn. Bản đã áp dụng giữ nguyên.'
+              : 'Định mức và bữa ăn áp dụng ngay cho các kiểm tra thực đơn. Giá đã đổi áp dụng từ ngày bạn chọn.'
         }
         confirmLabel="Lưu"
         onConfirm={save}
         onClose={() => setConfirm(false)}
       >
         <div className="td-confirm-fields">
-          <FormField label={usesApi ? 'Áp dụng từ ngày' : 'Giá mới áp dụng từ ngày'} required error={err('effectiveFrom')}>
-            <TextField
-              type="date"
-              className="input"
-              min={firstDate}
-              value={form.effectiveFrom}
-              onChange={(e) => update((f) => ({ ...f, effectiveFrom: e.target.value }))}
-            />
-          </FormField>
+          {!statusOnly && (
+            <FormField label={usesApi ? 'Áp dụng từ ngày' : 'Giá mới áp dụng từ ngày'} required error={err('effectiveFrom')}>
+              <TextField
+                type="date"
+                className="input"
+                min={firstDate}
+                value={form.effectiveFrom}
+                onChange={(e) => update((f) => ({ ...f, effectiveFrom: e.target.value }))}
+              />
+            </FormField>
+          )}
           {!usesApi && (
             <FormField label="Lý do thay đổi" error={err('reason')} hint="Bắt buộc khi sửa giá đã áp dụng">
               <TextField

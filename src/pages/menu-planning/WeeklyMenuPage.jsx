@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { MENU_AI_ENABLED } from '@/config/env';
 import { useSearchParams } from 'react-router-dom';
 import { Copy, Lock, Pencil, Plus, Send, Sparkles } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
@@ -270,7 +271,7 @@ export default function WeeklyMenuPage() {
               <Lock size={14} /> Chỉ xem
             </span>
           )}
-          {canManage && (!wm || editable) && (
+          {MENU_AI_ENABLED && canManage && (!wm || editable) && (
             <Button variant="outline-primary" disabled={busy} onClick={() => setAiOpen(true)}>
               <Sparkles size={16} /> AI soạn tuần
             </Button>
@@ -373,15 +374,19 @@ export default function WeeklyMenuPage() {
               title={canManage ? 'Tuần này chưa có thực đơn' : 'Tuần này chưa có thực đơn đã xuất bản'}
               description={
                 canManage
-                  ? 'Soạn tay, sao chép tuần trước hoặc nhờ AI soạn từ thực đơn mẫu của trường.'
+                  ? MENU_AI_ENABLED
+                    ? 'Soạn tay, sao chép tuần trước hoặc nhờ AI soạn từ thực đơn mẫu của trường.'
+                    : 'Soạn tay hoặc sao chép tuần trước.'
                   : 'Phó hiệu trưởng xuất bản xong thì thực đơn hiện ở đây.'
               }
               action={
                 canManage && (
                   <div className="row td-chips">
-                    <Button variant="primary" disabled={busy} onClick={() => setAiOpen(true)}>
-                      <Sparkles size={16} /> AI soạn tuần
-                    </Button>
+                    {MENU_AI_ENABLED && (
+                      <Button variant="primary" disabled={busy} onClick={() => setAiOpen(true)}>
+                        <Sparkles size={16} /> AI soạn tuần
+                      </Button>
+                    )}
                     <Button disabled={busy} onClick={() => create([])}>
                       <Plus size={16} /> Soạn tay
                     </Button>
@@ -436,7 +441,7 @@ export default function WeeklyMenuPage() {
                   Hệ thống tự kiểm tra theo định mức, tiền ăn và dị ứng ở Thiết lập. Bấm vào ngày để xem số liệu.
                 </span>
               </div>
-              {editable && issueDates.length > 0 && (
+              {MENU_AI_ENABLED && editable && issueDates.length > 0 && (
                 <Button size="sm" variant="outline-primary" disabled={busy || fixing} onClick={() => askFixes(issueDates)}>
                   <Sparkles size={14} /> AI gợi ý cách sửa
                 </Button>

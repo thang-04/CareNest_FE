@@ -2,6 +2,8 @@ import { beClient } from '@/services/http/beClient';
 import { DB_CHANGED_EVENT } from '@/mocks/dbEvents';
 import { MEAL_SESSION_LABELS, MICRONUTRIENTS, defaultStorageOf } from '@/models/menu-planning/menuPlanningConstants';
 import { purchaseUnitSizeOf } from '@/utils/menu-planning/foodUnits';
+import { DERIVED_NORM_KEYS } from '@/utils/menu-planning/nutritionSetup';
+import { toFoodHistoryEntry } from '@/utils/menu-planning/foodHistory';
 import { normalizeText } from '@/utils/format';
 
 /*
@@ -49,7 +51,8 @@ export const NORM_STEMS = {
 const configFieldOf = (key) => {
   if (key === 'mealPrice') return 'price';
   if (key === 'serviceFee') return 'serviceFee';
-  if (key === 'dailyKcalNeed') return 'dailyKcalNeed';
+  if (key === 'budgetTolerancePct') return 'budgetTolerancePct';
+  if (key === 'dailyKcalMin' || key === 'dailyKcalMax') return 'dailyKcal';
   if (/^applied(Protein|Lipid|Glucid)Pct$/.test(key)) return 'applied';
   const norm = Object.entries(NORM_STEMS).find(([, stem]) => key === `${stem}Min` || key === `${stem}Max`);
   return norm ? `norms.${norm[0]}` : null;
@@ -136,6 +139,8 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
     stockUnit: f.purchaseUnit,
     purchaseToStock: 1,
     stockUnitSize: f.purchaseUnitSize,
+    // BE khóa đơn vị, quy đổi khi thực phẩm đã nhập kho (NUT-32)
+    unitsLocked: !!f.unitsLocked,
     // Giá và NCC tại hôm nay theo lịch sử giá (NUT-27)
     unitPrice: f.unitPrice ?? null,
     supplierId: f.supplierId ?? null,
@@ -152,12 +157,10 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
     },
     origin: ['ANIMAL', 'PLANT'].includes(f.origin) ? f.origin : '',
     nutrientSource: f.nutrientSource || '',
-    nutrientSourceVersion: f.nutrientSourceVersion || '',
     allergens: (f.allergens || []).map((a) => a.name),
     note: f.note || '',
     status: f.status,
     favorite: favorites.has(String(f.id)),
-    history: [],
   });
 
   const allergenIdsOf = async (names = []) => {
@@ -190,13 +193,14 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
       ...Object.fromEntries(MICRONUTRIENTS.map((k) => [k, numOrNull(p.nutrition?.[k])])),
       origin: ['ANIMAL', 'PLANT'].includes(p.origin) ? p.origin : null,
       nutrientSource: text(p.nutrientSource),
-      nutrientSourceVersion: text(p.nutrientSourceVersion),
       wastePct: blank(p.wastePct) ? 0 : Number(p.wastePct),
       storage: ['FRESH', 'DRY'].includes(p.storage) ? p.storage : defaultStorageOf(p.group),
       note: text(p.note),
       allergenIds: await allergenIdsOf(p.allergens || []),
-      // Chỉ dùng khi tạo; sau đó đổi qua điều chỉnh giá (BE từ chối nếu khác mức hôm nay)
+      // Khi sửa, giá hoặc NCC khác hiện tại ⇒ BE thêm mức giá mới hiệu lực từ ngày này (NUT-27)
       supplierId: blank(p.supplierId) ? null : Number(p.supplierId),
+      effectiveFrom: blank(p.effectiveFrom) ? null : p.effectiveFrom,
+      priceReason: blank(p.priceReason) ? null : text(p.priceReason),
     };
   };
 
@@ -232,6 +236,8 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
       const values = Object.values(r.portions).filter((v) => v != null);
       return { ...r, quantity: r.portions['ag-4'] ?? values[0] ?? 0 };
     });
+    // BE không lưu danh sách nhóm tuổi của món: nhóm áp dụng = nhóm có dòng định lượng đã lưu
+    const ageGroupIds = [...new Set((d.ingredients || []).map((r) => codeOf[String(r.ageGroupId)] || String(r.ageGroupId)))];
     return {
       id: d.id,
       code: d.code,
@@ -240,11 +246,12 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
       description: d.description || '',
       status: d.status,
       reference: !!d.reference,
+      ageGroupIds,
       ingredients,
       allergens: (d.allergens || []).map((a) => a.name),
       nutritionByAgeGroup: (d.nutritionByAgeGroup || []).map((n) => ({ ...n, ageGroupId: codeOf[String(n.ageGroupId)] || n.ageGroupId })),
-      usedInMenus: [],
-      history: [],
+      usedInMenus: (d.usedInTemplates || []).map((t) => ({ id: String(t.id), name: t.name })),
+      usedInWeeks: (d.usedInWeeks || []).map((w) => ({ weekStart: w.weekStart, status: w.status })),
     };
   };
 
@@ -314,8 +321,9 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
     effectiveFrom: v.effectiveFrom,
     price: v.mealPrice ?? null,
     serviceFee: v.serviceFee ?? 0,
+    budgetTolerancePct: v.budgetTolerancePct ?? 5,
     basis: v.normBasis || '',
-    dailyKcalNeed: v.dailyKcalNeed ?? '',
+    dailyKcal: [v.dailyKcalMin ?? '', v.dailyKcalMax ?? ''],
     // Cơ cấu áp dụng P:L:G (BE NUT-27) và hệ số quy đổi BE đã dùng; chưa chọn thì không có
     applied: v.appliedProteinPct == null ? null : { protein: v.appliedProteinPct, lipid: v.appliedLipidPct, glucid: v.appliedGlucidPct },
     factors: v.conversion
@@ -349,19 +357,24 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
     effectiveFrom,
     mealPrice: Number(g.price),
     serviceFee: numOrNull(g.serviceFee) ?? 0,
+    budgetTolerancePct: numOrNull(g.budgetTolerancePct) ?? 5,
     normBasis: text(basis),
-    dailyKcalNeed: numOrNull(g.dailyKcalNeed),
+    dailyKcalMin: numOrNull(g.dailyKcal?.[0]),
+    dailyKcalMax: numOrNull(g.dailyKcal?.[1]),
     appliedProteinPct: numOrNull(g.applied?.protein),
     appliedLipidPct: numOrNull(g.applied?.lipid),
     appliedGlucidPct: numOrNull(g.applied?.glucid),
     ...Object.fromEntries(
-      Object.entries(NORM_STEMS).flatMap(([key, stem]) => {
-        const [min, max] = g.norms?.[key] || [];
-        return [
-          [`${stem}Min`, numOrNull(min)],
-          [`${stem}Max`, numOrNull(max)],
-        ];
-      }),
+      // Năng lượng khuyến nghị và khoảng đạm/béo/đường do BE đặt (NUT-33), không gửi lên
+      Object.entries(NORM_STEMS)
+        .filter(([key]) => !DERIVED_NORM_KEYS.includes(key))
+        .flatMap(([key, stem]) => {
+          const [min, max] = g.norms?.[key] || [];
+          return [
+            [`${stem}Min`, numOrNull(min)],
+            [`${stem}Max`, numOrNull(max)],
+          ];
+        }),
     ),
   });
   const sameValue = (x, y) => (x == null || y == null ? x == null && y == null : x === y || Number(x) === Number(y));
@@ -369,19 +382,13 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
   const COMPARED_FIELDS = new Set([
     'ageGroupId',
     'mealPrice',
+    'budgetTolerancePct',
     'normBasis',
-    'dailyKcalNeed',
+    'dailyKcalMin',
+    'dailyKcalMax',
     'appliedProteinPct',
     'appliedLipidPct',
     'appliedGlucidPct',
-    'kcalMin',
-    'kcalMax',
-    'proteinPctMin',
-    'proteinPctMax',
-    'lipidPctMin',
-    'lipidPctMax',
-    'glucidPctMin',
-    'glucidPctMax',
   ]);
   const sameConfig = (a, b) =>
     Object.keys(a)
@@ -403,9 +410,25 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
     },
 
     async getFood(id) {
-      const f = await client.get(`/nutrition/foods/${id}`);
-      // BE chưa trả món dùng thực phẩm và khóa đơn vị theo kho
-      return { ...toFood(f), usedInDishes: [], unitsLocked: false };
+      const [f, dishes, history, { codeOf }] = await Promise.all([
+        client.get(`/nutrition/foods/${id}`),
+        client.get(`/nutrition/foods/${id}/dishes`),
+        client.get(`/nutrition/foods/${id}/history`),
+        agMaps(),
+      ]);
+      return {
+        ...toFood(f),
+        usedInDishes: (dishes || []).map((d) => ({
+          id: d.dishId,
+          name: d.name,
+          dishType: d.dishType,
+          portions: (d.portions || []).map((p) => ({
+            ageGroupId: codeOf[String(p.ageGroupId)] || String(p.ageGroupId),
+            gramsPerChild: p.gramsPerChild,
+          })),
+        })),
+        history: (history || []).map(toFoodHistoryEntry),
+      };
     },
 
     saveFood: (id, payload) =>
@@ -575,21 +598,26 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
      */
     async listNutritionSetups() {
       const groups = [...(await ageGroups())].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-      const all = await Promise.all(groups.map((g) => versionsOf(g.id)));
+      const [all, statuses] = await Promise.all([
+        Promise.all(groups.map((g) => versionsOf(g.id))),
+        client.get('/nutrition/age-group-configs/statuses'),
+      ]);
+      const enabledById = new Map(statuses.map((s) => [String(s.ageGroupId), s.enabled]));
       return groups.map((g, i) => {
         const versions = (all[i] || []).map(toVersion);
         const latest = versions[0];
         return {
           ageGroupId: g.code,
           ...groupFields(g),
-          enabled: true,
+          enabled: enabledById.get(String(g.id)) !== false,
           mealsReadOnly: true,
           basis: latest?.basis || '',
           price: latest?.price ?? '',
           serviceFee: latest?.serviceFee ?? 0,
+          budgetTolerancePct: latest?.budgetTolerancePct ?? 5,
           meals: (g.mealSessions || []).map((code) => ({ code, name: MEAL_SESSION_LABELS[code] || code, countAs: code })),
           norms: latest?.norms || {},
-          dailyKcalNeed: latest?.dailyKcalNeed ?? '',
+          dailyKcal: latest?.dailyKcal ?? ['', ''],
           applied: latest?.applied ?? null,
           factors: latest?.factors ?? null,
           childCount: null,
@@ -607,17 +635,22 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
     async saveNutritionSetups(payload) {
       const { idOf } = await agMaps();
       const changed = [];
+      const statuses = [];
       for (const g of payload.groups || []) {
         const beId = idOf[g.ageGroupId];
         if (beId == null) continue;
+        if (g.originalEnabled !== undefined && g.enabled !== g.originalEnabled) {
+          statuses.push({ ageGroupId: beId, enabled: g.enabled });
+        }
+        if (payload.statusOnly) continue;
         const body = toConfigRequest(g, payload.effectiveFrom, payload.basis, beId);
         const latest = (await versionsOf(beId))[0];
-        if (latest && sameConfig(body, { serviceFee: 0, ...latest, ageGroupId: beId })) continue;
+        if (latest && sameConfig(body, { serviceFee: 0, budgetTolerancePct: 5, ...latest, ageGroupId: beId })) continue;
         changed.push({ ageGroupId: g.ageGroupId, body });
       }
-      if (!changed.length) return { saved: 0 };
+      if (!changed.length && !statuses.length) return { saved: 0 };
       try {
-        await client.post('/nutrition/age-group-configs/batch', { items: changed.map((c) => c.body) });
+        await client.post('/nutrition/age-group-configs/batch', { items: changed.map((c) => c.body), statuses });
       } catch (error) {
         if (error?.details) {
           error.details = Object.fromEntries(
@@ -641,7 +674,12 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
      * getCatalog mock. Giá BE tính theo ngày ⇒ `pricePerDay` để kiểm tra tuần so chi phí từng ngày với giá ngày.
      */
     async getEffectiveSetups(date) {
-      const [groups, configs] = await Promise.all([ageGroups(), client.get('/nutrition/age-group-configs', { params: params({ date }) })]);
+      const [groups, configs, statuses] = await Promise.all([
+        ageGroups(),
+        client.get('/nutrition/age-group-configs', { params: params({ date }) }),
+        client.get('/nutrition/age-group-configs/statuses'),
+      ]);
+      const enabledById = new Map(statuses.map((s) => [String(s.ageGroupId), s.enabled]));
       const byGroup = new Map((configs || []).map((c) => [String(c.ageGroupId), toVersion(c)]));
       const nutritionSetups = [...groups]
         .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
@@ -650,13 +688,13 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
           return {
             ageGroupId: g.code,
             ...groupFields(g),
-            enabled: true,
+            enabled: enabledById.get(String(g.id)) !== false,
             basis: v?.basis || '',
             price: v?.price ?? '',
             serviceFee: v?.serviceFee ?? 0,
             meals: (g.mealSessions || []).map((code) => ({ code, name: MEAL_SESSION_LABELS[code] || code, countAs: code })),
             norms: v?.norms || {},
-            dailyKcalNeed: v?.dailyKcalNeed ?? '',
+            dailyKcal: v?.dailyKcal ?? ['', ''],
           };
         });
       const mealPrices = groups

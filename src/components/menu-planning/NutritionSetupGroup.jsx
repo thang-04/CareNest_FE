@@ -1,22 +1,27 @@
 import { History } from '@/components/ui/icons';
-import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Switch } from '@/components/ui/Switch';
 import { NutritionAppliedStructure } from '@/components/menu-planning/NutritionAppliedStructure';
 import { NutritionConvertedTable } from '@/components/menu-planning/NutritionConvertedTable';
 import { formatMoney } from '@/models/menu-planning/menuPlanningConstants';
-import { KCAL_NORM, STRUCTURE_NORM_COLUMNS } from '@/utils/menu-planning/nutritionSetup';
+import { DAILY_KCAL_NORM, KCAL_NORM, STRUCTURE_NORM_COLUMNS } from '@/utils/menu-planning/nutritionSetup';
 import { formatDate } from '@/utils/format';
 import { Button, TextField } from '@/components';
 
 const NORM_TONE = { protein: 'td-col-p', lipid: 'td-col-l', glucid: 'td-col-g' };
-// Định mức theo hàng: năng lượng và khoảng tỷ lệ P:L:G; gam theo chất do hệ thống quy đổi, vi chất xem ở màn Thực phẩm
+// Nhu cầu cả ngày do người dùng nhập; năng lượng khuyến nghị và khoảng tỷ lệ P:L:G do hệ thống đặt theo Thông tư 28/2016 (chỉ xem)
 const NORM_SECTIONS = [
+  { key: 'daily', label: 'Nhu cầu năng lượng cả ngày (nhập)', rows: [DAILY_KCAL_NORM] },
   {
-    key: 'core',
-    label: 'Năng lượng và cơ cấu P:L:G (bắt buộc)',
+    key: 'school',
+    label: 'Khuyến nghị tại trường theo Thông tư 28/2016 (hệ thống tính, chỉ xem)',
     rows: [
-      KCAL_NORM,
-      ...STRUCTURE_NORM_COLUMNS.map((c) => ({ ...c, label: `Tỷ lệ năng lượng từ ${c.label.toLowerCase()}`, tone: NORM_TONE[c.key] })),
+      { ...KCAL_NORM, derived: true },
+      ...STRUCTURE_NORM_COLUMNS.map((c) => ({
+        ...c,
+        label: `Tỷ lệ năng lượng từ ${c.label.toLowerCase()}`,
+        tone: NORM_TONE[c.key],
+        derived: true,
+      })),
     ],
   },
 ];
@@ -42,11 +47,11 @@ export const rangeLabel = (values, suffix = '') =>
 
 export const versionState = (v, today) =>
   v.editable
-    ? { tone: 'blue', label: 'Chưa áp dụng — sửa được' }
-    : { tone: 'gray', label: v.effectiveFrom <= today ? 'Đã áp dụng — chỉ xem' : 'Chỉ xem' };
+    ? { tone: 'blue', label: 'Phiên bản chưa tới ngày hiệu lực' }
+    : { tone: 'gray', label: v.effectiveFrom <= today ? 'Phiên bản đã có hiệu lực' : 'Chỉ xem' };
 
 /** Ô số tối thiểu / tối đa của một chỉ số; chỉ xem thì hiện số. */
-function MinMaxCells({ value = ['', ''], readOnly, label, invalid, onChange }) {
+function MinMaxCells({ value = ['', ''], readOnly, label, invalid, max, onChange }) {
   const cell = (i) =>
     readOnly ? (
       <span>{value[i] === '' || value[i] == null ? '—' : value[i]}</span>
@@ -54,6 +59,7 @@ function MinMaxCells({ value = ['', ''], readOnly, label, invalid, onChange }) {
       <TextField
         type="number"
         min="0"
+        max={max}
         className={`input td-norm__input ${invalid ? 'is-invalid' : ''}`}
         value={value[i] ?? ''}
         aria-label={`${label} ${i ? 'tối đa' : 'tối thiểu'}`}
@@ -97,9 +103,10 @@ function NormTable({ norms, readOnly, errorOf, onChange }) {
                   </th>
                   <MinMaxCells
                     value={norms[c.key]}
-                    readOnly={readOnly}
+                    readOnly={readOnly || c.derived}
                     label={c.label}
                     invalid={!!error}
+                    max={c.max}
                     onChange={(v) => onChange(c.key, v)}
                   />
                   <td className="muted">{c.unit}</td>
@@ -113,28 +120,17 @@ function NormTable({ norms, readOnly, errorOf, onChange }) {
   );
 }
 
-/** Bản mới nhất của nhóm tuổi trên BE: đã hiệu lực thì khóa, thay đổi lưu thành bản mới từ ngày sau hôm nay. */
-function VersionNote({ versions, today }) {
-  const latest = versions?.[0];
-  if (!latest)
-    return <p className="text-sm muted td-setup-detail__note">Chưa có cấu hình: bản đầu tiên áp dụng từ ngày bạn chọn khi lưu.</p>;
-  const state = versionState(latest, today);
-  return (
-    <p className="text-sm td-setup-detail__note">
-      <StatusBadge tone={state.tone} label={state.label} /> Bản áp dụng từ {formatDate(latest.effectiveFrom)}.{' '}
-      {latest.editable ? 'Lưu cùng ngày này để sửa bản đó.' : 'Thay đổi sẽ lưu thành bản mới từ một ngày sau hôm nay.'}
-    </p>
-  );
-}
-
 /**
  * Danh sách nhóm tuổi bên trái (như danh sách Mẫu thực đơn ngày): tên, độ tuổi, giá suất, trạng thái; nhóm có ô lỗi hiện chấm đỏ.
  */
 export function NutritionGroupList({ items, value, onChange }) {
   return (
-    <section className="card td-tpl-list" aria-label="Nhóm tuổi">
+    <section className="card td-tpl-list td-age-list" aria-label="Nhóm tuổi">
       <div className="card__header">
         <h2 className="card__title">Nhóm tuổi</h2>
+        <span className="td-age-list__count" aria-label={`${items.length} nhóm tuổi`}>
+          {items.length}
+        </span>
       </div>
       <ul className="td-tpl-rows">
         {items.map((it) => (
@@ -145,16 +141,19 @@ export function NutritionGroupList({ items, value, onChange }) {
               aria-current={it.key === value ? 'true' : undefined}
               onClick={() => onChange(it.key)}
             >
-              <span className="td-tpl-row__top">
+              <span className="td-age-list__heading">
                 <span className="td-tpl-row__name">
                   {it.name} {it.hasError && <ErrorDot />}
                 </span>
-                <StatusBadge {...it.status} />
+                <span
+                  className={`td-age-list__status-dot ${it.status.tone === 'green' ? 'td-age-list__status-dot--on' : 'td-age-list__status-dot--off'}`}
+                  role="img"
+                  aria-label={it.status.label}
+                  title={it.status.label}
+                />
               </span>
-              <span className="td-tpl-row__meta td-setup-row__meta">
-                {it.range && <span className="td-setup-age-badge">{it.range}</span>}
-                {it.price && <span>{it.price}</span>}
-              </span>
+              {it.range && <span className="td-age-list__range">{it.range}</span>}
+              {it.price && <span className="td-age-list__price">{it.price}</span>}
             </button>
           </li>
         ))}
@@ -167,13 +166,11 @@ export function NutritionGroupList({ items, value, onChange }) {
  * Chi tiết một nhóm tuổi trong một thẻ: đầu thẻ (tên, lịch sử, áp dụng) → giá suất và nhu cầu năng lượng → bảng định mức
  * (năng lượng, khoảng P:L:G) → cơ cấu áp dụng → hàm lượng quy đổi tại trường. Chỉ hiển thị và gửi ô sửa; kiểm hợp lệ ở trang.
  */
-export function NutritionSetupGroup({ group: g, info, childCount, setup, usesApi, canEdit, today, err, setGroup, onHistory }) {
+export function NutritionSetupGroup({ group: g, info, childCount, setup, usesApi, canEdit, err, setGroup, onHistory }) {
   const upcoming = !usesApi && setup?.upcoming;
   const errorOf = (k) => err(`${g.ageGroupId}.${k}`);
   const priceError = errorOf('price');
-  const dailyKcalError = errorOf('dailyKcalNeed');
   const priceErrorId = `nutrition-price-${g.ageGroupId}-error`;
-  const dailyKcalErrorId = `nutrition-kcal-${g.ageGroupId}-error`;
 
   return (
     <section className="card td-setup-detail">
@@ -189,7 +186,7 @@ export function NutritionSetupGroup({ group: g, info, childCount, setup, usesApi
           <Button variant="link" className="text-sm" onClick={onHistory}>
             <History size={15} /> {usesApi ? 'Lịch sử phiên bản' : 'Lịch sử giá'}
           </Button>
-          {!usesApi && (
+          {
             <span className="row td-switch-row fw-600 text-sm">
               Áp dụng
               <Switch
@@ -199,10 +196,9 @@ export function NutritionSetupGroup({ group: g, info, childCount, setup, usesApi
                 onChange={(v) => setGroup(g.ageGroupId, (x) => (x.enabled = v))}
               />
             </span>
-          )}
+          }
         </div>
       </div>
-      {usesApi && <VersionNote versions={setup?.versions} today={today} />}
 
       {!g.enabled ? (
         <p className="card__body td-muted-line">Nhóm này đang tắt: không dùng khi soạn thực đơn.</p>
@@ -274,36 +270,37 @@ export function NutritionSetupGroup({ group: g, info, childCount, setup, usesApi
                             {errorOf('serviceFee')}
                           </span>
                         )}
-                        <span className="td-setup-table__note">
-                          {g.price
-                            ? `Ngân sách thực phẩm ${formatMoney(Math.max(0, Number(g.price) - (Number(g.serviceFee) || 0)))} / trẻ / ngày`
-                            : 'Phần giá suất không dùng mua thực phẩm; để trống = 0'}
-                        </span>
                       </td>
                       <td className="center">đ</td>
                     </tr>
                     <tr>
-                      <th scope="row">Nhu cầu năng lượng cả ngày</th>
+                      <th scope="row">Biên tiền cho phép (đạt tiền)</th>
                       <td className="center">
-                        <TextField
-                          className="input td-setup-table-input"
-                          type="number"
-                          min={1}
-                          max={5000}
-                          value={g.dailyKcalNeed ?? ''}
-                          readOnly={!canEdit}
-                          aria-label={`Nhu cầu năng lượng cả ngày ${info.short}`}
-                          aria-invalid={!!dailyKcalError}
-                          aria-describedby={dailyKcalError ? dailyKcalErrorId : undefined}
-                          onChange={(e) => setGroup(g.ageGroupId, (x) => (x.dailyKcalNeed = e.target.value))}
-                        />
-                        {dailyKcalError && (
-                          <span id={dailyKcalErrorId} className="field__error td-setup-table__error" role="alert">
-                            {dailyKcalError}
+                        {canEdit ? (
+                          <TextField
+                            className="input td-setup-table-input"
+                            type="number"
+                            min={0}
+                            max={100}
+                            step="0.5"
+                            value={g.budgetTolerancePct ?? ''}
+                            aria-label={`Biên tiền cho phép ${info.short}`}
+                            aria-invalid={!!errorOf('budgetTolerancePct')}
+                            onChange={(e) => setGroup(g.ageGroupId, (x) => (x.budgetTolerancePct = e.target.value))}
+                          />
+                        ) : (
+                          <b className="nowrap">±{Number(g.budgetTolerancePct ?? 5).toLocaleString('vi-VN')}</b>
+                        )}
+                        {errorOf('budgetTolerancePct') && (
+                          <span className="field__error td-setup-table__error" role="alert">
+                            {errorOf('budgetTolerancePct')}
                           </span>
                         )}
+                        <span className="td-setup-table__note">
+                          Tiền thực phẩm lệch ngân sách (giá suất − phí dịch vụ) trong biên này thì đạt.
+                        </span>
                       </td>
-                      <td className="center">kcal / trẻ</td>
+                      <td className="center">%</td>
                     </tr>
                   </tbody>
                 </table>
@@ -313,13 +310,13 @@ export function NutritionSetupGroup({ group: g, info, childCount, setup, usesApi
               <SetupSectionHeading
                 number="02"
                 title="Khoảng định mức dinh dưỡng"
-                description="Thực đơn được đánh giá theo khoảng tối thiểu và tối đa này."
+                description="Nhập nhu cầu cả ngày; năng lượng khuyến nghị và khoảng tỷ lệ cập nhật sau khi lưu. Thực đơn được đánh giá theo khoảng này."
               />
               <NormTable
-                norms={g.norms}
+                norms={{ ...g.norms, [DAILY_KCAL_NORM.key]: g.dailyKcal }}
                 readOnly={!canEdit}
-                errorOf={(k) => errorOf(`norms.${k}`)}
-                onChange={(k, v) => setGroup(g.ageGroupId, (x) => (x.norms[k] = v))}
+                errorOf={(k) => errorOf(k === DAILY_KCAL_NORM.key ? k : `norms.${k}`)}
+                onChange={(k, v) => setGroup(g.ageGroupId, (x) => (k === DAILY_KCAL_NORM.key ? (x.dailyKcal = v) : (x.norms[k] = v)))}
               />
             </section>
             <section className="td-setup-step">

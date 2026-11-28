@@ -1,3 +1,4 @@
+import { devNow } from '@/utils/devClock';
 /**
  * Shared school structure used by many modules (classes, children, attendance, health, assessment…).
  * @typedef {Object} SchoolClass
@@ -51,7 +52,7 @@ export const CHILD_STATUS_LABELS = {
 export const GENDER_LABELS = { MALE: 'Nam', FEMALE: 'Nữ' };
 
 /** Age in months on a given date (yyyy-mm-dd). */
-export const ageInMonths = (dateOfBirth, on = new Date().toISOString().slice(0, 10)) => {
+export const ageInMonths = (dateOfBirth, on = devNow().toISOString().slice(0, 10)) => {
   const [y1, m1, d1] = dateOfBirth.split('-').map(Number);
   const [y2, m2, d2] = on.split('-').map(Number);
   return (y2 - y1) * 12 + (m2 - m1) - (d2 < d1 ? 1 : 0);

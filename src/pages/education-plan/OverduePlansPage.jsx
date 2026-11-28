@@ -1,56 +1,81 @@
 import { Button, SelectField } from '@/components';
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, EduStatusBadge, EmptyState, PageHead, YearPlanStatusBadge, fmtDate, fmtDateTime } from '@/components/education-plan/eduUi';
 import { ExtendDeadlineModal } from '@/components/education-plan/DeadlineWidgets';
 import { FilterMore } from '@/components/ui/FilterMore';
-import { LoadingState } from '@/components/ui/States';
 import { Eye } from '@/components/ui/icons';
-import { useEducationPlan, useGoalDetails } from '@/hooks/education-plan/useEducationPlan';
+import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
+import { usePolling } from '@/hooks/usePolling';
+import { useAsync } from '@/hooks/useAsync';
+import { ErrorState, LoadingState } from '@/components/ui/States';
+import { Pagination } from '@/components/ui/Pagination';
+import { getOverdueBoard } from '@/services/education-plan/educationPlanService';
 import { ageRangeOptions, sameAgeRange } from '@/models/education-plan/educationPlanConstants';
-import { todayIso } from '@/models/education-plan/classPlan';
 import { planRoute } from '@/models/education-plan/planLevel.mjs';
-import { OVERDUE_DEADLINE_LABEL, OVERDUE_KIND_LABEL, filterOverdue, overdueRows } from '@/models/education-plan/overdue.mjs';
+import { OVERDUE_KIND_LABEL } from '@/models/education-plan/overdue.mjs';
 
-const EMPTY_FILTER = { deadlineKind: '', ageGroupId: '', classId: '', kind: '', semesterNo: '' };
+const EMPTY_FILTER = { ageGroupId: '', classId: '', kind: '', semesterNo: '' };
+const PAGE_SIZE = 5;
 
-const linkOf = (r) =>
-  r.planId
-    ? `${planRoute(r.doc)}/${r.planId}`
-    : r.kind === 'semester'
-      ? `/education/theme-plans/${r.classId}?hk=${r.semesterNo}`
-      : `/education/day-plans/${r.classId}?theme=${r.doc.themeId}`;
+// Xem chỉ đọc trên trang chi tiết có sẵn; ?overdue=1 cho Hiệu trưởng đọc bản chưa ban hành
+const viewPathOf = (r) => {
+  if (r.planId) return `${planRoute(r.doc)}/${r.planId}?overdue=1`;
+  const plan = encodeURIComponent(r.doc.yearPlanId);
+  return r.kind === 'semester'
+    ? `/education/theme-plans/${r.classId}?hk=${r.doc.semesterNo}&plan=${plan}&overdue=1`
+    : `/education/day-plans/${r.classId}?theme=${r.doc.themeId}&plan=${plan}&overdue=1`;
+};
 
 /**
  * Kế hoạch quá hạn (spec 005 FR-021a, chỉ Hiệu trưởng): tài liệu chưa ban hành đã tới hạn của cả năm, tổ và lớp; tích
  * nhiều dòng rồi mở hạn với một lý do + hạn mới chung (theo cách "Grant extension" của Moodle). Trang chi tiết không có nút mở.
  */
 export default function OverduePlansPage() {
+  const { user, schoolYearId } = useEducationPlan();
+  // Chọn dòng và hộp mở hạn thuộc lần xem này, kể cả khi đổi A → B → A.
+  return <OverduePlansForYear key={JSON.stringify([user.id, schoolYearId])} schoolYearId={schoolYearId} />;
+}
+
+function OverduePlansForYear({ schoolYearId }) {
   const id = useId();
-  const { loading, user, goals, semesterPackages, themeDossiers, classes, actOnClassDoc, unlockGoal, reopenGoalReviewDeadline } =
-    useEducationPlan();
+  const { user, classes, actOnClassDoc, unlockGoal } = useEducationPlan();
   const [tab, setTab] = useState('overdue');
   const [filter, setFilter] = useState(EMPTY_FILTER);
+  const [page, setPage] = useState(1);
+  // edu-list-paging (Tiền 25/11/2026): BE ghép, lọc, phân trang 5 hồ sơ/trang; đếm tab và học kỳ BE trả kèm
+  const board = useAsync(
+    () => getOverdueBoard(user, schoolYearId, { tab, ...filter, page: page - 1, size: PAGE_SIZE }),
+    [user.id, schoolYearId, tab, JSON.stringify(filter), page],
+    { enabled: !!schoolYearId, refreshOnDataChange: true },
+  );
+  const { rows: rowPage, overdueCount = 0, extendedCount = 0, semesters = [] } = board.data || {};
+  const shown = rowPage?.items || [];
+  const total = rowPage?.totalElements || 0;
   const [selected, setSelected] = useState(() => new Set());
   const [target, setTarget] = useState(null);
   const [errors, setErrors] = useState({});
+  const active = useRef(false);
+  useEffect(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+    };
+  }, []);
+  usePolling(() => board.reload({ silent: true }), { enabled: !!schoolYearId });
 
-  // Tên chủ đề lấy từ chi tiết kế hoạch tổ của hồ sơ
-  useGoalDetails(themeDossiers.map((d) => d.yearPlanId));
-
-  if (loading) return <LoadingState />;
-  const themeNameOf = (d) => goals.find((g) => g.id === d.yearPlanId)?.themes?.find((t) => t.id === d.themeId)?.name || 'Chủ đề';
-  const rows = overdueRows({ semesterPackages, themeDossiers, yearPlans: goals, classes, themeNameOf, today: todayIso() });
-  const shown = filterOverdue(
-    rows.filter((r) => !filter.ageGroupId || sameAgeRange(r.ageGroupId, filter.ageGroupId)),
-    { tab, ...filter, ageGroupId: '' },
-  );
-  const count = (t) => filterOverdue(rows, { tab: t }).length;
+  // Trang vượt số trang sau khi mở hạn (dòng rời tab) ⇒ về trang cuối
+  const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  useEffect(() => {
+    if (board.data && page > lastPage) setPage(lastPage);
+  }, [board.data, page, lastPage]);
+  const count = (t) => (t === 'overdue' ? overdueCount : extendedCount);
   const groups = ageRangeOptions();
   const groupClasses = classes.filter((c) => filter.ageGroupId && sameAgeRange(c.ageGroupId, filter.ageGroupId));
-  const semesters = [...new Set(rows.map((r) => r.semesterNo).filter((n) => n != null))].sort();
+  // Chọn dòng chỉ trong trang đang xem; đổi lọc/tab về trang 1
   const setF = (patch) => {
     setFilter((f) => ({ ...f, ...patch }));
+    setPage(1);
     setSelected(new Set());
   };
   const picked = shown.filter((r) => selected.has(r.key));
@@ -68,19 +93,21 @@ export default function OverduePlansPage() {
     const failed = {};
     for (const r of target) {
       let message = '';
+      // EDU-109 (9): một thao tác Mở hạn cho cả quá hạn gửi lẫn duyệt
       const ok = r.planId
-        ? r.reviewLocked
-          ? await reopenGoalReviewDeadline(r.planId, { note, deadline })
-          : await unlockGoal(r.planId, { note, deadline })
-        : await actOnClassDoc(r.kind, r.docKey, { action: r.reviewLocked ? 'reopen_review_deadline' : 'extend', note, deadline }, user, {
+        ? await unlockGoal(r.planId, { note, deadline })
+        : await actOnClassDoc(r.kind, r.docKey, { action: 'extend', note, deadline }, user, {
             version: r.version,
             onError: (err) => (message = err.message),
           });
       if (!ok) failed[r.key] = message || 'Không mở hạn được';
     }
-    setErrors(failed);
-    setSelected(new Set(Object.keys(failed)));
-    setTarget(null);
+    if (active.current) {
+      setErrors(failed);
+      setSelected(new Set(Object.keys(failed)));
+      setTarget(null);
+      board.reload({ silent: true });
+    }
   };
 
   const overdueTab = tab === 'overdue';
@@ -99,24 +126,12 @@ export default function OverduePlansPage() {
                 value={tab}
                 onChange={(e) => {
                   setTab(e.target.value);
+                  setPage(1);
                   setSelected(new Set());
                 }}
               >
                 <option value="overdue">Đang quá hạn ({count('overdue')})</option>
                 <option value="extended">Đã mở hạn ({count('extended')})</option>
-              </SelectField>
-            </div>
-            <div className="field">
-              <label className="field__label" htmlFor={`${id}-deadline-kind`}>
-                Loại quá hạn
-              </label>
-              <SelectField id={`${id}-deadline-kind`} value={filter.deadlineKind} onChange={(e) => setF({ deadlineKind: e.target.value })}>
-                <option value="">Tất cả</option>
-                {Object.entries(OVERDUE_DEADLINE_LABEL).map(([kind, label]) => (
-                  <option key={kind} value={kind}>
-                    {label}
-                  </option>
-                ))}
               </SelectField>
             </div>
             <div className="field">
@@ -202,7 +217,13 @@ export default function OverduePlansPage() {
                 <span className="muted text-sm" role="status">
                   Đã chọn {picked.length} kế hoạch
                 </span>
-                <Button variant="outline-primary" size="sm" disabled={!picked.length} onClick={() => setTarget(picked)}>
+                <Button
+                  variant="outline-primary"
+                  size="sm"
+                  data-testid="overdue-plans-extend-selected"
+                  disabled={!picked.length}
+                  onClick={() => setTarget(picked)}
+                >
                   Mở hạn{picked.length ? ` (${picked.length})` : ''}
                 </Button>
               </div>
@@ -214,7 +235,11 @@ export default function OverduePlansPage() {
             )}
           </div>
         )}
-        {shown.length === 0 ? (
+        {board.error ? (
+          <ErrorState error={board.error} onRetry={board.reload} />
+        ) : board.initialLoading ? (
+          <LoadingState />
+        ) : shown.length === 0 ? (
           <EmptyState title={overdueTab ? 'Chưa có kế hoạch quá hạn' : 'Chưa mở hạn kế hoạch nào'} />
         ) : (
           <div className="ga-overdue-table">
@@ -235,9 +260,8 @@ export default function OverduePlansPage() {
                     <th>Lớp</th>
                     <th>Loại</th>
                     <th>Tên</th>
-                    <th>Loại quá hạn</th>
                     <th>{overdueTab ? 'Hạn' : 'Đã mở hạn tới'}</th>
-                    <th>{overdueTab ? 'Số ngày quá hạn' : 'Người mở · lý do'}</th>
+                    {!overdueTab && <th>Người mở · lý do</th>}
                     <th className="center">Trạng thái</th>
                     <th className="cell--actions">Thao tác</th>
                   </tr>
@@ -263,15 +287,14 @@ export default function OverduePlansPage() {
                           {errors[r.key] && <p className="field__error">{errors[r.key]}</p>}
                         </div>
                       </td>
-                      <td>{OVERDUE_DEADLINE_LABEL[overdueTab ? r.deadlineKind : r.extensionKind]}</td>
                       <td>{fmtDate(overdueTab ? r.deadline : r.extension?.deadline)}</td>
-                      <td>
-                        {overdueTab
-                          ? (r.daysOverdue ?? '—')
-                          : [r.extension?.by, r.extension?.at && fmtDateTime(r.extension.at), r.extension?.note]
-                              .filter(Boolean)
-                              .join(' · ') || '—'}
-                      </td>
+                      {!overdueTab && (
+                        <td>
+                          {[r.extension?.by, r.extension?.at && fmtDateTime(r.extension.at), r.extension?.note]
+                            .filter(Boolean)
+                            .join(' · ') || '—'}
+                        </td>
+                      )}
                       <td className="center">
                         {r.planId ? (
                           <YearPlanStatusBadge status={r.status} doc={r.doc} />
@@ -281,7 +304,7 @@ export default function OverduePlansPage() {
                       </td>
                       <td className="cell--actions">
                         <div className="row gap-2">
-                          <Link className="btn btn--sm btn--outline-primary" to={linkOf(r)}>
+                          <Link className="btn btn--sm btn--outline-primary" data-testid="overdue-plans-view" to={viewPathOf(r)}>
                             <Eye size={16} aria-hidden /> Xem
                           </Link>
                           {overdueTab && (
@@ -296,23 +319,24 @@ export default function OverduePlansPage() {
                 </tbody>
               </table>
             </div>
+            {total > PAGE_SIZE && (
+              <Pagination
+                page={page}
+                pageSize={PAGE_SIZE}
+                total={total}
+                onChange={(p) => {
+                  setPage(p);
+                  setSelected(new Set());
+                }}
+                unit="hồ sơ"
+              />
+            )}
           </div>
         )}
       </Card>
       {target && (
         <ExtendDeadlineModal
-          title={
-            target.every((r) => r.reviewLocked)
-              ? target.length > 1
-                ? `Mở lại hạn duyệt ${target.length} kế hoạch`
-                : `Mở lại hạn duyệt: ${target[0].title}`
-              : target.length > 1
-                ? `Mở hạn ${target.length} kế hoạch`
-                : `Mở hạn: ${target[0].title}`
-          }
-          confirmLabel={
-            target.every((r) => r.reviewLocked) ? 'Mở lại hạn duyệt' : target.some((r) => r.reviewLocked) ? 'Mở hạn' : 'Mở hạn gửi'
-          }
+          title={target.length > 1 ? `Mở hạn ${target.length} kế hoạch` : `Mở hạn: ${target[0].title}`}
           onClose={() => setTarget(null)}
           onConfirm={extend}
         />

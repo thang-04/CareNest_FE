@@ -8,6 +8,7 @@ import {
   FOOD_ORIGIN_LABELS,
   MICRONUTRIENTS,
 } from '@/models/menu-planning/menuPlanningConstants';
+import { DERIVED_NORM_KEYS } from '@/utils/menu-planning/nutritionSetup';
 import { applyReplacements, byId, missingPortionGroups, restrictedConflicts } from '@/utils/menu-planning/menuCalculations';
 
 /*
@@ -73,15 +74,18 @@ export const validateDish = (form, others = [], { requireGroups = null } = {}) =
   else if (form.name.trim().length > 100) e.name = 'Tên món tối đa 100 ký tự.';
   else if (others.some((d) => d.id !== form.id && sameName(d.name, form.name))) e.name = 'Đã có món cùng tên. Hãy xem món đã có.';
   if (!DISH_TYPE_LABELS[form.type]) e.type = REQUIRED;
+  // G94-379: giáo viên phải chọn ≥1 nhóm tuổi trước khi lưu (kiểu PMS)
+  if (!form.ageGroupIds?.length) e.ageGroupIds = 'Chọn ít nhất một nhóm tuổi.';
   const rows = form.ingredients || [];
   if (!rows.length) e.ingredients = 'Thêm ít nhất một thực phẩm cho món.';
   const badQty = (v) => !isNum(v) || Number(v) <= 0 || Number(v) > 1000;
+  const selectedGroups = Array.isArray(form.ageGroupIds) ? new Set(form.ageGroupIds) : null;
   rows.forEach((r, i) => {
     if (!r.foodId) e[`ing_${i}`] = 'Chọn thực phẩm.';
     else if (rows.findIndex((x) => x.foodId === r.foodId) !== i) e[`ing_${i}`] = 'Thực phẩm bị lặp, hãy gộp định lượng.';
     if (r.portions) {
       // Ô trống = nhóm tuổi chưa có định lượng (cảnh báo, không chặn lưu); ô đã nhập phải hợp lệ
-      const filled = Object.entries(r.portions).filter(([, v]) => v !== '' && v != null);
+      const filled = Object.entries(r.portions).filter(([ag, v]) => (!selectedGroups || selectedGroups.has(ag)) && v !== '' && v != null);
       filled.forEach(([ag, v]) => badQty(v) && (e[`ing_${i}_${ag}`] = 'Từ 0 đến 1000.'));
       if (!filled.length && !e[`ing_${i}`]) e[`ing_${i}`] = 'Nhập định lượng cho ít nhất một nhóm tuổi.';
     } else if (r.foodId && badQty(r.quantity)) e[`ing_${i}`] = 'Định lượng từ 0 đến 1000.';
@@ -133,7 +137,7 @@ const OPTIONAL_NORM_KEYS = ['animalProteinG', 'plantProteinG', 'animalLipidG', '
 
 /**
  * Thiết lập dinh dưỡng (hỗ trợ nhập liệu; BE kiểm tra lại). Khóa lỗi: effectiveFrom,
- * `${ageGroupId}.price|serviceFee`, `${ageGroupId}.meals`, `${ageGroupId}.meals.${i}.name|countAs`, `${ageGroupId}.norms.${key}`.
+ * `${ageGroupId}.price|serviceFee|budgetTolerancePct`, `${ageGroupId}.meals`, `${ageGroupId}.meals.${i}.name|countAs`, `${ageGroupId}.norms.${key}`.
  */
 /** opts.mealsReadOnly: bữa lấy từ Cấu hình trường (BE) nên không kiểm; opts.minDate: ngày hiệu lực sớm nhất của bản mới. */
 export const validateNutritionSetup = (form, today, { mealsReadOnly = false, minDate } = {}) => {
@@ -151,6 +155,8 @@ export const validateNutritionSetup = (form, today, { mealsReadOnly = false, min
     const fee = g.serviceFee === '' || g.serviceFee == null ? 0 : Number(g.serviceFee);
     if (!Number.isInteger(fee) || fee < 0) e[`${key}.serviceFee`] = 'Phí dịch vụ là số tiền không âm.';
     else if (isNum(g.price) && fee > Number(g.price)) e[`${key}.serviceFee`] = 'Phí dịch vụ không được lớn hơn giá suất ăn.';
+    const tolerance = g.budgetTolerancePct === '' || g.budgetTolerancePct == null ? 5 : Number(g.budgetTolerancePct);
+    if (!(tolerance >= 0 && tolerance <= 100)) e[`${key}.budgetTolerancePct`] = 'Biên tiền từ 0 đến 100%.';
     if (!mealsReadOnly) {
       if (base.some((code) => !meals.some((m) => m.code === code))) e[`${key}.meals`] = 'Không bỏ được bữa gốc của nhóm tuổi.';
       meals.forEach((m, i) => {
@@ -163,9 +169,17 @@ export const validateNutritionSetup = (form, today, { mealsReadOnly = false, min
     }
     const appliedError = appliedStructureError(g.applied, g.norms);
     if (appliedError) e[`${key}.applied`] = appliedError;
-    // Chuẩn tạm: để trống cả bốn = chưa nhập (chưa đánh giá); đã nhập thì phải đủ từng khoảng
     const blank = (v) => v === '' || v == null;
-    const norms = Object.entries(g.norms || {});
+    // Nhu cầu năng lượng cả ngày (BE NUT-25): để trống cả hai = chưa đặt; đã nhập thì đủ hai số, 0 < tối thiểu ≤ tối đa ≤ 5000
+    const [dailyMin, dailyMax] = g.dailyKcal || [];
+    if (!(blank(dailyMin) && blank(dailyMax))) {
+      if (!isNum(dailyMin) || !isNum(dailyMax)) e[`${key}.dailyKcal`] = 'Nhập đủ tối thiểu và tối đa.';
+      else if (Number(dailyMin) <= 0) e[`${key}.dailyKcal`] = 'Năng lượng phải lớn hơn 0.';
+      else if (Number(dailyMin) > Number(dailyMax)) e[`${key}.dailyKcal`] = 'Số đầu phải nhỏ hơn hoặc bằng số sau.';
+      else if (Number(dailyMax) > 5000) e[`${key}.dailyKcal`] = 'Tối đa 5000 kcal.';
+    }
+    // Năng lượng khuyến nghị và khoảng đạm/béo/đường do BE đặt (NUT-33) nên không kiểm ở đây
+    const norms = Object.entries(g.norms || {}).filter(([k]) => !DERIVED_NORM_KEYS.includes(k));
     if (norms.every(([, range]) => (range || []).every(blank))) return;
     const coreBlank = norms
       .filter(([k]) => !OPTIONAL_NORM_KEYS.includes(k) && !MICRONUTRIENTS.includes(k))
@@ -187,7 +201,6 @@ export const validateNutritionSetup = (form, today, { mealsReadOnly = false, min
       if (!isNum(min) || !isNum(max)) e[`${key}.norms.${k}`] = 'Nhập đủ hai số.';
       else if (Number(min) < 0 || Number(min) > Number(max)) e[`${key}.norms.${k}`] = 'Số đầu phải nhỏ hơn hoặc bằng số sau.';
       else if (PERCENT_KEYS.includes(k) && Number(max) > 100) e[`${key}.norms.${k}`] = 'Tỷ lệ tối đa 100%.';
-      else if (k === 'kcal' && Number(min) === 0) e[`${key}.norms.${k}`] = 'Năng lượng phải lớn hơn 0.';
     });
   });
   return e;

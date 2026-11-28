@@ -47,8 +47,8 @@ const pickGoals = (a) => Object.fromEntries(GOAL_LISTS.map((k) => [k, a[k] || []
 const blank = (v) => (v === '' || v === undefined ? null : v);
 
 export const createAssessmentBeApi = (client) => ({
-  // Lớp trong phạm vi người dùng (BE kèm teaches / canRecord / canUnlock); dùng chung danh sách lớp của điểm danh
-  getDailyAssessmentClasses: (schoolYear) => client.get('/attendance/classes', { params: { schoolYearId: schoolYear || undefined } }),
+  // Lớp trong phạm vi người dùng (BE kèm teaches / canRecord / canUnlock); xét quyền đánh giá độc lập với điểm danh
+  getDailyAssessmentClasses: (schoolYear) => client.get('/assessment/daily/classes', { params: { schoolYearId: schoolYear || undefined } }),
   getDailyAssessment: async ({ classId, date }) =>
     toDailySheet(await client.get(`/classes/${classId}/daily-assessment`, { params: { date: date || undefined } })),
   saveDailyGeneral: ({ classId, date, entries, classComment }) =>
@@ -70,6 +70,7 @@ export const createAssessmentBeApi = (client) => ({
           behaviorNote: e.behaviorNote || '',
           flag: e.flag ?? null,
           comment: e.comment ?? '',
+          ...(e.createOnly ? { createOnly: true } : {}),
         })),
       },
       { preserveEmptyStrings: ['classComment'] },
@@ -160,6 +161,8 @@ export const createAssessmentBeApi = (client) => ({
   getThemeEvaluation: ({ classId, themeId }) => client.get('/assessment/theme-evaluations', { params: { classId, themeId } }),
   saveThemeEvaluation: (body) => client.put('/assessment/theme-evaluations', body),
   confirmThemeEvaluation: (body) => client.post('/assessment/theme-evaluations/confirm', body),
+  // OBS-30: bảng tính lại để sửa bản đã xác nhận, xác nhận lại mới ghi
+  getThemeRevision: ({ classId, themeId }) => client.get('/assessment/theme-evaluations/revision', { params: { classId, themeId } }),
   // Nhận xét tuần theo trẻ (BE OBS-29): weekStart = thứ Hai; childId trống = cả lớp
   getWeeklyComments: ({ classId, weekStart }) =>
     client.get('/assessment/weekly-comments', { params: { classId, weekStart: weekStart || undefined } }),
@@ -216,22 +219,26 @@ export const createAssessmentBeApi = (client) => ({
     }),
   getEvaluation: (kind, id) => client.get(`/assessment/evaluations/${id}`),
   saveEvaluationDraft: (kind, id, content) => client.put(`/assessment/evaluations/${id}/content`, { content }),
-  confirmEvaluation: (kind, id, content) => client.post(`/assessment/evaluations/${id}/confirm`, { content }),
-  regenerateEvaluationDraft: (kind, id) => client.post(`/assessment/evaluations/${id}/redraft`),
+  // revision: { programCompleted, sheet } chỉ gửi khi xác nhận lại bản đã xác nhận
+  confirmEvaluation: (kind, id, content, _user, revision) => client.post(`/assessment/evaluations/${id}/confirm`, { content, ...revision }),
+  regenerateEvaluationDraft: (kind, id, _user, ai = false) =>
+    client.post(`/assessment/evaluations/${id}/redraft`, ai ? { ai: true } : undefined),
   markProgramCompletion: (id, completed) => client.put(`/assessment/evaluations/${id}/program-completion`, { completed }),
   // Phiếu đánh giá sự phát triển cuối năm (BE OBS-28)
   getSemesterAssessment: (params) => client.get('/assessment/semester-evaluations', { params }),
   saveSemesterAssessment: (body) => client.put('/assessment/semester-evaluations', body),
   confirmSemesterAssessment: (body) => client.post('/assessment/semester-evaluations/confirm', body),
+  getSemesterRevision: (params) => client.get('/assessment/semester-evaluations/revision', { params }),
   getYearEndSheet: (id) => client.get(`/assessment/evaluations/${id}/year-sheet`),
   saveYearEndSheet: (id, body) => client.put(`/assessment/evaluations/${id}/year-sheet`, body),
   // Hồ sơ / tiến độ phát triển: trẻ trong phạm vi của năm học, số liệu của trẻ theo khoảng ngày
   // Ghép điểm trường (tên đủ) và nhóm tuổi của lớp cho ô lọc; thiếu danh mục thì để trống, không chặn danh sách
-  getDevelopmentChildren: async ({ schoolYear, classId } = {}) => {
+  getDevelopmentChildren: async ({ schoolYear, classId } = {}, user) => {
     const [rows, classes, campuses, ageGroups] = await Promise.all([
       client.get('/assessment/children', { params: { schoolYearId: schoolYear || undefined, classId: classId || undefined } }),
       client.get('/assessment/theme-evaluations/classes', { params: { schoolYearId: schoolYear || undefined } }).catch(() => []),
-      client.get('/campuses', { params: { schoolYearId: schoolYear || undefined } }).catch(() => []),
+      // Chỉ HT/PHT đọc được danh mục điểm trường; GV để tên trống (màn không lọc điểm trường)
+      isLeader(user) ? client.get('/campuses', { params: { schoolYearId: schoolYear || undefined } }).catch(() => []) : [],
       client.get('/age-groups').catch(() => []),
     ]);
     const classOf = new Map(classes.map((c) => [String(c.classId), c]));
@@ -246,13 +253,17 @@ export const createAssessmentBeApi = (client) => ({
     });
   },
   getChildDevelopment: (childId, { start, end }) => client.get(`/assessment/children/${childId}/development`, { params: { start, end } }),
+  // Lịch sử ở lớp cũ của trẻ chuyển đến (OBS-35), chỉ xem; khoảng tối đa 62 ngày do BE kiểm
+  getTransferredHistory: ({ classId, from, to }) =>
+    client.get(`/classes/${classId}/transferred-assessment-history`, { params: { from, to } }),
   // Trẻ lớp 5–6 tuổi hoàn thành chương trình (sổ chỉ đạo chuyên môn mục 8): ghép tên điểm trường
-  getProgramCompletion: async ({ schoolYear, campusId } = {}) => {
+  getProgramCompletion: async ({ schoolYear, campusId } = {}, user) => {
     const [report, campuses] = await Promise.all([
       client.get('/assessment/program-completion', {
         params: { schoolYearId: schoolYear || undefined, campusId: campusId || undefined },
       }),
-      client.get('/campuses', { params: { schoolYearId: schoolYear || undefined } }).catch(() => []),
+      // Màn của BGH (HT/PHT); GV không gọi danh mục điểm trường để tránh 403
+      isLeader(user) ? client.get('/campuses', { params: { schoolYearId: schoolYear || undefined } }).catch(() => []) : [],
     ]);
     return {
       ...report,
@@ -280,12 +291,12 @@ export const createAssessmentBeApi = (client) => ({
     client.post('/assessment/behaviour-tickets', { classId, type, periodStart, childIds }),
   getTicketSummary: ({ classId, month }) =>
     client.get('/assessment/behaviour-tickets/summary', { params: { classId, month: month || undefined } }),
-  getTicketOverview: async ({ schoolYear, month, campusId } = {}) => {
+  getTicketOverview: async ({ schoolYear, month, campusId } = {}, user) => {
     const [overview, campuses] = await Promise.all([
       client.get('/assessment/behaviour-tickets/overview', {
         params: { schoolYearId: schoolYear || undefined, month: month || undefined, campusId: campusId || undefined },
       }),
-      client.get('/campuses', { params: { schoolYearId: schoolYear || undefined } }).catch(() => []),
+      isLeader(user) ? client.get('/campuses', { params: { schoolYearId: schoolYear || undefined } }).catch(() => []) : [],
     ]);
     return {
       ...overview,
