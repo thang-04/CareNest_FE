@@ -112,7 +112,7 @@ Hiện trạng:
 | AC-2 | — | test URL chuyển hướng (node:test) | 1 | pass |
 | AC-3 | — | test đọc nguồn + trình duyệt `/menu/weekly` | 1 | test pass; trình duyệt chưa xem (cần BE) |
 | AC-4 | — | trình duyệt `/kitchen/forecast`, `/kitchen/market-day` | 1 | dự trù pass; market-day chưa xem |
-| AC-5 | NUT-07 | `week-options.test.mjs` + trình duyệt `/menu/nutrition` | 2 | chưa chạy |
+| AC-5 | NUT-07 | `week-options.test.mjs`, `menu-statistics.test.mjs` + trình duyệt | 2 | test pass; trình duyệt mock mở được Cân đối, bản nối BE chưa xem |
 
 ## Rủi ro & rollback
 | Rủi ro | Tác động | Giảm thiểu | Rollback |
@@ -130,9 +130,17 @@ Hiện trạng:
 - [x] Tự review: không placeholder · không mâu thuẫn · scope vừa 1 plan
 
 ## Progress log
-### 2026-11-28 — Phase 1 (chờ review)
-- Commit: chưa commit (worktree `CareNest_FE-market-nav`, nhánh tạo từ origin/dev 18b166b6)
-- Verify: `npm ci --legacy-peer-deps` (như CI) rồi `npm run verify` → 10 bộ test, 1791 pass, 0 fail; lint, prettier, check-design, check-api, build đạt
+### 2026-11-28 — Phase 1 (done)
+- Commit: `c58ddbc5` (worktree `CareNest_FE-market-nav`, nhánh tạo từ origin/dev 18b166b6)
+- Verify: `npm ci --legacy-peer-deps` (như CI) rồi `npm run verify` → 10 bộ test, 1991 pass, 0 fail; lint, prettier, check-design, check-api, build đạt
 - Trình duyệt (mock, PHT): sidebar có Cân đối khẩu phần, Đi chợ theo ngày sau Bản dự trù, không còn Định lượng & đi chợ; `/menu/statistics?week=&date=` chuyển sang `/menu/nutrition`; màn dự trù không còn nút Đi chợ theo ngày. Chưa xem được `/kitchen/market-day` và link ngày ở Kế hoạch tuần: bản mock đẩy về đăng nhập, link ngày chỉ có khi nối BE.
 - Khác plan: không cần sửa `src/utils/kitchen/breadcrumbs.js`; thêm test `tests/menu/legacy-statistics-redirect.test.mjs`; hàm `legacyStatisticsTarget` đặt ở `src/utils/menu-planning/menuStatistics.js`.
 - Tiếp: Phase 2 dọn code; cân nhắc tiêu đề bản demo `WeeklyForecastPage` "Dự trù & đi chợ".
+
+### 2026-11-28 — Phase 2 (chờ review)
+- Commit: chưa commit
+- Xóa: `MenuStatisticsPage.jsx`, `MenuStatisticsPrint.jsx`, `tests/menu/menu-statistics-export.test.mjs`; `MenuStatistics.jsx` chỉ còn `StatisticsNutrition`; `menuStatistics.js` còn `ageGroupOptions`, `dishNutrition`, `legacyStatisticsTarget`, `catalogIngredientLines`; bỏ CSS `td-stat-filters*`, `td-stat-group`, `td-stat-subtotal`, `td-stat-table__session`; `integrationModules` bỏ `/menu/statistics`.
+- Verify: `npm run verify` → 10 bộ test, 1981 pass, 0 fail; lint, prettier, check-design, check-api, build đạt
+- Trình duyệt (mock, PHT): sidebar mở Đi chợ theo ngày, mục được tô sáng sau Bản dự trù; màn báo lỗi tải dữ liệu vì mock không có BE (có từ trước).
+- Khác plan: `docs/architecture/ROUTE_MAP.md`, `docs/features/nutrition-inventory.md` không nhắc màn cũ nên không sửa. `src/styles/components.css:3059-3066` còn `.td-stat-filters` trong `:is(...)` — vùng dùng chung, để nguyên (vô hại).
+- Tiếp: user review; commit Phase 2; tiêu đề bản demo `WeeklyForecastPage` "Dự trù & đi chợ" chưa đổi.
